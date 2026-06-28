@@ -1,4 +1,3 @@
-import { IconFontFill } from '@/components/icon-font';
 import { RAGFlowAvatar } from '@/components/ragflow-avatar';
 import ThemeSwitch from '@/components/theme-switch';
 import { Button } from '@/components/ui/button';
@@ -15,9 +14,6 @@ import {
   Columns3Cog,
   LucideBox,
   LucideLogOut,
-  LucideMessagesSquare,
-  LucideServer,
-  LucideUnplug,
   LucideUser,
   LucideUsers,
 } from 'lucide-react';
@@ -27,25 +23,10 @@ import { useHandleMenuClick } from './hooks';
 
 const menuItems = (t: TFunction) => [
   {
-    icon: <LucideServer className="size-[1em]" />,
-    label: t('setting.dataSources'),
-    key: Routes.DataSource,
-  },
-  {
-    icon: <LucideMessagesSquare className="size-[1em]" />,
-    label: t('setting.chatChannels'),
-    key: Routes.ChatChannel,
-  },
-  {
     icon: <LucideBox className="size-[1em]" />,
     label: t('setting.model'),
     key: Routes.Model,
     'data-testid': 'settings-nav-model-providers',
-  },
-  {
-    icon: <IconFontFill name="mcp" className="size-[1em]" />,
-    label: 'MCP',
-    key: Routes.Mcp,
   },
   {
     icon: <Columns3Cog className="size-[1em]" />,
@@ -61,11 +42,6 @@ const menuItems = (t: TFunction) => [
     icon: <LucideUser className="size-[1em]" />,
     label: t('setting.profile'),
     key: Routes.Profile,
-  },
-  {
-    icon: <LucideUnplug className="size-[1em]" />,
-    label: t('setting.api'),
-    key: Routes.Api,
   },
 ];
 

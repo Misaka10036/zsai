@@ -175,7 +175,7 @@ export enum FileMimeType {
   Mdx = 'text/mdx',
 }
 
-export const Domain = 'cloud.ragflow.io';
+export const Domain = 'cloud.zsre.io';
 
 //#region file preview
 export const Images = [
@@ -206,7 +206,7 @@ export const SupportedPreviewDocumentTypes = [...ExceptiveType];
 //#endregion
 
 export enum Platform {
-  RAGFlow = 'RAGFlow',
+  RAGFlow = 'zsre',
   Dify = 'Dify',
   FastGPT = 'FastGPT',
   Coze = 'Coze',
