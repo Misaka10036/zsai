@@ -70,10 +70,8 @@ export function LayoutRecognizeFormField({
       title: x.label,
     }));
 
-    const modelTree = buildModelTree(
-      allAddedModels,
-      ['image2text', 'ocr'],
-      (node) => (
+    const modelTree = buildModelTree(allAddedModels, ['image2text', 'ocr'], {
+      renderLeafLabel: (node) => (
         <div className="flex justify-between items-center gap-2 w-full">
           <span className="flex items-center gap-1.5 truncate">
             {node.label}
@@ -83,7 +81,7 @@ export function LayoutRecognizeFormField({
           </span>
         </div>
       ),
-    );
+    });
 
     return [...prependNodes, ...modelTree];
   }, [allAddedModels, optionsWithoutLLM, t]);

@@ -89,6 +89,30 @@ export enum LLMFactory {
   FunASR = 'FunASR',
 }
 
+export const VisibleModelProviderSet = new Set<string>([
+  LLMFactory.TongYiQianWen,
+  LLMFactory.Moonshot,
+  LLMFactory.ZhipuAI,
+  LLMFactory.WenXinYiYan,
+  LLMFactory.Ollama,
+  LLMFactory.ModelScope,
+  LLMFactory.DeepSeek,
+  LLMFactory.VolcEngine,
+  LLMFactory.MiniMax,
+  LLMFactory.SILICONFLOW,
+  LLMFactory.TencentHunYuan,
+  LLMFactory.XunFeiSpark,
+  LLMFactory.BaiduYiYan,
+  LLMFactory.TencentCloud,
+  LLMFactory.YouDao,
+  LLMFactory.BAAI,
+  LLMFactory.MinerU,
+  LLMFactory.PaddleOCR,
+]);
+
+export const isVisibleModelProvider = (providerName?: string) =>
+  !!providerName && VisibleModelProviderSet.has(providerName);
+
 // Please lowercase the file name
 export const IconMap = {
   [LLMFactory.TongYiQianWen]: 'tongyi-qianwen',
