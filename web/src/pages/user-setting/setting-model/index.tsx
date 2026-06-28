@@ -1,5 +1,5 @@
 import Spotlight from '@/components/spotlight';
-import { LLMFactory } from '@/constants/llm';
+import { isVisibleModelProvider, LLMFactory } from '@/constants/llm';
 import {
   useAddInstanceModel,
   useAddProviderInstance,
@@ -213,6 +213,9 @@ const ModelProviders = () => {
 
   const handleAddModel = useCallback(
     (llmFactory: string) => {
+      if (!isVisibleModelProvider(llmFactory)) {
+        return;
+      }
       if (isLocalLlmFactory(llmFactory)) {
         setCurrentLlmFactory(llmFactory);
         setProviderVisible(true);

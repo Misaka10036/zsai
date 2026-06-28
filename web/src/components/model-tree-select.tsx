@@ -28,13 +28,19 @@ export const ModelTypeMap: Record<string, string[]> = {
 export function buildModelTree(
   allModels: IAddedModel[],
   modelTypes: string[],
-  renderLeafLabel?: (
-    node: TreeSelectNode,
-    model: IAddedModel,
-  ) => React.ReactNode,
+  options: {
+    providerFilter?: (providerName: string) => boolean;
+    renderLeafLabel?: (
+      node: TreeSelectNode,
+      model: IAddedModel,
+    ) => React.ReactNode;
+  } = {},
 ): TreeSelectNode[] {
-  const filtered = allModels.filter((m) =>
-    m.model_type?.some((t) => modelTypes.includes(t)),
+  const { providerFilter, renderLeafLabel } = options;
+  const filtered = allModels.filter(
+    (m) =>
+      (!providerFilter || providerFilter(m.provider_name)) &&
+      m.model_type?.some((t) => modelTypes.includes(t)),
   );
 
   const seenLeafIds = new Set<string>();
@@ -105,6 +111,7 @@ export interface ModelTreeSelectProps {
   allowClear?: boolean;
   className?: string;
   renderSelected?: (node: TreeSelectNode | undefined) => React.ReactNode;
+  providerFilter?: (providerName: string) => boolean;
   testId?: string;
 }
 
@@ -118,13 +125,14 @@ export function ModelTreeSelect({
   allowClear = false,
   className,
   renderSelected,
+  providerFilter,
   testId,
 }: ModelTreeSelectProps) {
   const { data: allAddedModels } = useFetchAllAddedModels();
 
   const treeData = useMemo(
-    () => buildModelTree(allAddedModels, modelTypes),
-    [allAddedModels, modelTypes],
+    () => buildModelTree(allAddedModels, modelTypes, { providerFilter }),
+    [allAddedModels, modelTypes, providerFilter],
   );
 
   const defaultRenderSelected = useCallback(

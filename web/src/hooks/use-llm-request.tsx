@@ -1,5 +1,5 @@
 import message from '@/components/ui/message';
-import { ModelTypeToField } from '@/constants/llm';
+import { isVisibleModelProvider, ModelTypeToField } from '@/constants/llm';
 import {
   IAddedModel,
   IAvailableProvider,
@@ -77,7 +77,9 @@ export const useFetchAvailableProviders = () => {
       const params: IListProvidersRequestParams = { available: true };
       const { data } = await llmService.listProviders({ params }, true);
 
-      return data?.data ?? [];
+      return (data?.data ?? []).filter((provider: IAvailableProvider) =>
+        isVisibleModelProvider(provider.name),
+      );
     },
   });
 
@@ -92,7 +94,9 @@ export const useFetchAddedProviders = () => {
     queryFn: async () => {
       const { data } = await llmService.listProviders({ params: {} }, true);
 
-      return data?.data ?? [];
+      return (data?.data ?? []).filter((provider: IAvailableProvider) =>
+        isVisibleModelProvider(provider.name),
+      );
     },
   });
 

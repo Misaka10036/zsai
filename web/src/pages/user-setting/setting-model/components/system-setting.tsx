@@ -4,7 +4,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { FieldToModelType } from '@/constants/llm';
+import { FieldToModelType, isVisibleModelProvider } from '@/constants/llm';
 import { useTranslate } from '@/hooks/common-hooks';
 import {
   useFetchDefaultModelDictionary,
@@ -56,6 +56,7 @@ function ModelFieldItem({
           value={value}
           onChange={(val) => onChange(id, val)}
           placeholder={t('selectModelPlaceholder')}
+          providerFilter={isVisibleModelProvider}
           showSearch
           allowClear={id !== 'llm_id'}
         />
