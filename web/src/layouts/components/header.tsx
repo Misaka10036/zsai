@@ -21,7 +21,7 @@ import { BellButton } from './bell-button';
 import GlobalNavbar from './global-navbar';
 import ThemeButton from './theme-button';
 
-import { supportedLanguages } from '@/locales/config';
+import { DEFAULT_LANGUAGE_CODE, supportedLanguages } from '@/locales/config';
 
 export function Header({
   className,
@@ -32,7 +32,7 @@ export function Header({
   const changeLanguage = useChangeLanguage();
 
   const {
-    data: { language = 'en', avatar, nickname },
+    data: { language = DEFAULT_LANGUAGE_CODE, avatar, nickname },
   } = useFetchUserInfo();
 
   const { data: tenantData } = useListTenant();
@@ -41,7 +41,9 @@ export function Header({
     [tenantData],
   );
 
-  const currentLanguage = supportedLanguages.find((x) => x.code === language);
+  const currentLanguage =
+    supportedLanguages.find((x) => x.code === language) ??
+    supportedLanguages[0];
 
   // const langItems = LanguageList.map((x) => ({
   //   key: x,

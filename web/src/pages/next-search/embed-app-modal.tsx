@@ -3,12 +3,9 @@ import message from '@/components/ui/message';
 import { Modal } from '@/components/ui/modal/modal';
 import { RAGFlowSelect } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import {
-  LanguageAbbreviation,
-  LanguageAbbreviationMap,
-} from '@/constants/common';
 import { useTranslate } from '@/hooks/common-hooks';
 import { useFetchTenantInfo } from '@/hooks/use-user-setting-request';
+import { supportedLanguages } from '@/locales/config';
 import { useCallback, useMemo, useState } from 'react';
 
 type IEmbedAppModalProps = {
@@ -30,9 +27,9 @@ const EmbedAppModal = (props: IEmbedAppModalProps) => {
   const [locale, setLocale] = useState('');
 
   const languageOptions = useMemo(() => {
-    return Object.values(LanguageAbbreviation).map((x) => ({
-      label: LanguageAbbreviationMap[x],
-      value: x,
+    return supportedLanguages.map((x) => ({
+      label: x.displayName,
+      value: x.code,
     }));
   }, []);
 
