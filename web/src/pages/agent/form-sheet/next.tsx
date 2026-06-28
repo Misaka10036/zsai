@@ -32,7 +32,7 @@ interface IProps {
 
 const EmptyContent = () => <div></div>;
 const SandboxQuickstartUrl =
-  'https://github.com/infiniflow/ragflow/blob/main/docs/guides/agent/agent_quickstarts/sandbox_quickstart.md';
+  'https://zsre.io/docs/dev/guides/agent/agent_quickstarts/sandbox_quickstart';
 
 const FormSheet = ({
   visible,

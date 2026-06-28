@@ -15,7 +15,7 @@ export const LocalLlmConfigs: Record<string, ProviderConfig> = {
     undefined,
     false,
     undefined,
-    'https://github.com/infiniflow/ragflow/blob/main/docs/guides/models/deploy_local_llm.mdx',
+    'https://zsre.io/docs/dev/guides/models/deploy_local_llm',
   ),
   [LLMFactory.Xinference]: buildLocalConfig(
     LLMFactory.Xinference,
@@ -69,7 +69,7 @@ export const LocalLlmConfigs: Record<string, ProviderConfig> = {
     undefined,
     false,
     undefined,
-    'https://www.ragcon.ai/erste-schritte-mit-ragflow/',
+    'https://www.ragcon.ai/erste-schritte-mit-zsre/',
   ),
   [LLMFactory.TogetherAI]: buildLocalConfig(
     LLMFactory.TogetherAI,

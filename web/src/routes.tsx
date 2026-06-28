@@ -261,7 +261,7 @@ const routeConfigOptions = [
           {
             path: Routes.UserSetting,
             element: (
-              <Navigate to={`/user-setting${Routes.DataSource}`} replace />
+              <Navigate to={`${Routes.UserSetting}${Routes.Model}`} replace />
             ),
           },
           {
@@ -284,20 +284,28 @@ const routeConfigOptions = [
           },
           {
             path: `${Routes.UserSetting}${Routes.Api}`,
-            Component: () => import('@/pages/user-setting/setting-api'),
+            element: (
+              <Navigate to={`${Routes.UserSetting}${Routes.Model}`} replace />
+            ),
           },
           {
             path: `${Routes.UserSetting}${Routes.Mcp}`,
-            Component: () => import('@/pages/user-setting/mcp'),
+            element: (
+              <Navigate to={`${Routes.UserSetting}${Routes.Model}`} replace />
+            ),
           },
 
           {
             path: `${Routes.UserSetting}${Routes.DataSource}`,
-            Component: () => import('@/pages/user-setting/data-source'),
+            element: (
+              <Navigate to={`${Routes.UserSetting}${Routes.Model}`} replace />
+            ),
           },
           {
             path: `${Routes.UserSetting}${Routes.ChatChannel}`,
-            Component: () => import('@/pages/user-setting/chat-channel'),
+            element: (
+              <Navigate to={`${Routes.UserSetting}${Routes.Model}`} replace />
+            ),
           },
         ],
       },
