@@ -95,19 +95,15 @@ export const VisibleModelProviderSet = new Set<string>([
   LLMFactory.ZhipuAI,
   LLMFactory.WenXinYiYan,
   LLMFactory.Ollama,
-  LLMFactory.ModelScope,
   LLMFactory.DeepSeek,
   LLMFactory.VolcEngine,
   LLMFactory.MiniMax,
-  LLMFactory.SILICONFLOW,
   LLMFactory.TencentHunYuan,
   LLMFactory.XunFeiSpark,
   LLMFactory.BaiduYiYan,
   LLMFactory.TencentCloud,
   LLMFactory.YouDao,
   LLMFactory.BAAI,
-  LLMFactory.MinerU,
-  LLMFactory.PaddleOCR,
 ]);
 
 export const isVisibleModelProvider = (providerName?: string) =>
