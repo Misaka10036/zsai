@@ -19,12 +19,9 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SharedFrom } from '@/constants/chat';
-import {
-  LanguageAbbreviation,
-  LanguageAbbreviationMap,
-  ThemeEnum,
-} from '@/constants/common';
+import { ThemeEnum } from '@/constants/common';
 import { IModalProps } from '@/interfaces/common';
+import { supportedLanguages } from '@/locales/config';
 import { Routes } from '@/routes';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { isEmpty, trim } from 'lodash';
@@ -142,9 +139,9 @@ function EmbedDialog({
   const values = useWatch({ control: form.control });
 
   const languageOptions = useMemo(() => {
-    return Object.values(LanguageAbbreviation).map((x) => ({
-      label: LanguageAbbreviationMap[x],
-      value: x,
+    return supportedLanguages.map((x) => ({
+      label: x.displayName,
+      value: x.code,
     }));
   }, []);
 

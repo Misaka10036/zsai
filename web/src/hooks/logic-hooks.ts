@@ -11,7 +11,7 @@ import {
   Message,
 } from '@/interfaces/database/chat';
 import { IKnowledgeFile } from '@/interfaces/database/dataset';
-import { changeLanguageAsync } from '@/locales/config';
+import { changeLanguageAsync, normalizeLanguageCode } from '@/locales/config';
 import api from '@/utils/api';
 import { getAuthorization } from '@/utils/authorization-util';
 import { buildMessageUuid } from '@/utils/chat';
@@ -53,8 +53,9 @@ export const useChangeLanguage = () => {
 
   const changeLanguage = useCallback(
     (lng: string) => {
-      changeLanguageAsync(lng);
-      saveSetting({ language: lng });
+      const normalizedLng = normalizeLanguageCode(lng);
+      changeLanguageAsync(normalizedLng);
+      saveSetting({ language: normalizedLng });
     },
     [saveSetting],
   );
