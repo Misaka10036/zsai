@@ -81,7 +81,7 @@ export function Header({
               aria-current={pathname === Routes.Root ? 'page' : undefined}
               className="flex size-10 shrink-0 items-center justify-center"
             >
-              <img src={'/logo.svg'} alt="zsre logo" className="size-10" />
+              <img src={'/logo.svg'} alt="智盛AI检索平台 logo" className="size-10" />
             </Link>
           </div>
         </div>
