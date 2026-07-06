@@ -1112,6 +1112,14 @@ class UserCanvas(DataBaseModel):
     tags = CharField(max_length=512, null=False, default="", help_text="Comma-separated tags for organizing agents", index=True)
     dsl = JSONField(null=True, default={})
 
+    # Schedule fields for timed workflow execution
+    schedule_config = JSONField(null=True, default=None, help_text='Schedule config: {"type":"cron","expr":"0 9 * * 1-5"} or {"type":"interval","seconds":3600}')
+    next_run_time = BigIntegerField(null=True, default=None, help_text="Next scheduled run Unix timestamp", index=True)
+    last_run_time = BigIntegerField(null=True, default=None, help_text="Last run Unix timestamp")
+    run_status = CharField(max_length=16, null=False, default="idle", help_text="idle|scheduled|running|error")
+    auto_run = BooleanField(null=False, default=False, help_text="Enable scheduled execution", index=True)
+    schedule_input = TextField(null=True, default=None, help_text="Input text for scheduled runs")
+
     class Meta:
         db_table = "user_canvas"
 
@@ -1805,6 +1813,13 @@ def migrate_db():
     alter_db_drop_index(migrator, "tenant_langfuse", "idx_tenant_langfuse_public_key")
     alter_db_drop_index(migrator, "tenant_langfuse", "idx_tenant_langfuse_host")
 
+    # Schedule fields for timed workflow execution
+    alter_db_add_column(migrator, "user_canvas", "schedule_config", JSONField(null=True, default=None, help_text='Schedule config: {"type":"cron","expr":"0 9 * * 1-5"} or {"type":"interval","seconds":3600}'))
+    alter_db_add_column(migrator, "user_canvas", "next_run_time", BigIntegerField(null=True, default=None, help_text="Next scheduled run Unix timestamp", index=True))
+    alter_db_add_column(migrator, "user_canvas", "last_run_time", BigIntegerField(null=True, default=None, help_text="Last run Unix timestamp"))
+    alter_db_add_column(migrator, "user_canvas", "run_status", CharField(max_length=16, null=False, default="idle", help_text="idle|scheduled|running|error"))
+    alter_db_add_column(migrator, "user_canvas", "auto_run", BooleanField(null=False, default=False, help_text="Enable scheduled execution", index=True))
+    alter_db_add_column(migrator, "user_canvas", "schedule_input", TextField(null=True, default=None, help_text="Input text for scheduled runs"))
     # Drop both the explicit "idx_*" name from later migrations AND the
     # Peewee-auto-derived "<table-as-classname>_<col1>_<col2>" name from the
     # original TenantModelInstance definition (commit dc4b82523). Databases

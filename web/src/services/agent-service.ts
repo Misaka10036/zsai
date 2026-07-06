@@ -234,4 +234,23 @@ export const uploadAgentFile = (agentId: string, data: FormData) => {
   });
 };
 
+export function getAgentSchedule(agentId: string) {
+  return request.get(api.getAgentSchedule(agentId));
+}
+
+export function updateAgentSchedule(
+  agentId: string,
+  params: {
+    auto_run: boolean;
+    schedule_config: {
+      type: 'cron' | 'interval';
+      expr?: string;
+      seconds?: number;
+    } | null;
+    schedule_input?: string;
+  },
+) {
+  return request.put(api.updateAgentSchedule(agentId), params);
+}
+
 export default agentService;

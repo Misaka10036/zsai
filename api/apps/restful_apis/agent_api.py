@@ -121,6 +121,18 @@ def _require_canvas_owner_sync(func):
     return wrapper
 
 
+def _require_canvas_owner_async(func):
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        owner_check = await thread_pool_exec(
+            UserCanvasService.query, user_id=kwargs.get('tenant_id'), id=kwargs.get('agent_id')
+        )
+        if not owner_check:
+            return get_json_result(data=False, message="Only the owner of the agent is authorized for this operation.", code=RetCode.OPERATING_ERROR)
+        return await func(*args, **kwargs)
+    return wrapper
+
+
 def _is_truthy(value):
     if isinstance(value, bool):
         return value
@@ -1110,6 +1122,60 @@ async def reset_agent(agent_id, tenant_id):
         return get_json_result(data=dsl)
     except Exception as exc:
         return server_error_response(exc)
+
+
+# --- Schedule endpoints ---
+
+@manager.route("/agents/<agent_id>/schedule", methods=["GET"])  # noqa: F821
+@login_required
+@add_tenant_id_to_kwargs
+@_require_canvas_access_sync
+def get_agent_schedule(agent_id, tenant_id):
+    """Get schedule configuration for an agent."""
+    schedule = UserCanvasService.get_schedule(agent_id)
+    if not schedule:
+        return get_json_result(data=False, message="Agent not found.", code=RetCode.NOT_FOUND)
+    return get_json_result(data=schedule)
+
+
+@manager.route("/agents/<agent_id>/schedule", methods=["PUT"])  # noqa: F821
+@login_required
+@add_tenant_id_to_kwargs
+@_require_canvas_owner_async
+async def update_agent_schedule(agent_id, tenant_id):
+    """Update schedule configuration for an agent (owner only)."""
+    req = await get_request_json()
+    auto_run = req.get("auto_run", False)
+    schedule_config = req.get("schedule_config")
+    schedule_input = req.get("schedule_input", "")
+
+    if auto_run:
+        if not schedule_config:
+            return get_json_result(data=False, message="schedule_config is required when auto_run is true.", code=RetCode.ARGUMENT_ERROR)
+        cfg_type = schedule_config.get("type")
+        if cfg_type not in ("cron", "interval"):
+            return get_json_result(data=False, message="schedule_config.type must be 'cron' or 'interval'.", code=RetCode.ARGUMENT_ERROR)
+        if cfg_type == "cron":
+            try:
+                from croniter import croniter
+                if not croniter.is_valid(schedule_config.get("expr", "")):
+                    return get_json_result(data=False, message="Invalid cron expression.", code=RetCode.ARGUMENT_ERROR)
+            except ImportError:
+                return get_json_result(data=False, message="croniter package is not installed.", code=RetCode.OPERATING_ERROR)
+        elif cfg_type == "interval":
+            seconds = schedule_config.get("seconds")
+            if not isinstance(seconds, int) or seconds < 60:
+                return get_json_result(data=False, message="interval seconds must be an integer >= 60.", code=RetCode.ARGUMENT_ERROR)
+
+    try:
+        ok = UserCanvasService.update_schedule(agent_id, auto_run, schedule_config, schedule_input)
+    except Exception as exc:
+        logging.error(f"Failed to update schedule for agent {agent_id}: {exc}")
+        return server_error_response(exc)
+
+    if not ok:
+        return get_json_result(data=False, message="Failed to update schedule.", code=RetCode.OPERATING_ERROR)
+    return get_json_result(data="success")
 
 
 @manager.route("/agents/rerun", methods=["POST"])  # noqa: F821

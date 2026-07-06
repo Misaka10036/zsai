@@ -16,7 +16,6 @@ import { TenantRole } from '@/pages/user-setting/constants';
 import { Routes } from '@/routes';
 import {
   LucideChevronDown,
-  LucideCircleHelp,
   LucideLanguages,
 } from 'lucide-react';
 import React, { useMemo } from 'react';
@@ -133,23 +132,7 @@ export function Header({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {!isCompact && (
-            <>
-              <Button
-                asLink
-                variant="ghost"
-                size="icon"
-                className="size-8"
-                to="https://zsre.io/docs/dev/category/user-guides"
-                target="_blank"
-                rel="noreferrer noopener"
-              >
-                <LucideCircleHelp className="size-[1em]" />
-              </Button>
-
-              {hasNotification && <BellButton className="!size-8" />}
-            </>
-          )}
+          {!isCompact && hasNotification && (`r`n            <BellButton className="!size-8" />`r`n          )}
 
           <ThemeButton className={cn(!isCompact && '!size-8')} />
 
@@ -185,9 +168,6 @@ export function Header({
           <Button variant="ghost" className="size-auto gap-1 px-4">
             {currentLanguage?.displayName}
             <LucideChevronDown className="size-[1em]" />
-          </Button>
-          <Button variant="ghost" size="icon" className="size-8">
-            <LucideCircleHelp className="size-[1em]" />
           </Button>
           <ThemeButton className="!size-8" />
           {hasNotification && <BellButton className="!size-8" />}
