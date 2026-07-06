@@ -14,7 +14,7 @@ import {
 import { cn } from '@/lib/utils';
 import { TenantRole } from '@/pages/user-setting/constants';
 import { Routes } from '@/routes';
-import { LucideChevronDown, LucideCircleHelp } from 'lucide-react';
+import { LucideChevronDown } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { Link, useLocation } from 'react-router';
 import { BellButton } from './bell-button';
@@ -97,17 +97,6 @@ export function Header({
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
-
-        <Button
-          asLink
-          variant="ghost"
-          size="icon"
-          to="https://zsre.io/docs/dev/category/user-guides"
-          target="_blank"
-          rel="noreferrer noopener"
-        >
-          <LucideCircleHelp className="size-[1em]" />
-        </Button>
 
         <ThemeButton />
 

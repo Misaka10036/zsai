@@ -309,6 +309,59 @@ class UserCanvasService(CommonService):
 
         return cvs, dsl
 
+    @classmethod
+    @DB.connection_context()
+    def get_schedule(cls, canvas_id):
+        """Get schedule configuration for an agent."""
+        canvas = cls.model.get_or_none(cls.model.id == canvas_id)
+        if not canvas:
+            return None
+        return {
+            "auto_run": canvas.auto_run,
+            "schedule_config": canvas.schedule_config,
+            "schedule_input": canvas.schedule_input,
+            "next_run_time": canvas.next_run_time,
+            "last_run_time": canvas.last_run_time,
+            "run_status": canvas.run_status,
+        }
+
+    @classmethod
+    @DB.connection_context()
+    def update_schedule(cls, canvas_id, auto_run, schedule_config=None, schedule_input=None):
+        """Update schedule configuration and compute next_run_time."""
+        update_fields = {
+            cls.model.auto_run: auto_run,
+            cls.model.schedule_config: schedule_config,
+            cls.model.schedule_input: schedule_input,
+        }
+        if auto_run and schedule_config:
+            update_fields[cls.model.next_run_time] = calc_next_run_time(schedule_config)
+            update_fields[cls.model.run_status] = "scheduled"
+        else:
+            update_fields[cls.model.next_run_time] = None
+            update_fields[cls.model.run_status] = "idle"
+
+        rows = cls.model.update(update_fields).where(cls.model.id == canvas_id).execute()
+        return rows > 0
+
+
+def calc_next_run_time(schedule_config):
+    """Compute the next run Unix timestamp from a schedule config dict."""
+    from datetime import datetime, timezone
+
+    cfg_type = schedule_config.get("type")
+    if cfg_type == "cron":
+        from croniter import croniter
+        now = datetime.now(timezone.utc)
+        cron = croniter(schedule_config["expr"], now)
+        return int(cron.get_next(float))
+    elif cfg_type == "interval":
+        seconds = schedule_config.get("seconds", 3600)
+        if seconds < 60:
+            seconds = 60
+        return int(time.time()) + seconds
+    raise ValueError(f"Unknown schedule type: {cfg_type}")
+
 
 async def completion(tenant_id, agent_id, session_id=None, **kwargs):
     query = kwargs.get("query", "") or kwargs.get("question", "")

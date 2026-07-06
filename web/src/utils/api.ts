@@ -283,6 +283,8 @@ export default {
   downloadFile: `${restAPIv1}/agents/download`,
   testWebhook: (id: string) => `${restAPIv1}/agents/${id}/webhook/test`,
   fetchWebhookTrace: (id: string) => `${restAPIv1}/agents/${id}/webhook/logs`,
+  getAgentSchedule: (id: string) => `${restAPIv1}/agents/${id}/schedule`,
+  updateAgentSchedule: (id: string) => `${restAPIv1}/agents/${id}/schedule`,
 
   // explore
 

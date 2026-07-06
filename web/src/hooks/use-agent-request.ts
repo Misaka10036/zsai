@@ -29,7 +29,9 @@ import agentService, {
   fetchSharedTrace,
   fetchTrace,
   fetchWebhookTrace,
+  getAgentSchedule,
   updateAgent,
+  updateAgentSchedule,
   updateAgentTags,
   uploadAgentFile,
 } from '@/services/agent-service';
@@ -77,6 +79,8 @@ export const enum AgentApiAction {
   FetchSharedAgent = 'fetchSharedAgent',
   FetchAgentTags = 'fetchAgentTags',
   UpdateAgentTags = 'updateAgentTags',
+  FetchAgentSchedule = 'fetchAgentSchedule',
+  UpdateAgentSchedule = 'updateAgentSchedule',
 }
 
 export const useFetchAgentTemplates = () => {
@@ -1046,6 +1050,54 @@ export function useFetchSessionManually() {
   });
 
   return { data, loading, fetchSessionManually: mutateAsync };
+}
+
+export function useFetchAgentSchedule(agentId: string) {
+  return useQuery({
+    queryKey: [AgentApiAction.FetchAgentSchedule, agentId],
+    queryFn: async () => {
+      const { data } = await getAgentSchedule(agentId);
+      return data.code === 0 ? data.data : null;
+    },
+    enabled: !!agentId,
+  });
+}
+
+export function useUpdateAgentSchedule() {
+  const queryClient = useQueryClient();
+
+  const {
+    data,
+    isPending: loading,
+    mutateAsync,
+  } = useMutation({
+    mutationKey: [AgentApiAction.UpdateAgentSchedule],
+    mutationFn: async (params: {
+      agentId: string;
+      auto_run: boolean;
+      schedule_config: {
+        type: 'cron' | 'interval';
+        expr?: string;
+        seconds?: number;
+      } | null;
+      schedule_input?: string;
+    }) => {
+      const { agentId, ...body } = params;
+      const { data } = await updateAgentSchedule(agentId, body);
+      if (data.code === 0) {
+        message.success(i18n.t('flow.schedule.saveSuccess'));
+        queryClient.invalidateQueries({
+          queryKey: [AgentApiAction.FetchAgentSchedule, agentId],
+        });
+        queryClient.invalidateQueries({
+          queryKey: [AgentApiAction.FetchAgentDetail, agentId],
+        });
+      }
+      return data;
+    },
+  });
+
+  return { data, loading, updateAgentSchedule: mutateAsync };
 }
 
 export const useExportAgentLog = () => {

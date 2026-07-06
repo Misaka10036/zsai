@@ -29,6 +29,7 @@ import { ReactFlowProvider } from '@xyflow/react';
 import {
   ChevronDown,
   CirclePlay,
+  Clock,
   Compass,
   History,
   LaptopMinimalCheck,
@@ -65,6 +66,7 @@ import {
 } from './hooks/use-save-graph';
 import { PipelineLogSheet } from './pipeline-log-sheet';
 import PipelineRunSheet from './pipeline-run-sheet';
+import { ScheduleSheet } from './schedule-sheet';
 import { SettingDialog } from './setting-dialog';
 import useGraphStore from './store';
 import { useAgentHistoryManager } from './use-agent-history-manager';
@@ -160,6 +162,12 @@ export default function Agent() {
     visible: globalParamSheetVisible,
     showModal: showGlobalParamSheet,
     hideModal: hideGlobalParamSheet,
+  } = useSetModalState();
+
+  const {
+    visible: scheduleSheetVisible,
+    showModal: showScheduleSheet,
+    hideModal: hideScheduleSheet,
   } = useSetModalState();
 
   const {
@@ -343,6 +351,11 @@ export default function Agent() {
                 <Settings />
                 {t('flow.setting')}
               </AgentDropdownMenuItem>
+              <DropdownMenuSeparator />
+              <AgentDropdownMenuItem onClick={showScheduleSheet}>
+                <Clock />
+                {t('flow.schedule.menuItem')}
+              </AgentDropdownMenuItem>
               {isPipeline ||
                 (location.hostname !== 'cloud.zsre.io' && (
                   <>
@@ -415,6 +428,7 @@ export default function Agent() {
       {webhookTestSheetVisible && (
         <WebhookSheet hideModal={hideWebhookTestSheet}></WebhookSheet>
       )}
+      {scheduleSheetVisible && <ScheduleSheet hideModal={hideScheduleSheet} />}
     </section>
   );
 }
