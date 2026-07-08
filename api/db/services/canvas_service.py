@@ -334,22 +334,10 @@ class UserCanvasService(CommonService):
         return rows > 0
 
 
-def calc_next_run_time(schedule_config):
-    """Compute the next run Unix timestamp from a schedule config dict."""
-    from datetime import datetime, timezone
+def calc_next_run_time(schedule_config, now=None):
+    from api.db.services.schedule_time import calc_next_run_time as _calc_next_run_time
 
-    cfg_type = schedule_config.get("type")
-    if cfg_type == "cron":
-        from croniter import croniter
-        now = datetime.now(timezone.utc)
-        cron = croniter(schedule_config["expr"], now)
-        return int(cron.get_next(float))
-    elif cfg_type == "interval":
-        seconds = schedule_config.get("seconds", 3600)
-        if seconds < 60:
-            seconds = 60
-        return int(time.time()) + seconds
-    raise ValueError(f"Unknown schedule type: {cfg_type}")
+    return _calc_next_run_time(schedule_config, now=now)
 
 
 async def completion(tenant_id, agent_id, session_id=None, **kwargs):

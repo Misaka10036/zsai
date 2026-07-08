@@ -16,6 +16,7 @@
 
 print("Start RAGFlow server...")
 
+import asyncio
 import time
 
 start_ts = time.time()
@@ -73,23 +74,41 @@ def update_progress():
 
 def agent_schedule_loop():
     """Background thread: poll for due scheduled agents and execute them."""
-    from api.db.services.canvas_service import UserCanvasService, calc_next_run_time
-    from agent.canvas import Canvas
+    from api.db import CanvasCategory
+    from api.db.services.agent_schedule_service import (
+        AGENT_SCHEDULE_STALE_SECONDS,
+        build_schedule_update_after_run,
+        drain_scheduled_agent,
+        is_stale_running_schedule,
+    )
+    from api.db.services.canvas_service import UserCanvasService
 
     while not stop_event.is_set():
         try:
             now = int(time.time())
+            not_running = UserCanvasService.model.run_status != "running"
+            stale_running = (
+                (UserCanvasService.model.run_status == "running")
+                & (UserCanvasService.model.next_run_time <= now - AGENT_SCHEDULE_STALE_SECONDS)
+            )
             due = list(
                 UserCanvasService.model.select().where(
                     UserCanvasService.model.auto_run == True,  # noqa: E712
                     UserCanvasService.model.next_run_time <= now,
-                    UserCanvasService.model.run_status != "running",
-                    UserCanvasService.model.canvas_category == "agent_canvas",
+                    not_running | stale_running,
+                    UserCanvasService.model.canvas_category == CanvasCategory.Agent,
                 )
             )
             for canvas_row in due:
                 lock = None
                 try:
+                    if is_stale_running_schedule(canvas_row, now=now):
+                        logging.warning(
+                            "Recovering stale scheduled agent run: agent_id=%s next_run_time=%s",
+                            canvas_row.id,
+                            canvas_row.next_run_time,
+                        )
+
                     lock = RedisDistributedLock(
                         f"agent_schedule:{canvas_row.id}",
                         lock_value=str(uuid.uuid4()),
@@ -102,25 +121,33 @@ def agent_schedule_loop():
                         run_status="running",
                     ).where(UserCanvasService.model.id == canvas_row.id).execute()
 
-                    c = Canvas(canvas_row.dsl, canvas_row.id)
-                    for ans in c.run(canvas_row.schedule_input or ""):
-                        # Drain the generator; we only care about side effects
-                        if stop_event.is_set():
-                            break
-
-                    new_next = calc_next_run_time(canvas_row.schedule_config)
-                    UserCanvasService.model.update(
+                    asyncio.run(
+                        drain_scheduled_agent(canvas_row, stop_event=stop_event)
+                    )
+                    update_fields = build_schedule_update_after_run(
+                        canvas_row,
+                        now=now,
                         run_status="scheduled",
-                        last_run_time=now,
-                        next_run_time=new_next,
+                    )
+                    UserCanvasService.model.update(
+                        **update_fields,
                     ).where(UserCanvasService.model.id == canvas_row.id).execute()
 
-                    logging.info(f"Agent {canvas_row.id} scheduled run completed, next at {new_next}")
+                    logging.info(
+                        "Agent %s scheduled run completed, next at %s",
+                        canvas_row.id,
+                        update_fields["next_run_time"],
+                    )
                 except Exception as exc:
                     logging.error(f"Agent schedule run failed for {canvas_row.id}: {exc}")
                     try:
-                        UserCanvasService.model.update(
+                        update_fields = build_schedule_update_after_run(
+                            canvas_row,
+                            now=now,
                             run_status="error",
+                        )
+                        UserCanvasService.model.update(
+                            **update_fields,
                         ).where(UserCanvasService.model.id == canvas_row.id).execute()
                     except Exception:
                         pass

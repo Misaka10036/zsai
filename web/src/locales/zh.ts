@@ -2695,6 +2695,8 @@ NER：使用 spaCy NER 和基于规则的关键词提取来抽取实体和关系
         cronExpression: 'Cron 表达式',
         cronHelp:
           '标准5字段格式: 分 时 日 月 周（如 0 9 * * 1-5 表示工作日9点）',
+        timezone: '时区',
+        timezoneHelp: 'Cron 调度会按此时区计算',
         nextRunTime: '下次执行时间',
         lastRunTime: '上次执行时间',
         runStatus: '运行状态',

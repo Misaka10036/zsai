@@ -1149,6 +1149,16 @@ async def update_agent_schedule(agent_id, tenant_id):
     schedule_config = req.get("schedule_config")
     schedule_input = req.get("schedule_input", "")
 
+    exists, canvas = await thread_pool_exec(UserCanvasService.get_by_id, agent_id)
+    if not exists:
+        return get_json_result(data=False, message="Agent not found.", code=RetCode.NOT_FOUND)
+    if canvas.canvas_category != CanvasCategory.Agent:
+        return get_json_result(
+            data=False,
+            message="Scheduled runs are only supported for agent canvases.",
+            code=RetCode.OPERATING_ERROR,
+        )
+
     if auto_run:
         if not schedule_config:
             return get_json_result(data=False, message="schedule_config is required when auto_run is true.", code=RetCode.ARGUMENT_ERROR)
@@ -1162,6 +1172,13 @@ async def update_agent_schedule(agent_id, tenant_id):
                     return get_json_result(data=False, message="Invalid cron expression.", code=RetCode.ARGUMENT_ERROR)
             except ImportError:
                 return get_json_result(data=False, message="croniter package is not installed.", code=RetCode.OPERATING_ERROR)
+            if schedule_config.get("tz"):
+                try:
+                    from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+                    ZoneInfo(schedule_config["tz"])
+                except ZoneInfoNotFoundError:
+                    return get_json_result(data=False, message="Invalid timezone.", code=RetCode.ARGUMENT_ERROR)
         elif cfg_type == "interval":
             seconds = schedule_config.get("seconds")
             if not isinstance(seconds, int) or seconds < 60:
