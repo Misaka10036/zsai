@@ -2589,6 +2589,8 @@ This delimiter is used to split the input text into several text pieces echo of 
         cronExpression: 'Cron expression',
         cronHelp:
           'Standard 5-field format: min hour day month weekday (e.g. 0 9 * * 1-5 for weekdays at 9am)',
+        timezone: 'Timezone',
+        timezoneHelp: 'Cron schedules are evaluated in this timezone',
         nextRunTime: 'Next run time',
         lastRunTime: 'Last run time',
         runStatus: 'Run status',

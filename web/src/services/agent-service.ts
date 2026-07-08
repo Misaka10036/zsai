@@ -212,6 +212,7 @@ export function updateAgentSchedule(
       type: 'cron' | 'interval';
       expr?: string;
       seconds?: number;
+      tz?: string;
     } | null;
     schedule_input?: string;
   },

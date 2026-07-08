@@ -351,11 +351,15 @@ export default function Agent() {
                 <Settings />
                 {t('flow.setting')}
               </AgentDropdownMenuItem>
-              <DropdownMenuSeparator />
-              <AgentDropdownMenuItem onClick={showScheduleSheet}>
-                <Clock />
-                {t('flow.schedule.menuItem')}
-              </AgentDropdownMenuItem>
+              {isPipeline || (
+                <>
+                  <DropdownMenuSeparator />
+                  <AgentDropdownMenuItem onClick={showScheduleSheet}>
+                    <Clock />
+                    {t('flow.schedule.menuItem')}
+                  </AgentDropdownMenuItem>
+                </>
+              )}
               {isPipeline ||
                 (location.hostname !== 'cloud.zsre.io' && (
                   <>

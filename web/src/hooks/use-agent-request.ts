@@ -1079,6 +1079,7 @@ export function useUpdateAgentSchedule() {
         type: 'cron' | 'interval';
         expr?: string;
         seconds?: number;
+        tz?: string;
       } | null;
       schedule_input?: string;
     }) => {
