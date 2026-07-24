@@ -57,26 +57,17 @@ const AvailableSourceCard = ({
   );
 };
 
-// Only show these data sources in the available list
-const ALLOWED_DATA_SOURCES: string[] = [
-  'seafile',
-  'dingtalk_ai_table',
-  'onedrive',
-];
-
 const DataSource = () => {
   const { t } = useTranslation();
   const { dataSourceInfo } = useDataSourceInfo();
-  const dataSourceTemplates = Object.values(DataSourceKey)
-    .filter((id) => ALLOWED_DATA_SOURCES.includes(id))
-    .map((id) => {
-      return {
-        id,
-        name: dataSourceInfo[id].name,
-        description: dataSourceInfo[id].description,
-        icon: dataSourceInfo[id].icon,
-      };
-    });
+  const dataSourceTemplates = Object.values(DataSourceKey).map((id) => {
+    return {
+      id,
+      name: dataSourceInfo[id].name,
+      description: dataSourceInfo[id].description,
+      icon: dataSourceInfo[id].icon,
+    };
+  });
 
   // useListTenantUser();
   const { categorizedList } = useListDataSource();

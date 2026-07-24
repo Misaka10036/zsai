@@ -76,6 +76,9 @@ type DocEngine interface {
 	// GetType returns the engine type
 	GetType() string
 
+	// SupportsPageRank reports whether the engine supports dataset-level pagerank.
+	SupportsPageRank() bool
+
 	// FilterDocIdsByMetaPushdown runs a metadata filter directly against
 	// the doc metadata index, returning matching doc IDs or nil if push-down
 	// is not supported (caller should fall back to in-memory filtering).
@@ -99,4 +102,5 @@ type MessageQueue interface {
 	GetMessages(messageCount int) ([]common.TaskHandle, error)
 	ListMessages(messageType string, pending bool) ([]map[string]string, error)
 	ShowMessageQueue() (map[string]string, error)
+	CheckStatus() string
 }

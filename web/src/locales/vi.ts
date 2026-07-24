@@ -40,7 +40,7 @@ export default {
       spanish: 'Tiếng Tây Ban Nha',
       japanese: 'Tiếng Nhật',
       embedIntoSite: 'Nhúng vào trang web',
-      openInNewTab: 'Chat trong tab mới',
+      openInNewTab: 'Mở trong tab mới',
       nextPage: 'Tới',
       previousPage: 'Lùi',
       owner: 'Chủ sở hữu',
@@ -111,15 +111,15 @@ export default {
       action: 'Hành động',
       parsingStatus: 'Trạng thái phân tích cú pháp',
       parsingStatusTip:
-        'Thời gian xử lý tài liệu thay đổi tùy theo nhiều yếu tố. Bật các tính năng như Knowledge Graph, RAPTOR, Trích xuất Câu hỏi Tự động hoặc Trích xuất Từ khóa Tự động sẽ làm tăng đáng kể thời gian xử lý. Nếu thanh tiến trình bị dừng, vui lòng tham khảo hai câu hỏi thường gặp sau: https://zsre.io/docs/dev/faq#why-does-my-document-parsing-stall-at-under-one-percent.',
+        'Thời gian xử lý tài liệu thay đổi tùy theo nhiều yếu tố. Bật các tính năng như Knowledge Graph, RAPTOR, Trích xuất Câu hỏi Tự động hoặc Trích xuất Từ khóa Tự động sẽ làm tăng đáng kể thời gian xử lý. Nếu thanh tiến trình bị dừng, vui lòng tham khảo hai câu hỏi thường gặp sau: https://ragflow.io/docs/dev/faq#why-does-my-document-parsing-stall-at-under-one-percent.',
       processBeginAt: 'Bắt đầu xử lý lúc',
       processDuration: 'Thời gian xử lý',
       progressMsg: 'Thông báo tiến trình',
       testingDescription:
-        'Thực hiện kiểm tra truy hồi để kiểm tra xem zsre có thể phục hồi nội dung mong muốn cho LLM không.Vui lòng lưu ý rằng các thay đổi được thực hiện ở đây sẽ không được lưu tự động. Nếu bạn điều chỉnh các cài đặt mặc định ở đây, chẳng hạn như trọng số tương tự của từ khóa, hãy đảm bảo rằng bạn cập nhật các cài đặt liên quan theo cách đồng bộ trong cài đặt trợ lý trò chuyện hoặc cài đặt toán tử thu hồi.',
+        'Thực hiện kiểm tra truy hồi để kiểm tra xem RAGFlow có thể phục hồi nội dung mong muốn cho LLM không.Vui lòng lưu ý rằng các thay đổi được thực hiện ở đây sẽ không được lưu tự động. Nếu bạn điều chỉnh các cài đặt mặc định ở đây, chẳng hạn như trọng số tương tự của từ khóa, hãy đảm bảo rằng bạn cập nhật các cài đặt liên quan theo cách đồng bộ trong cài đặt trợ lý trò chuyện hoặc cài đặt toán tử thu hồi.',
       similarityThreshold: 'Ngưỡng tương đồng',
       similarityThresholdTip:
-        'zsre sử dụng kết hợp giữa độ tương đồng từ khóa được trọng số và độ tương đồng vectơ cosin được trọng số hoặc kết hợp giữa độ tương đồng từ khóa được trọng số và điểm xếp hạng được tính lại trong quá trình truy hồi. Tham số này đặt ngưỡng cho sự tương đồng giữa truy vấn của người dùng và các khối. Bất kỳ khối nào có điểm tương đồng dưới ngưỡng này sẽ bị loại khỏi kết quả. Theo mặc định, ngưỡng được đặt thành 0,2. Điều đó có nghĩa là chỉ những đoạn có điểm tương đồng hỗn hợp từ 20 trở lên mới được truy xuất.',
+        'RAGFlow sử dụng kết hợp giữa độ tương đồng từ khóa được trọng số và độ tương đồng vectơ cosin được trọng số hoặc kết hợp giữa độ tương đồng từ khóa được trọng số và điểm xếp hạng được tính lại trong quá trình truy hồi. Tham số này đặt ngưỡng cho sự tương đồng giữa truy vấn của người dùng và các khối. Bất kỳ khối nào có điểm tương đồng dưới ngưỡng này sẽ bị loại khỏi kết quả. Theo mặc định, ngưỡng được đặt thành 0,2. Điều đó có nghĩa là chỉ những đoạn có điểm tương đồng hỗn hợp từ 20 trở lên mới được truy xuất.',
       vectorSimilarityWeight: 'Trọng số tương đồng từ khóa',
       vectorSimilarityWeightTip:
         'Cài đặt trọng số của độ tương đồng từ khóa trong điểm tương đồng kết hợp, được sử dụng với độ tương đồng vectơ cosin hoặc với điểm xếp hạng được tính lại. Tổng của hai trọng số phải bằng 1.0.',
@@ -148,7 +148,7 @@ export default {
       toMessage: 'Thiếu số trang kết thúc (được loại trừ)',
       layoutRecognize: 'Nhận dạng bố cục',
       layoutRecognizeTip:
-        'Sử dụng các mô hình trực quan để phân tích bố cục nhằm xác định tốt hơn cấu trúc tài liệu, tìm vị trí của tiêu đề, khối văn bản, hình ảnh và bảng. Nếu không có tính năng này, chỉ có thể lấy được văn bản thuần của PDF. Để biết thêm thông tin, hãy xem https://zsre.io/docs/dev/select_pdf_parser.',
+        'Sử dụng các mô hình trực quan để phân tích bố cục nhằm xác định tốt hơn cấu trúc tài liệu, tìm vị trí của tiêu đề, khối văn bản, hình ảnh và bảng. Nếu không có tính năng này, chỉ có thể lấy được văn bản thuần của PDF. Để biết thêm thông tin, hãy xem https://ragflow.io/docs/dev/select_pdf_parser.',
       taskPageSize: 'Kích thước trang tác vụ',
       taskPageSizeMessage: 'Vui lòng nhập kích thước trang tác vụ của bạn!',
       taskPageSizeTip: `Nếu sử dụng nhận dạng bố cục, tệp PDF sẽ được chia thành các nhóm trang liên tiếp. Phân tích bố cục sẽ được thực hiện song song giữa các nhóm để tăng tốc độ xử lý. 'Kích thước trang tác vụ' xác định kích thước của các nhóm. Kích thước trang càng lớn, khả năng chia tách văn bản liên tục giữa các trang thành các khối khác nhau càng thấp.`,
@@ -159,22 +159,22 @@ export default {
       changeSpecificCategory: 'Thay đổi danh mục cụ thể',
       uploadTitle: 'Nhấp hoặc kéo thả tệp vào khu vực này để tải lên',
       uploadDescription:
-        'zsre hỗ trợ tải lên tệp một lần hoặc theo lô. Đối với zsre triển khai cục bộ: giới hạn tổng kích thước tệp cho mỗi lần tải lên là 1GB, với giới hạn tải lên theo lô là 32 tệp. Không có giới hạn về tổng số tệp trên mỗi tài khoản. Đối với cloud.zsre.io: giới hạn tổng kích thước tệp cho mỗi lần tải lên là 10MB, với mỗi tệp không vượt quá 10MB và tối đa là 128 tệp trên mỗi tài khoản.',
+        'RAGFlow hỗ trợ tải lên tệp một lần hoặc theo lô. Đối với RAGFlow triển khai cục bộ: giới hạn tổng kích thước tệp cho mỗi lần tải lên là 1GB, với giới hạn tải lên theo lô là 32 tệp. Không có giới hạn về tổng số tệp trên mỗi tài khoản. Đối với cloud.ragflow.io: giới hạn tổng kích thước tệp cho mỗi lần tải lên là 10MB, với mỗi tệp không vượt quá 10MB và tối đa là 128 tệp trên mỗi tài khoản.',
       chunk: 'Khối',
       bulk: 'Hàng loạt',
       cancel: 'Hủy bỏ',
       rerankModel: 'Mô hình xếp hạng lại',
       rerankPlaceholder: 'Vui lòng chọn',
-      rerankTip: `Tùy chọn. Nếu để trống, zsre sẽ sử dụng kết hợp giữa độ tương đồng từ khóa có trọng số và độ tương đồng cosine vector có trọng số; nếu chọn mô hình rerank, điểm rerank có trọng số sẽ thay thế độ tương đồng cosine vector có trọng số. Xin lưu ý rằng việc sử dụng mô hình rerank sẽ làm tăng đáng kể thời gian phản hồi của hệ thống. Nếu bạn muốn sử dụng mô hình rerank, hãy đảm bảo sử dụng SaaS reranker; nếu bạn muốn sử dụng mô hình rerank triển khai cục bộ, hãy khởi động zsre bằng docker-compose-gpu.yml.`,
+      rerankTip: `Tùy chọn. Nếu để trống, RAGFlow sẽ sử dụng kết hợp giữa độ tương đồng từ khóa có trọng số và độ tương đồng cosine vector có trọng số; nếu chọn mô hình rerank, điểm rerank có trọng số sẽ thay thế độ tương đồng cosine vector có trọng số. Xin lưu ý rằng việc sử dụng mô hình rerank sẽ làm tăng đáng kể thời gian phản hồi của hệ thống. Nếu bạn muốn sử dụng mô hình rerank, hãy đảm bảo sử dụng SaaS reranker; nếu bạn muốn sử dụng mô hình rerank triển khai cục bộ, hãy khởi động RAGFlow bằng docker-compose-gpu.yml.`,
       topK: 'Top-K',
       topKTip: `Sử dụng cùng với Rerank model, thiết lập này xác định số lượng đoạn văn cần gửi đến mô hình reranking được chỉ định.`,
       delimiter: 'Dấu phân cách cho phân đoạn văn bản',
       html4excel: 'Excel sang HTML',
-      html4excelTip: `Sử dụng cùng với phương pháp cắt khúc General. Khi chưa được bật, tệp bảng tính (XLSX, XLS (Excel 97-2003)) sẽ được phân tích theo dòng thành các cặp khóa-giá trị. Khi bật, tệp bảng tính sẽ được phân tích thành bảng HTML. Nếu bảng gốc vượt quá 12 dòng, hệ thống sẽ tự động chia thành nhiều bảng HTML mỗi 12 dòng. Để biết thêm thông tin, vui lòng xem https://zsre.io/docs/dev/enable_excel2html.`,
+      html4excelTip: `Sử dụng cùng với phương pháp cắt khúc General. Khi chưa được bật, tệp bảng tính (XLSX, XLS (Excel 97-2003)) sẽ được phân tích theo dòng thành các cặp khóa-giá trị. Khi bật, tệp bảng tính sẽ được phân tích thành bảng HTML. Nếu bảng gốc vượt quá 12 dòng, hệ thống sẽ tự động chia thành nhiều bảng HTML mỗi 12 dòng. Để biết thêm thông tin, vui lòng xem https://ragflow.io/docs/dev/enable_excel2html.`,
       autoKeywords: 'Từ khóa tự động',
-      autoKeywordsTip: `Tự động trích xuất N từ khóa cho mỗi khối để tăng thứ hạng của chúng trong các truy vấn chứa các từ khóa đó. Lưu ý rằng các token bổ sung sẽ được tiêu thụ bởi mô hình trò chuyện được chỉ định trong "Cài đặt mô hình hệ thống". Bạn có thể kiểm tra hoặc cập nhật các từ khóa đã thêm cho một khối từ danh sách khối. Để biết chi tiết, vui lòng xem https://zsre.io/docs/dev/autokeyword_autoquestion.`,
+      autoKeywordsTip: `Tự động trích xuất N từ khóa cho mỗi khối để tăng thứ hạng của chúng trong các truy vấn chứa các từ khóa đó. Lưu ý rằng các token bổ sung sẽ được tiêu thụ bởi mô hình trò chuyện được chỉ định trong "Cài đặt mô hình hệ thống". Bạn có thể kiểm tra hoặc cập nhật các từ khóa đã thêm cho một khối từ danh sách khối. Để biết chi tiết, vui lòng xem https://ragflow.io/docs/dev/autokeyword_autoquestion.`,
       autoQuestions: 'Câu hỏi tự động',
-      autoQuestionsTip: `Để tăng điểm xếp hạng, hãy trích xuất N câu hỏi cho mỗi đoạn kiến thức bằng mô hình trò chuyện được xác định trong "Cài đặt mô hình hệ thống". Lưu ý rằng việc này sẽ tiêu tốn thêm token. Kết quả có thể được xem và chỉnh sửa trong danh sách các đoạn. Lỗi trích xuất câu hỏi sẽ không chặn quá trình phân đoạn; kết quả trống sẽ được thêm vào đoạn gốc. Để biết chi tiết, vui lòng xem https://zsre.io/docs/dev/autokeyword_autoquestion.`,
+      autoQuestionsTip: `Để tăng điểm xếp hạng, hãy trích xuất N câu hỏi cho mỗi đoạn kiến thức bằng mô hình trò chuyện được xác định trong "Cài đặt mô hình hệ thống". Lưu ý rằng việc này sẽ tiêu tốn thêm token. Kết quả có thể được xem và chỉnh sửa trong danh sách các đoạn. Lỗi trích xuất câu hỏi sẽ không chặn quá trình phân đoạn; kết quả trống sẽ được thêm vào đoạn gốc. Để biết chi tiết, vui lòng xem https://ragflow.io/docs/dev/autokeyword_autoquestion.`,
       delimiterTip: `Hỗ trợ nhiều ký tự phân cách, và các ký tự phân cách nhiều ký tự được bao bọc bởi dấu . Ví dụ: nếu được cấu hình như thế này: "##"; thì văn bản sẽ được phân tách bởi dấu xuống dòng, hai dấu # và dấu chấm phẩy, sau đó được lắp ráp theo kích thước của "số token". Thiết lập các dấu phân cách chỉ sau khi hiểu cơ chế phân đoạn và phân khối văn bản.`,
       redo: `Bạn có muốn xóa các đoạn {{chunkNum}} hiện có không?`,
       knowledgeGraph: 'Đồ thị tri thức',
@@ -303,7 +303,7 @@ export default {
       <p>Đảm bảo bạn đã đặt <b>Loại thực thể</b>.</p>`,
       useRaptor: 'Sử dụng RAPTOR để cải thiện truy xuất',
       useRaptorTip:
-        'Kích hoạt RAPTOR cho các tác vụ hỏi đáp đa bước. Xem chi tiết tại https://zsre.io/docs/dev/enable_raptor.',
+        'Kích hoạt RAPTOR cho các tác vụ hỏi đáp đa bước. Xem chi tiết tại https://ragflow.io/docs/dev/enable_raptor.',
       prompt: 'Nhắc nhở',
       promptTip:
         'Sử dụng lời nhắc hệ thống để mô tả nhiệm vụ cho LLM, chỉ định cách nó nên phản hồi và phác thảo các yêu cầu khác nhau. Lời nhắc hệ thống thường được sử dụng kết hợp với các khóa (biến), đóng vai trò là các đầu vào dữ liệu khác nhau cho LLM. Sử dụng dấu gạch chéo `/` hoặc nút (x) để hiển thị các khóa cần sử dụng.',
@@ -326,7 +326,7 @@ export default {
       entityTypes: 'Loại thực thể',
       vietnamese: 'Tiếng Việt',
       pageRank: 'Xếp hạng trang',
-      pageRankTip: `Bạn có thể gán điểm PageRank cao hơn cho các cơ sở kiến thức cụ thể trong quá trình truy xuất. Điểm tương ứng được cộng vào điểm tương đồng lai của các đoạn được truy xuất từ các cơ sở kiến thức này, làm tăng thứ hạng của chúng. Xem https://zsre.io/docs/dev/set_page_rank để biết thêm chi tiết.`,
+      pageRankTip: `Bạn có thể gán điểm PageRank cao hơn cho các cơ sở kiến thức cụ thể trong quá trình truy xuất. Điểm tương ứng được cộng vào điểm tương đồng lai của các đoạn được truy xuất từ các cơ sở kiến thức này, làm tăng thứ hạng của chúng. Xem https://ragflow.io/docs/dev/set_page_rank để biết thêm chi tiết.`,
       tag: `<p>Cơ sở kiến thức sử dụng phương pháp phân đoạn 'Tag' hoạt động như một tập hợp thẻ. Các cơ sở kiến thức khác có thể sử dụng nó để gắn thẻ cho các đoạn của riêng chúng và các truy vấn tới các cơ sở kiến thức này cũng sẽ được gắn thẻ bằng tập hợp thẻ này.</p>
       <p>Một bộ thẻ sẽ không trực tiếp tham gia vào quá trình Tạo sinh tăng cường truy xuất (Retrieval-Augmented Generation, RAG).</p>
       <p>Mỗi đoạn trong cơ sở kiến thức này là một cặp mô tả-thẻ độc lập.</p>
@@ -340,7 +340,7 @@ export default {
       searchTags: 'Thẻ tìm kiếm',
       tagTable: 'Bảng',
       tagSet: 'Thư viện',
-      tagSetTip: `<p>Việc chọn các cơ sở kiến thức 'Tag' giúp gắn thẻ cho từng đoạn.</p> <p>Truy vấn đến các đoạn đó cũng sẽ kèm theo thẻ.</p> Quy trình này sẽ cải thiện độ chính xác của việc truy xuất bằng cách thêm nhiều thông tin hơn vào bộ dữ liệu, đặc biệt là khi có một tập hợp lớn các đoạn. <p>Sự khác biệt giữa thẻ và từ khóa:</p> <ul> <li>Thẻ là một tập hợp khép kín được người dùng định nghĩa và thao tác trong khi từ khóa là một tập hợp mở.</li> <li>Bạn cần tải lên các tập hợp thẻ với các mẫu trước khi sử dụng.</li> <li>Từ khóa được tạo bởi LLM, tốn kém và mất thời gian.</li> </ul><p>Xem https://zsre.io/docs/dev/use_tag_sets để biết thêm chi tiết.</p>`,
+      tagSetTip: `<p>Việc chọn các cơ sở kiến thức 'Tag' giúp gắn thẻ cho từng đoạn.</p> <p>Truy vấn đến các đoạn đó cũng sẽ kèm theo thẻ.</p> Quy trình này sẽ cải thiện độ chính xác của việc truy xuất bằng cách thêm nhiều thông tin hơn vào bộ dữ liệu, đặc biệt là khi có một tập hợp lớn các đoạn. <p>Sự khác biệt giữa thẻ và từ khóa:</p> <ul> <li>Thẻ là một tập hợp khép kín được người dùng định nghĩa và thao tác trong khi từ khóa là một tập hợp mở.</li> <li>Bạn cần tải lên các tập hợp thẻ với các mẫu trước khi sử dụng.</li> <li>Từ khóa được tạo bởi LLM, tốn kém và mất thời gian.</li> </ul><p>Xem https://ragflow.io/docs/dev/use_tag_sets để biết thêm chi tiết.</p>`,
       topnTags: 'Thẻ Top-N',
       tags: 'Thẻ',
       addTag: 'Thêm thẻ',
@@ -352,7 +352,7 @@ export default {
       General: Câu lệnh trích xuất thực thể và quan hệ này được lấy từ GitHub - microsoft/graphrag: Một hệ thống Tạo sinh tăng cường truy xuất (RAG) dựa trên đồ thị theo mô-đun.
       NER: Sử dụng spaCy NER và trích xuất từ khóa dựa trên quy tắc để trích xuất thực thể và quan hệ. Không cần LLM cho việc trích xuất, giúp nhanh chóng và tiết kiệm tài nguyên.`,
       useGraphRagTip:
-        'Xây dựng một biểu đồ tri thức trên các đoạn tệp của cơ sở tri thức hiện tại để tăng cường khả năng trả lời câu hỏi đa bước liên quan đến logic lồng nhau. Xem https://zsre.io/docs/dev/construct_knowledge_graph để biết thêm chi tiết.',
+        'Xây dựng một biểu đồ tri thức trên các đoạn tệp của cơ sở tri thức hiện tại để tăng cường khả năng trả lời câu hỏi đa bước liên quan đến logic lồng nhau. Xem https://ragflow.io/docs/dev/construct_knowledge_graph để biết thêm chi tiết.',
       resolution: 'Hợp nhất thực thể',
       resolutionTip:
         'Quy trình phân giải sẽ hợp nhất các thực thể có cùng ý nghĩa lại với nhau, giúp đồ thị trở nên cô đọng và chính xác hơn. Các thực thể sau đây nên được hợp nhất: President Trump, Donald Trump, Donald J. Trump, Donald John Trump.',
@@ -437,7 +437,7 @@ export default {
       topN: 'Top N',
       topNTip: `Không phải tất cả các khối có điểm tương đồng vượt quá 'ngưỡng tương đồng' sẽ được cung cấp cho LLMs. LLM chỉ có thể xem 'Top N' khối này.`,
       variable: 'Biến',
-      variableTip: `Sử dụng cùng với các API quản lý trợ lý trò chuyện của zsre, các biến có thể giúp phát triển các chiến lược lời nhắc hệ thống linh hoạt hơn. Các biến được định nghĩa sẽ được sử dụng bởi 'Lời nhắc hệ thống' như một phần của lời nhắc cho LLM. {knowledge} là một biến đặc biệt được bảo lưu, đại diện cho các phần được truy xuất từ cơ sở tri thức được chỉ định, và tất cả các biến nên được đặt trong ngoặc nhọn {} trong 'Lời nhắc hệ thống'. Xem https://zsre.io/docs/dev/set_chat_variables để biết thêm chi tiết.`,
+      variableTip: `Sử dụng cùng với các API quản lý trợ lý trò chuyện của RAGFlow, các biến có thể giúp phát triển các chiến lược lời nhắc hệ thống linh hoạt hơn. Các biến được định nghĩa sẽ được sử dụng bởi 'Lời nhắc hệ thống' như một phần của lời nhắc cho LLM. {knowledge} là một biến đặc biệt được bảo lưu, đại diện cho các phần được truy xuất từ cơ sở tri thức được chỉ định, và tất cả các biến nên được đặt trong ngoặc nhọn {} trong 'Lời nhắc hệ thống'. Xem https://ragflow.io/docs/dev/set_chat_variables để biết thêm chi tiết.`,
       add: 'Thêm',
       key: 'Khóa',
       optional: 'Tùy chọn',
@@ -576,14 +576,14 @@ export default {
       addedModels: 'Các mô hình đã thêm',
       modelsToBeAdded: 'Các mô hình cần thêm',
       addTheModel: 'Thêm mô hình',
-      apiKey: 'API-Key',
+      apiKey: 'API Key',
       apiKeyMessage:
         'Vui lòng nhập khóa API (đối với mô hình được triển khai cục bộ, bỏ qua điều này).',
       apiKeyTip:
         'Khóa API có thể được lấy bằng cách đăng ký nhà cung cấp LLM tương ứng.',
       showMoreModels: 'Hiển thị thêm mô hình',
       hideModels: 'Ẩn mô hình',
-      baseUrl: 'Base-Url',
+      baseUrl: 'Base URL',
       baseUrlTip:
         'Nếu khóa API của bạn từ OpenAI, chỉ cần bỏ qua nó. Bất kỳ nhà cung cấp trung gian nào khác sẽ cung cấp URL cơ sở này với khóa API.',
       siliconBaseUrlTip:
@@ -599,18 +599,18 @@ export default {
         'LLM trò chuyện mặc định mà tất cả các cơ sở kiến thức mới tạo sẽ sử dụng.',
       embeddingModel: 'Mô hình nhúng',
       embeddingModelTip:
-        'Mô hình nhúng mặc định cho từng cơ sở tri thức mới được tạo. Nếu bạn không tìm thấy mô hình nhúng từ danh sách thả xuống, hãy kiểm tra xem bạn có đang sử dụng phiên bản zsre slim (không bao gồm các mô hình nhúng) hay không, hoặc kiểm tra https://zsre.io/docs/dev/supported_models để xem nhà cung cấp mô hình của bạn có hỗ trợ mô hình này không.',
+        'Mô hình nhúng mặc định cho từng cơ sở tri thức mới được tạo. Nếu bạn không tìm thấy mô hình nhúng từ danh sách thả xuống, hãy kiểm tra xem bạn có đang sử dụng phiên bản RAGFlow slim (không bao gồm các mô hình nhúng) hay không, hoặc kiểm tra https://ragflow.io/docs/dev/supported_models để xem nhà cung cấp mô hình của bạn có hỗ trợ mô hình này không.',
       img2txtModel: 'Mô hình img2txt',
       img2txtModelTip:
-        'Mô hình img2txt mặc định cho mỗi cơ sở tri thức mới được tạo. Nó mô tả một bức tranh hoặc video. Nếu bạn không thể tìm thấy mô hình từ danh sách thả xuống, hãy kiểm tra https://zsre.io/docs/dev/supported_models để xem nhà cung cấp mô hình của bạn có hỗ trợ mô hình này không.',
+        'Mô hình img2txt mặc định cho mỗi cơ sở tri thức mới được tạo. Nó mô tả một bức tranh hoặc video. Nếu bạn không thể tìm thấy mô hình từ danh sách thả xuống, hãy kiểm tra https://ragflow.io/docs/dev/supported_models để xem nhà cung cấp mô hình của bạn có hỗ trợ mô hình này không.',
       sequence2txtModel: 'Mô hình speech2txt',
       sequence2txtModelTip:
-        'Mô hình ASR mặc định mà tất cả các cơ sở kiến thức mới tạo sẽ sử dụng. Sử dụng mô hình này để chuyển đổi giọng nói thành văn bản tương ứng. Nếu bạn không thể tìm thấy mô hình từ danh sách thả xuống, hãy kiểm tra https://zsre.io/docs/dev/supported_models để xem nhà cung cấp mô hình của bạn có hỗ trợ mô hình này không.',
+        'Mô hình ASR mặc định mà tất cả các cơ sở kiến thức mới tạo sẽ sử dụng. Sử dụng mô hình này để chuyển đổi giọng nói thành văn bản tương ứng. Nếu bạn không thể tìm thấy mô hình từ danh sách thả xuống, hãy kiểm tra https://ragflow.io/docs/dev/supported_models để xem nhà cung cấp mô hình của bạn có hỗ trợ mô hình này không.',
       rerankModel: 'Mô hình xếp hạng lại',
-      rerankModelTip: `Mô hình rerank mặc định để reranking các đoạn văn bản. Nếu bạn không tìm thấy mô hình nào từ danh sách thả xuống, hãy kiểm tra https://zsre.io/docs/dev/supported_models để xem nhà cung cấp mô hình của bạn có hỗ trợ mô hình này không.`,
+      rerankModelTip: `Mô hình rerank mặc định để reranking các đoạn văn bản. Nếu bạn không tìm thấy mô hình nào từ danh sách thả xuống, hãy kiểm tra https://ragflow.io/docs/dev/supported_models để xem nhà cung cấp mô hình của bạn có hỗ trợ mô hình này không.`,
       ttsModel: 'Mô hình TTS',
       ttsModelTip:
-        'Mô hình text-to-speech mặc định. Nếu bạn không tìm thấy mô hình nào từ danh sách thả xuống, hãy kiểm tra https://zsre.io/docs/dev/supported_models để xem nhà cung cấp mô hình của bạn có hỗ trợ mô hình này không.',
+        'Mô hình text-to-speech mặc định. Nếu bạn không tìm thấy mô hình nào từ danh sách thả xuống, hãy kiểm tra https://ragflow.io/docs/dev/supported_models để xem nhà cung cấp mô hình của bạn có hỗ trợ mô hình này không.',
       workspace: 'Không gian làm việc',
       upgrade: 'Nâng cấp',
       addLlmTitle: 'Thêm LLM',
@@ -621,7 +621,7 @@ export default {
       modelType: 'Loại mô hình',
       modelTypeMessage: 'Vui lòng nhập loại mô hình của bạn!',
       addLlmBaseUrl: 'URL cơ sở',
-      baseUrlNameMessage: 'Vui lòng nhập URL cơ sở của bạn!',
+      baseUrlNameMessage: 'Vui lòng nhập URL cơ sở của bạn',
       paddleocr: {
         apiUrl: 'URL API PaddleOCR',
         apiUrlPlaceholder: 'Ví dụ: https://paddleocr-server.com/layout-parsing',
@@ -647,7 +647,7 @@ export default {
       addBedrockSK: 'KHÓA BÍ MẬT',
       bedrockSKMessage: 'Vui lòng nhập KHÓA BÍ MẬT của bạn',
       bedrockRegion: 'Vùng AWS',
-      bedrockRegionMessage: 'Vui lòng chọn!',
+      bedrockRegionMessage: 'Vui lòng chọn',
       'us-east-2': 'US East (Ohio)',
       'us-east-1': 'US East (N. Virginia)',
       'us-west-1': 'US West (N. California)',
@@ -685,7 +685,7 @@ export default {
       'us-gov-west-1': 'AWS GovCloud (US-West)',
       addTencentCloudSID: 'TencentCloud Secret ID',
       TencentCloudSIDMessage: 'Vui lòng nhập ID bí mật của bạn',
-      addTencentCloudSK: 'TencentCloud Secret Key',
+      addTencentCloudSK: 'TencentCloud SECRET KEY',
       TencentCloudSKMessage: 'Vui lòng nhập Khóa bí mật của bạn',
       SparkModelNameMessage: 'Vui lòng chọn mô hình Spark',
       addSparkAPIPassword: 'Mật khẩu API Spark',
@@ -728,7 +728,7 @@ export default {
       refuse: 'Từ chối',
       teamMembers: 'Thành viên nhóm',
       joinedTeams: 'Nhóm đã tham gia',
-      bedrockModelNameMessage: `Vui lòng nhập tên model của bạn!`,
+      bedrockModelNameMessage: `Vui lòng nhập tên model của bạn`,
       sureDelete: `Bạn có chắc chắn muốn xóa thành viên này không?`,
       quit: `Rời khỏi`,
       sureQuit: `Bạn có chắc chắn muốn rời khỏi nhóm mà bạn đã tham gia không?`,
@@ -788,7 +788,7 @@ export default {
       directory: 'Thư mục',
       uploadTitle: 'Nhấp hoặc kéo thả tệp vào khu vực này để tải lên',
       uploadDescription:
-        'zsre hỗ trợ tải lên tệp một lần hoặc theo lô. Đối với zsre triển khai cục bộ: giới hạn tổng kích thước tệp cho mỗi lần tải lên là 1GB, với giới hạn tải lên theo lô là 32 tệp. Không có giới hạn về tổng số tệp trên mỗi tài khoản. Đối với cloud.zsre.io: giới hạn tổng kích thước tệp cho mỗi lần tải lên là 10MB, với mỗi tệp không vượt quá 10MB và tối đa là 128 tệp trên mỗi tài khoản.',
+        'RAGFlow hỗ trợ tải lên tệp một lần hoặc theo lô. Đối với RAGFlow triển khai cục bộ: giới hạn tổng kích thước tệp cho mỗi lần tải lên là 1GB, với giới hạn tải lên theo lô là 32 tệp. Không có giới hạn về tổng số tệp trên mỗi tài khoản. Đối với cloud.ragflow.io: giới hạn tổng kích thước tệp cho mỗi lần tải lên là 10MB, với mỗi tệp không vượt quá 10MB và tối đa là 128 tệp trên mỗi tài khoản.',
       local: 'Tải lên cục bộ',
       s3: 'Tải lên S3',
       preview: 'Xem trước',
@@ -901,11 +901,11 @@ export default {
       relevance: 'Liên quan',
       google: 'Google',
       googleDescription:
-        'Thành phần này được sử dụng để lấy kết quả tìm kiếm từ https://www.google.com/. Thông thường, nó hoạt động như một phần bổ sung cho các cơ sở kiến thức. Top N và SerpApi API key xác định số lượng kết quả tìm kiếm bạn cần điều chỉnh.',
+        'Thành phần này được sử dụng để lấy kết quả tìm kiếm từ https://www.google.com/. Thông thường, nó hoạt động như một phần bổ sung cho các cơ sở kiến thức. Top N và SerpApi API Key xác định số lượng kết quả tìm kiếm bạn cần điều chỉnh.',
       bing: 'Bing',
       bingDescription:
         'Thành phần này được sử dụng để lấy kết quả tìm kiếm từ https://www.bing.com/. Thông thường, nó hoạt động như một phần bổ sung cho các cơ sở kiến thức. Top N và Bing Subscription-Key xác định số lượng kết quả tìm kiếm bạn cần điều chỉnh.',
-      apiKey: 'API KEY',
+      apiKey: 'API Key',
       country: 'Quốc gia',
       language: 'Ngôn ngữ',
       googleScholar: 'Google Scholar',
@@ -984,7 +984,7 @@ export default {
         'Thành phần này được sử dụng để lấy thông tin thời tiết từ https://www.qweather.com/. Bạn có thể lấy thời tiết, chỉ số, chất lượng không khí.',
       lang: 'Ngôn ngữ',
       type: 'Loại',
-      webApiKey: 'Web API key',
+      webApiKey: 'Web API Key',
       userType: 'Loại người dùng',
       timePeriod: 'Kỳ hạn',
       qWeatherLangOptions: {

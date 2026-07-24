@@ -6,6 +6,7 @@ import { IAgentWebhookTraceRequest } from '@/interfaces/request/agent';
 import api from '@/utils/api';
 import { registerNextServer } from '@/utils/register-server';
 import request from '@/utils/request';
+import dayjs from 'dayjs';
 
 const {
   createAgent,
@@ -26,6 +27,8 @@ const {
   prompt,
   cancelDataflow,
   cancelCanvas,
+  listBuiltinPipelines,
+  getBuiltinPipeline,
 } = api;
 
 const methods = {
@@ -121,6 +124,14 @@ const methods = {
     url: api.createAgentSession,
     method: 'post',
   },
+  listBuiltinPipelines: {
+    url: listBuiltinPipelines,
+    method: 'get',
+  },
+  getBuiltinPipeline: {
+    url: getBuiltinPipeline,
+    method: 'get',
+  },
 } as const;
 
 const agentService = registerNextServer<keyof typeof methods>(methods);
@@ -167,7 +178,30 @@ export const fetchAgentLogsByCanvasId = (
   canvasId: string,
   params: IAgentLogsRequest,
 ) => {
-  return request.get(methods.fetchAgentLogs.url(canvasId), { params: params });
+  // Serialize Date values as local wall-clock strings ("YYYY-MM-DD HH:mm:ss").
+  // Axios' default serializer turns a Date into a UTC ISO string, which the
+  // backend then shifts by the server timezone — causing the picked local day
+  // to mismatch the server-local dates shown in the table. Sending a plain
+  // local datetime makes the backend compare it as-is against stored dates.
+  // from_date snaps to the start of the day (00:00:00), to_date to the end
+  // (23:59:59), so the full picked day range is covered.
+  const normalizeDate = (value: string | Date | undefined, isEnd = false) => {
+    if (!(value instanceof Date)) return value;
+    const day = dayjs(value);
+    return (isEnd ? day.endOf('day') : day.startOf('day')).format(
+      'YYYY-MM-DD HH:mm:ss',
+    );
+  };
+
+  const normalizedParams: IAgentLogsRequest = {
+    ...params,
+    from_date: normalizeDate(params.from_date),
+    to_date: normalizeDate(params.to_date, true),
+  };
+
+  return request.get(methods.fetchAgentLogs.url(canvasId), {
+    params: normalizedParams,
+  });
 };
 
 export const fetchAgentLogsById = (canvasId: string, sessionId: string) => {
@@ -199,26 +233,5 @@ export const uploadAgentFile = (agentId: string, data: FormData) => {
     data,
   });
 };
-
-export function getAgentSchedule(agentId: string) {
-  return request.get(api.getAgentSchedule(agentId));
-}
-
-export function updateAgentSchedule(
-  agentId: string,
-  params: {
-    auto_run: boolean;
-    schedule_config: {
-      type: 'cron' | 'interval';
-      expr?: string;
-      seconds?: number;
-      tz?: string;
-    } | null;
-    schedule_input?: string;
-  },
-) {
-  // umi-request expects body under `data` (same as other PUT APIs)
-  return request.put(api.updateAgentSchedule(agentId), { data: params });
-}
 
 export default agentService;

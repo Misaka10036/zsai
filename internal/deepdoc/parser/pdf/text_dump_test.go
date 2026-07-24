@@ -1,11 +1,13 @@
 //go:build cgo && manual
 
-package parser
+package pdf
 
 import (
 	"context"
 	"os"
 	"path/filepath"
+	"ragflow/internal/common"
+	pdf "ragflow/internal/deepdoc/parser/pdf/type"
 	"strings"
 	"testing"
 )
@@ -23,7 +25,7 @@ func TestDumpTextOutput(t *testing.T) {
 	}
 
 	count := len(entries)
-	if n := os.Getenv("DUMP_COUNT"); n != "" {
+	if n := common.GetEnv(common.EnvDumpCount); n != "" {
 		c := 0
 		for _, ch := range n {
 			c = c*10 + int(ch-'0')
@@ -64,9 +66,9 @@ func TestDumpTextOutput(t *testing.T) {
 			continue
 		}
 
-		cfg := DefaultParserConfig()
-		p := NewParser(cfg, &MockDocAnalyzer{Healthy: true, Model: ModelSaas})
-		result, err := p.Parse(context.Background(), eng)
+		cfg := pdf.DefaultParserConfig()
+		p := NewParser(cfg)
+		result, err := p.ParseRaw(context.Background(), eng, &MockDocAnalyzer{Healthy: true})
 		eng.Close()
 		if err != nil {
 			t.Logf("[%d/%d] %s — parse error: %v", i+1, count, name, err)

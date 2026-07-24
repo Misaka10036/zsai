@@ -29,7 +29,6 @@ import { ReactFlowProvider } from '@xyflow/react';
 import {
   ChevronDown,
   CirclePlay,
-  Clock,
   Compass,
   History,
   LaptopMinimalCheck,
@@ -46,6 +45,7 @@ import AgentCanvas from './canvas';
 import { DropdownProvider } from './canvas/context';
 import { PublishConfirmDialog } from './components/publish-confirm-dialog';
 import { Operator } from './constant';
+import { OwnerTenantIdContext } from './context';
 import { GlobalParamSheet } from './gobal-variable-sheet';
 import { useBuildDslData } from './hooks/use-build-dsl';
 import { useCancelCurrentDataflow } from './hooks/use-cancel-dataflow';
@@ -66,7 +66,6 @@ import {
 } from './hooks/use-save-graph';
 import { PipelineLogSheet } from './pipeline-log-sheet';
 import PipelineRunSheet from './pipeline-run-sheet';
-import { ScheduleSheet } from './schedule-sheet';
 import { SettingDialog } from './setting-dialog';
 import useGraphStore from './store';
 import { useAgentHistoryManager } from './use-agent-history-manager';
@@ -162,12 +161,6 @@ export default function Agent() {
     visible: globalParamSheetVisible,
     showModal: showGlobalParamSheet,
     hideModal: hideGlobalParamSheet,
-  } = useSetModalState();
-
-  const {
-    visible: scheduleSheetVisible,
-    showModal: showScheduleSheet,
-    hideModal: hideScheduleSheet,
   } = useSetModalState();
 
   const {
@@ -351,17 +344,8 @@ export default function Agent() {
                 <Settings />
                 {t('flow.setting')}
               </AgentDropdownMenuItem>
-              {isPipeline || (
-                <>
-                  <DropdownMenuSeparator />
-                  <AgentDropdownMenuItem onClick={showScheduleSheet}>
-                    <Clock />
-                    {t('flow.schedule.menuItem')}
-                  </AgentDropdownMenuItem>
-                </>
-              )}
               {isPipeline ||
-                (location.hostname !== 'cloud.zsre.io' && (
+                (location.hostname !== 'cloud.ragflow.io' && (
                   <>
                     <DropdownMenuSeparator />
                     <AgentDropdownMenuItem onClick={showEmbedModal}>
@@ -374,14 +358,16 @@ export default function Agent() {
           </DropdownMenu>
         </div>
       </PageHeader>
-      <ReactFlowProvider>
-        <DropdownProvider>
-          <AgentCanvas
-            drawerVisible={chatDrawerVisible}
-            hideDrawer={hideChatDrawer}
-          ></AgentCanvas>
-        </DropdownProvider>
-      </ReactFlowProvider>
+      <OwnerTenantIdContext.Provider value={agentDetail?.user_id}>
+        <ReactFlowProvider>
+          <DropdownProvider>
+            <AgentCanvas
+              drawerVisible={chatDrawerVisible}
+              hideDrawer={hideChatDrawer}
+            ></AgentCanvas>
+          </DropdownProvider>
+        </ReactFlowProvider>
+      </OwnerTenantIdContext.Provider>
       {embedVisible && (
         <EmbedDialog
           visible={embedVisible}
@@ -432,7 +418,6 @@ export default function Agent() {
       {webhookTestSheetVisible && (
         <WebhookSheet hideModal={hideWebhookTestSheet}></WebhookSheet>
       )}
-      {scheduleSheetVisible && <ScheduleSheet hideModal={hideScheduleSheet} />}
     </section>
   );
 }

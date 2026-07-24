@@ -417,12 +417,15 @@ class ParserConfig(Base):
     html4excel: Annotated[bool, Field(default=False)]
     layout_recognize: Annotated[str, Field(default="DeepDOC")]
     parent_child: Annotated[ParentChildConfig, Field(default_factory=lambda: ParentChildConfig(use_parent_child=False))]
+    enable_children: Annotated[bool, Field(default=False)]
+    children_delimiter: Annotated[str, Field(default="", min_length=0)]
     raptor: Annotated[RaptorConfig, Field(default_factory=lambda: RaptorConfig(use_raptor=False))]
     tag_kb_ids: Annotated[list[str], Field(default_factory=list)]
     topn_tags: Annotated[int, Field(default=1, ge=1, le=10)]
     filename_embd_weight: Annotated[float | None, Field(default=0.1, ge=0.0, le=1.0)]
     task_page_size: Annotated[int | None, Field(default=None, ge=1)]
     pages: Annotated[list[list[int]] | None, Field(default=None)]
+    compilation_template_group_id: Annotated[list[str], Field(default_factory=list)]
     ext: Annotated[dict, Field(default={})]
     # Table parser: column name -> "indexing" | "metadata" | "both". Absence => all columns "both".
     # Table parser: "auto" = all columns both (default), "manual" = use table_column_roles. None → treated as "auto".
@@ -443,6 +446,25 @@ class ParserConfig(Base):
             k = key if isinstance(key, str) else str(key)
             out[k] = "indexing" if val == "vectorize" else val
         return out
+
+    @field_validator("compilation_template_group_id", mode="before")
+    @classmethod
+    def normalize_compilation_template_group_ids(cls, v: Any) -> Any:
+        if v is None:
+            return []
+        raw = [v] if isinstance(v, str) else v
+        if not isinstance(raw, list):
+            return []
+        ids: list[str] = []
+        seen: set[str] = set()
+        for group_id in raw:
+            if not isinstance(group_id, str):
+                continue
+            group_id = group_id.strip()
+            if group_id and group_id not in seen:
+                seen.add(group_id)
+                ids.append(group_id)
+        return ids
 
 
 class UpdateDocumentReq(Base):
@@ -563,7 +585,7 @@ class CreateDatasetReq(Base):
             CreateDatasetReq(avatar="data:video/mp4;base64,...")  # Unsupported MIME type
             ```
         """
-        if not v: # cover both None and empty string
+        if not v:  # cover both None and empty string
             return v
 
         if "," in v:
@@ -597,13 +619,14 @@ class CreateDatasetReq(Base):
         Validation pipeline:
         1. Structural format verification
         2. Component non-empty check
-        3. Value normalization
+        3. Tenant model id passthrough
+        4. Value normalization
 
         Args:
             v (str): Raw model identifier
 
         Returns:
-            str: Validated <model_name>@<provider> format
+            str: Validated <model_name>@<provider> format or tenant_model id
 
         Raises:
             PydanticCustomError: For these violations:
@@ -613,11 +636,15 @@ class CreateDatasetReq(Base):
 
         Examples:
             Valid: "text-embedding-3-large@openai"
+            Valid: "2f3c0f9c7b1d11f0a1b2c3d4e5f67890"  # tenant_model.id
             Invalid: "invalid_model" (no @)
             Invalid: "@openai" (empty model_name)
             Invalid: "text-embedding-3-large@" (empty provider)
         """
         if isinstance(v, str):
+            if re.fullmatch(r"[0-9a-fA-F]{32}", v):
+                return v
+
             if "@" not in v:
                 raise PydanticCustomError("format_invalid", "Embedding model identifier must follow <model_name>@<provider> format")
 
@@ -922,7 +949,7 @@ class SearchDatasetReq(BaseModel):
     keyword: Annotated[bool, Field(default=False)]
     search_id: Annotated[str | None, Field(default=None)]
     rerank_id: Annotated[str | None, Field(default=None)]
-    tenant_rerank_id: Annotated[int | None, Field(default=None)]
+    tenant_rerank_id: Annotated[str | None, Field(default=None)]
     meta_data_filter: Annotated[dict | None, Field(default=None)]
 
 
@@ -944,7 +971,7 @@ class SearchDatasetsReq(BaseModel):
     keyword: Annotated[bool, Field(default=False)]
     search_id: Annotated[str | None, Field(default=None)]
     rerank_id: Annotated[str | None, Field(default=None)]
-    tenant_rerank_id: Annotated[int | None, Field(default=None)]
+    tenant_rerank_id: Annotated[str | None, Field(default=None)]
     meta_data_filter: Annotated[dict | None, Field(default=None)]
 
 

@@ -18,11 +18,14 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 
 	"github.com/gin-gonic/gin"
 
 	"ragflow/internal/agent/canvas"
 	"ragflow/internal/common"
+	"ragflow/internal/engine/redis"
 	"ragflow/internal/service"
 )
 
@@ -61,31 +64,27 @@ func NewBotHandler(svc *service.BotService) *BotHandler {
 func (h *BotHandler) ChatbotInfo(c *gin.Context) {
 	user, code, msg := GetUser(c)
 	if code != common.CodeSuccess {
-		jsonError(c, code, msg)
+		common.ResponseWithCodeData(c, code, nil, msg)
 		return
 	}
 	dialogID := c.Param("dialog_id")
 	if dialogID == "" {
-		jsonError(c, common.CodeArgumentError, "`dialog_id` is required.")
+		common.ResponseWithCodeData(c, common.CodeArgumentError, nil, "`dialog_id` is required.")
 		return
 	}
 	title, avatar, prologue, llmID, hasTavily, ec, err := h.botService.ChatbotInfo(
 		c.Request.Context(), user.ID, dialogID)
 	if err != nil {
-		jsonError(c, ec, err.Error())
+		common.ResponseWithCodeData(c, ec, nil, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{
-		"code": common.CodeSuccess,
-		"data": gin.H{
-			"title":          title,
-			"avatar":         avatar,
-			"prologue":       prologue,
-			"has_tavily_key": hasTavily,
-			"llm_id":         llmID,
-		},
-		"message": "success",
-	})
+	common.SuccessWithData(c, gin.H{
+		"title":          title,
+		"avatar":         avatar,
+		"prologue":       prologue,
+		"has_tavily_key": hasTavily,
+		"llm_id":         llmID,
+	}, "success")
 }
 
 // AgentbotInputs GET /api/v1/agentbots/<agent_id>/inputs
@@ -95,31 +94,27 @@ func (h *BotHandler) ChatbotInfo(c *gin.Context) {
 func (h *BotHandler) AgentbotInputs(c *gin.Context) {
 	user, code, msg := GetUser(c)
 	if code != common.CodeSuccess {
-		jsonError(c, code, msg)
+		common.ResponseWithCodeData(c, code, nil, msg)
 		return
 	}
 	agentID := c.Param("agent_id")
 	if agentID == "" {
-		jsonError(c, common.CodeArgumentError, "`agent_id` is required.")
+		common.ResponseWithCodeData(c, common.CodeArgumentError, nil, "`agent_id` is required.")
 		return
 	}
 	title, avatar, prologue, mode, inputs, ec, err := h.botService.AgentbotInputs(
 		c.Request.Context(), user.ID, agentID)
 	if err != nil {
-		jsonError(c, ec, err.Error())
+		common.ResponseWithCodeData(c, ec, nil, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{
-		"code": common.CodeSuccess,
-		"data": gin.H{
-			"title":    title,
-			"avatar":   avatar,
-			"inputs":   inputs,
-			"prologue": prologue,
-			"mode":     mode,
-		},
-		"message": "success",
-	})
+	common.SuccessWithData(c, gin.H{
+		"title":    title,
+		"avatar":   avatar,
+		"inputs":   inputs,
+		"prologue": prologue,
+		"mode":     mode,
+	}, "success")
 }
 
 // AgentbotCompletion POST /api/v1/agentbots/<agent_id>/completions
@@ -135,12 +130,12 @@ func (h *BotHandler) AgentbotInputs(c *gin.Context) {
 func (h *BotHandler) AgentbotCompletion(c *gin.Context) {
 	user, code, msg := GetUser(c)
 	if code != common.CodeSuccess {
-		jsonError(c, code, msg)
+		common.ResponseWithCodeData(c, code, nil, msg)
 		return
 	}
 	agentID := c.Param("agent_id")
 	if agentID == "" {
-		jsonError(c, common.CodeArgumentError, "`agent_id` is required.")
+		common.ResponseWithCodeData(c, common.CodeArgumentError, nil, "`agent_id` is required.")
 		return
 	}
 	var body service.AgentbotCompletionRequest
@@ -150,14 +145,15 @@ func (h *BotHandler) AgentbotCompletion(c *gin.Context) {
 	// then ran with empty inputs.
 	if c.Request.ContentLength != 0 {
 		if err := c.ShouldBindJSON(&body); err != nil {
-			jsonError(c, common.CodeArgumentError, "Invalid request: "+err.Error())
+			common.ResponseWithCodeData(c, common.CodeArgumentError, nil,
+				"Invalid request: "+err.Error())
 			return
 		}
 	}
 	events, ec, err := h.botService.AgentbotCompletion(
 		c.Request.Context(), user.ID, agentID, body)
 	if err != nil {
-		jsonError(c, ec, err.Error())
+		common.ResponseWithCodeData(c, ec, nil, err.Error())
 		return
 	}
 	c.Writer.Header().Set("Content-Type", "text/event-stream")
@@ -218,12 +214,12 @@ func (h *BotHandler) AgentbotCompletion(c *gin.Context) {
 func (h *BotHandler) ChatbotCompletion(c *gin.Context) {
 	user, code, msg := GetUser(c)
 	if code != common.CodeSuccess {
-		jsonError(c, code, msg)
+		common.ResponseWithCodeData(c, code, nil, msg)
 		return
 	}
 	dialogID := c.Param("dialog_id")
 	if dialogID == "" {
-		jsonError(c, common.CodeArgumentError, "`dialog_id` is required.")
+		common.ResponseWithCodeData(c, common.CodeArgumentError, nil, "`dialog_id` is required.")
 		return
 	}
 	var body service.ChatbotCompletionRequest
@@ -233,14 +229,15 @@ func (h *BotHandler) ChatbotCompletion(c *gin.Context) {
 	// then ran with empty session_id/question.
 	if c.Request.ContentLength != 0 {
 		if err := c.ShouldBindJSON(&body); err != nil {
-			jsonError(c, common.CodeArgumentError, "Invalid request: "+err.Error())
+			common.ResponseWithCodeData(c, common.CodeArgumentError, nil,
+				"Invalid request: "+err.Error())
 			return
 		}
 	}
 	frames, ec, err := h.botService.ChatbotCompletion(
 		c.Request.Context(), user.ID, dialogID, body)
 	if err != nil {
-		jsonError(c, ec, err.Error())
+		common.ResponseWithCodeData(c, ec, nil, err.Error())
 		return
 	}
 	c.Writer.Header().Set("Content-Type", "text/event-stream")
@@ -257,4 +254,57 @@ func (h *BotHandler) ChatbotCompletion(c *gin.Context) {
 			return
 		}
 	}
+}
+
+// GetAgentbotLogs GET /api/v1/agentbots/<agent_id>/logs/<message_id>
+//
+// Beta-token sibling of GetAgentLogs. The shared/embedded chat
+// page's "Thinking" button hits this endpoint because the share
+// flow authenticates with a beta APIToken (no session JWT) and
+// the regular /api/v1/agents/<id>/logs/<msg> requires @login_required.
+// Mirrors python bot_api.py:agent_bot_logs.
+func (h *BotHandler) GetAgentbotLogs(c *gin.Context) {
+	if _, code, msg := GetUser(c); code != common.CodeSuccess {
+		common.ResponseWithCodeData(c, code, nil, msg)
+		return
+	}
+	agentIDStr := c.Param("agent_id")
+	if agentIDStr == "" {
+		common.ResponseWithCodeData(c, common.CodeArgumentError, nil, "agent_id is required")
+		return
+	}
+	boundAgentID, _ := c.Get("agent_id")
+	boundAgentIDStr, _ := boundAgentID.(string)
+	if boundAgentIDStr == "" {
+		common.ResponseWithCodeData(c, common.CodeDataError, nil, "API token is not bound to an agent.")
+		return
+	}
+	if boundAgentIDStr != agentIDStr {
+		common.ResponseWithCodeData(c, common.CodeUnauthorized, nil, "API token is not authorized for this agent.")
+		return
+	}
+	messageID := c.Param("message_id")
+	if messageID == "" {
+		common.ResponseWithCodeData(c, common.CodeArgumentError, nil, "message_id is required")
+		return
+	}
+	key := fmt.Sprintf("%s-%s-logs", agentIDStr, messageID)
+	payload, rerr := redis.Get().Get(key)
+	// Surface Redis / decode failures instead of silently returning
+	// `{code: 0, data: {}}` — the previous form made the endpoint
+	// indistinguishable from "logs not yet written", which masked
+	// real outages and corrupted payloads from operators (PR review
+	// round 5, Major #6).
+	if rerr != nil {
+		common.ResponseWithCodeData(c, common.CodeServerError, nil, "failed to read agent logs")
+		return
+	}
+	data := map[string]interface{}{}
+	if payload != "" {
+		if uerr := json.Unmarshal([]byte(payload), &data); uerr != nil {
+			common.ResponseWithCodeData(c, common.CodeServerError, nil, "failed to decode agent logs")
+			return
+		}
+	}
+	common.SuccessWithData(c, data, "success")
 }

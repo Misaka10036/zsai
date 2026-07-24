@@ -1,11 +1,16 @@
 import HighLightMarkdown from '@/components/highlight-markdown';
+import { Button } from '@/components/ui/button';
 import message from '@/components/ui/message';
 import { Modal } from '@/components/ui/modal/modal';
 import { RAGFlowSelect } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import {
+  LanguageAbbreviation,
+  LanguageAbbreviationMap,
+} from '@/constants/common';
 import { useTranslate } from '@/hooks/common-hooks';
 import { useFetchTenantInfo } from '@/hooks/use-user-setting-request';
-import { supportedLanguages } from '@/locales/config';
+import { ExternalLink } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 
 type IEmbedAppModalProps = {
@@ -27,9 +32,9 @@ const EmbedAppModal = (props: IEmbedAppModalProps) => {
   const [locale, setLocale] = useState('');
 
   const languageOptions = useMemo(() => {
-    return supportedLanguages.map((x) => ({
-      label: x.displayName,
-      value: x.code,
+    return Object.values(LanguageAbbreviation).map((x) => ({
+      label: LanguageAbbreviationMap[x],
+      value: x,
     }));
   }, []);
 
@@ -44,6 +49,10 @@ const EmbedAppModal = (props: IEmbedAppModalProps) => {
     }
     return src;
   }, [beta, from, token, hideAvatar, locale, url, tenantId]);
+
+  const handleOpenInNewTab = useCallback(() => {
+    window.open(generateIframeSrc(), '_blank');
+  }, [generateIframeSrc]);
 
   // ... existing code ...
   const text = useMemo(() => {
@@ -103,6 +112,18 @@ const EmbedAppModal = (props: IEmbedAppModalProps) => {
           {/* <pre className="text-sm whitespace-pre-wrap">{text}</pre> */}
           <HighLightMarkdown>{text}</HighLightMarkdown>
           {/* </div> */}
+        </div>
+
+        {/* Open In New Tab */}
+        <div className="mb-6">
+          <Button
+            onClick={handleOpenInNewTab}
+            className="w-full"
+            variant="secondary"
+          >
+            <ExternalLink className="mr-2 h-4 w-4" />
+            {t('openInNewTab', { keyPrefix: 'common' })}
+          </Button>
         </div>
 
         {/* ID Field */}

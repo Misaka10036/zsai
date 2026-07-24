@@ -19,9 +19,12 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SharedFrom } from '@/constants/chat';
-import { ThemeEnum } from '@/constants/common';
+import {
+  LanguageAbbreviation,
+  LanguageAbbreviationMap,
+  ThemeEnum,
+} from '@/constants/common';
 import { IModalProps } from '@/interfaces/common';
-import { supportedLanguages } from '@/locales/config';
 import { Routes } from '@/routes';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { isEmpty, trim } from 'lodash';
@@ -139,9 +142,9 @@ function EmbedDialog({
   const values = useWatch({ control: form.control });
 
   const languageOptions = useMemo(() => {
-    return supportedLanguages.map((x) => ({
-      label: x.displayName,
-      value: x.code,
+    return Object.values(LanguageAbbreviation).map((x) => ({
+      label: LanguageAbbreviationMap[x],
+      value: x,
     }));
   }, []);
 
@@ -432,13 +435,13 @@ window.addEventListener('message',e=>{
                       name="widgetFooterText"
                       label="Footer text"
                     >
-                      <Input placeholder="Powered by zsre"></Input>
+                      <Input placeholder="Powered by RAGFlow"></Input>
                     </RAGFlowFormItem>
                     <RAGFlowFormItem
                       name="widgetFooterLink"
                       label="Footer redirect link"
                     >
-                      <Input placeholder="https://zsre.io"></Input>
+                      <Input placeholder="https://ragflow.io"></Input>
                     </RAGFlowFormItem>
                     <FormField
                       control={form.control}
@@ -613,8 +616,8 @@ window.addEventListener('message',e=>{
             className="cursor-pointer text-accent-primary inline-block"
             href={
               isAgent
-                ? 'https://zsre.io/docs/dev/http_api_reference#create-session-with-agent'
-                : 'https://zsre.io/docs/dev/http_api_reference#create-session-with-chat-assistant'
+                ? 'https://ragflow.io/docs/dev/http_api_reference#create-session-with-agent'
+                : 'https://ragflow.io/docs/dev/http_api_reference#create-session-with-chat-assistant'
             }
             target="_blank"
             rel="noreferrer"

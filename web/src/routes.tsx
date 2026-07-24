@@ -43,6 +43,8 @@ export enum Routes {
   Plan = '/plan',
   Model = '/model',
   Prompt = '/prompt',
+  CompilationTemplates = '/compilation-templates',
+  CompilationTemplatesCreateNext = '/compilation-templates/create-next',
   DataSource = '/data-source',
   DataSourceDetailPage = '/data-source-detail-page',
   ChatChannel = '/chat-channel',
@@ -60,6 +62,7 @@ export enum Routes {
   Result = '/result',
   ResultView = `${Chunk}${Result}`,
   KnowledgeGraph = '/knowledge-graph',
+  Compilation = '/compilation',
   AgentLogPage = '/agent-log-page',
   AgentShare = '/agent/share',
   ChatShare = `${Chats}/share`,
@@ -67,6 +70,7 @@ export enum Routes {
   UserSetting = '/user-setting',
   DataSetOverview = '/logs',
   DataSetSetting = '/configuration',
+  DataSetSettingNext = '/setting',
   DataflowResult = '/dataflow-result',
   Admin = '/admin',
   AdminServices = `${Admin}/services`,
@@ -203,6 +207,10 @@ const routeConfigOptions = [
             path: `${Routes.DatasetBase}${Routes.DataSetSetting}/:id`,
             Component: () => import('@/pages/dataset/dataset-setting'),
           },
+          {
+            path: `${Routes.DatasetBase}${Routes.DataSetSettingNext}/:id`,
+            Component: () => import('@/pages/dataset/setting'),
+          },
         ],
       },
       {
@@ -261,7 +269,7 @@ const routeConfigOptions = [
           {
             path: Routes.UserSetting,
             element: (
-              <Navigate to={`${Routes.UserSetting}${Routes.Model}`} replace />
+              <Navigate to={`/user-setting${Routes.DataSource}`} replace />
             ),
           },
           {
@@ -284,9 +292,7 @@ const routeConfigOptions = [
           },
           {
             path: `${Routes.UserSetting}${Routes.Api}`,
-            element: (
-              <Navigate to={`${Routes.UserSetting}${Routes.Model}`} replace />
-            ),
+            Component: () => import('@/pages/user-setting/setting-api'),
           },
           {
             path: `${Routes.UserSetting}${Routes.Mcp}`,
@@ -299,9 +305,12 @@ const routeConfigOptions = [
           },
           {
             path: `${Routes.UserSetting}${Routes.ChatChannel}`,
-            element: (
-              <Navigate to={`${Routes.UserSetting}${Routes.Model}`} replace />
-            ),
+            Component: () => import('@/pages/user-setting/chat-channel'),
+          },
+          {
+            path: `${Routes.UserSetting}${Routes.CompilationTemplates}`,
+            Component: () =>
+              import('@/pages/user-setting/compilation-templates'),
           },
         ],
       },
@@ -314,8 +323,24 @@ const routeConfigOptions = [
     ],
   },
   {
+    path: Routes.CompilationTemplatesCreateNext,
+    layout: false,
+    Component: () =>
+      import('@/pages/user-setting/compilation-templates/create-next'),
+  },
+  {
+    path: `${Routes.CompilationTemplatesCreateNext}/:id`,
+    layout: false,
+    Component: () =>
+      import('@/pages/user-setting/compilation-templates/create-next'),
+  },
+  {
     path: `${Routes.SearchShare}`,
     Component: () => import('@/pages/next-search/share'),
+  },
+  {
+    path: `${Routes.DatasetBase}${Routes.Compilation}/:id`,
+    Component: () => import('@/pages/dataset/compilation'),
   },
   {
     path: Routes.Agent,

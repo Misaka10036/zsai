@@ -49,7 +49,7 @@ export default {
       submit: 'Absenden',
       clear: 'Leeren',
       embedIntoSite: 'In Webseite einbetten',
-      openInNewTab: 'Chat in neuem Tab',
+      openInNewTab: 'In neuem Tab öffnen',
       previousPage: 'Zurück',
       nextPage: 'Weiter',
       add: 'Hinzufügen',
@@ -290,7 +290,7 @@ Beispiel: Eine 1 KB Nachricht mit 1024-dim Einbettung verwendet ~9 KB. Das Stand
       testSetting: 'Einstellung',
       retrievalTesting: 'Abruftest',
       retrievalTestingDescription:
-        'Führen Sie einen Abruftest durch, um zu prüfen, ob zsre die beabsichtigten Inhalte für das LLM wiederherstellen kann.',
+        'Führen Sie einen Abruftest durch, um zu prüfen, ob RAGFlow die beabsichtigten Inhalte für das LLM wiederherstellen kann.',
       Parse: 'Analysieren',
       dataset: 'Datensatz',
       testing: 'Abruftest',
@@ -315,7 +315,7 @@ Beispiel: Eine 1 KB Nachricht mit 1024-dim Einbettung verwendet ~9 KB. Das Stand
       action: 'Aktion',
       parsingStatus: 'Analysestatus',
       parsingStatusTip:
-        'Die Verarbeitungszeit für Dokumente variiert je nach mehreren Faktoren. Das Aktivieren von Funktionen wie Knowledge Graph, RAPTOR, automatischer Frage- oder Schlüsselwort-Extraktion verlängert die Bearbeitungszeit deutlich. Wenn der Fortschrittsbalken stehen bleibt, konsultieren Sie bitte diese beiden FAQs: https://zsre.io/docs/dev/faq#why-does-my-document-parsing-stall-at-under-one-percent.',
+        'Die Verarbeitungszeit für Dokumente variiert je nach mehreren Faktoren. Das Aktivieren von Funktionen wie Knowledge Graph, RAPTOR, automatischer Frage- oder Schlüsselwort-Extraktion verlängert die Bearbeitungszeit deutlich. Wenn der Fortschrittsbalken stehen bleibt, konsultieren Sie bitte diese beiden FAQs: https://ragflow.io/docs/dev/faq#why-does-my-document-parsing-stall-at-under-one-percent.',
       processBeginAt: 'Beginn',
       processDuration: 'Dauer',
       progressMsg: 'Fortschritt',
@@ -324,10 +324,10 @@ Beispiel: Eine 1 KB Nachricht mit 1024-dim Einbettung verwendet ~9 KB. Das Stand
       noTestResultsForNotRuned:
         'Es wurde noch kein Test durchgeführt. Ergebnisse werden hier angezeigt.',
       testingDescription:
-        'Führen Sie einen Abruftest durch, um zu prüfen, ob zsre die beabsichtigten Inhalte für das LLM wiederherstellen kann.',
+        'Führen Sie einen Abruftest durch, um zu prüfen, ob RAGFlow die beabsichtigten Inhalte für das LLM wiederherstellen kann.',
       similarityThreshold: 'Ähnlichkeitsschwelle',
       similarityThresholdTip:
-        'zsre verwendet entweder eine Kombination aus gewichteter Schlüsselwortähnlichkeit und gewichteter Vektorkosinus-Ähnlichkeit oder eine Kombination aus gewichteter Schlüsselwortähnlichkeit und gewichteter Rerank-bewertung während des Abrufs. Dieser Parameter legt den Schwellenwert für Ähnlichkeiten zwischen der Benutzeranfrage und den Chunks fest. Jeder Chunk mit einer Ähnlichkeitsbewertung unter diesem Schwellenwert wird von den Ergebnissen ausgeschlossen. Standardmäßig ist der Schwellenwert auf 0,2 festgelegt. Das bedeutet, dass nur Textblöcke mit einer hybriden Ähnlichkeitsbewertung von 20 oder höher abgerufen werden.',
+        'RAGFlow verwendet entweder eine Kombination aus gewichteter Schlüsselwortähnlichkeit und gewichteter Vektorkosinus-Ähnlichkeit oder eine Kombination aus gewichteter Schlüsselwortähnlichkeit und gewichteter Rerank-bewertung während des Abrufs. Dieser Parameter legt den Schwellenwert für Ähnlichkeiten zwischen der Benutzeranfrage und den Chunks fest. Jeder Chunk mit einer Ähnlichkeitsbewertung unter diesem Schwellenwert wird von den Ergebnissen ausgeschlossen. Standardmäßig ist der Schwellenwert auf 0,2 festgelegt. Das bedeutet, dass nur Textblöcke mit einer hybriden Ähnlichkeitsbewertung von 20 oder höher abgerufen werden.',
       vectorSimilarityWeight: 'Schlüsselwortähnlichkeitsgewicht',
       vectorSimilarityWeightTip:
         'Dies legt das Gewicht der Schlüsselwortähnlichkeit im kombinierten Ähnlichkeitswert fest, entweder in Verbindung mit der Vektorkosinus-Ähnlichkeit oder mit der Rerank-bewertung. Die Summe der beiden Gewichte muss 1,0 ergeben.',
@@ -359,7 +359,7 @@ Beispiel: Eine 1 KB Nachricht mit 1024-dim Einbettung verwendet ~9 KB. Das Stand
       toMessage: 'Endseitennummer fehlt (ausgeschlossen)',
       layoutRecognize: 'Dokumentenparser',
       layoutRecognizeTip:
-        'Verwendet ein visuelles Modell für die PDF-Layout-Analyse, um Dokumententitel, Textblöcke, Bilder und Tabellen effektiv zu lokalisieren. Wenn die einfache Option gewählt wird, wird nur der reine Text im PDF abgerufen. Bitte beachten Sie, dass diese Option derzeit NUR für PDF-Dokumente funktioniert. Weitere Informationen finden Sie unter https://zsre.io/docs/dev/select_pdf_parser.',
+        'Verwendet ein visuelles Modell für die PDF-Layout-Analyse, um Dokumententitel, Textblöcke, Bilder und Tabellen effektiv zu lokalisieren. Wenn die einfache Option gewählt wird, wird nur der reine Text im PDF abgerufen. Bitte beachten Sie, dass diese Option derzeit NUR für PDF-Dokumente funktioniert. Weitere Informationen finden Sie unter https://ragflow.io/docs/dev/select_pdf_parser.',
       taskPageSize: 'Aufgabenseitengröße',
       taskPageSizeMessage: 'Bitte geben Sie die Größe der Aufgabenseite ein!',
       taskPageSizeTip:
@@ -372,7 +372,7 @@ Beispiel: Eine 1 KB Nachricht mit 1024-dim Einbettung verwendet ~9 KB. Das Stand
       changeSpecificCategory: 'Spezifische Kategorie ändern',
       uploadTitle: 'Ziehen Sie Ihre Datei hierher, um sie hochzuladen',
       uploadDescription:
-        'zsre unterstützt das Hochladen von Dateien einzeln oder in Batches. Für lokal bereitgestelltes zsre: Die maximale Dateigröße pro Upload beträgt 1 GB, mit einem Batch-Upload-Limit von 32 Dateien. Es gibt keine Begrenzung der Gesamtanzahl an Dateien pro Konto. Für cloud.zsre.io: Die maximale Dateigröße pro Upload beträgt 10 MB, wobei jede Datei nicht größer als 10 MB sein darf und maximal 128 Dateien pro Konto erlaubt sind.',
+        'RAGFlow unterstützt das Hochladen von Dateien einzeln oder in Batches. Für lokal bereitgestelltes RAGFlow: Die maximale Dateigröße pro Upload beträgt 1 GB, mit einem Batch-Upload-Limit von 32 Dateien. Es gibt keine Begrenzung der Gesamtanzahl an Dateien pro Konto. Für cloud.ragflow.io: Die maximale Dateigröße pro Upload beträgt 10 MB, wobei jede Datei nicht größer als 10 MB sein darf und maximal 128 Dateien pro Konto erlaubt sind.',
       chunk: 'Chunk',
       bulk: 'Masse',
       cancel: 'Abbrechen',
@@ -380,7 +380,7 @@ Beispiel: Eine 1 KB Nachricht mit 1024-dim Einbettung verwendet ~9 KB. Das Stand
       rerankModel: 'Rerank-modell',
       rerankPlaceholder: 'Bitte auswählen',
       rerankTip:
-        'Wenn leer gelassen, verwendet zsre eine Kombination aus gewichteter Schlüsselwortähnlichkeit und gewichteter Vektorkosinus-Ähnlichkeit; wenn ein Rerank-modell ausgewählt wird, ersetzt eine gewichtete Rerank-bewertung die gewichtete Vektorkosinus-Ähnlichkeit. Bitte beachten Sie, dass die Verwendung eines Rerank-modells die Antwortzeit des Systems erheblich erhöht.',
+        'Wenn leer gelassen, verwendet RAGFlow eine Kombination aus gewichteter Schlüsselwortähnlichkeit und gewichteter Vektorkosinus-Ähnlichkeit; wenn ein Rerank-modell ausgewählt wird, ersetzt eine gewichtete Rerank-bewertung die gewichtete Vektorkosinus-Ähnlichkeit. Bitte beachten Sie, dass die Verwendung eines Rerank-modells die Antwortzeit des Systems erheblich erhöht.',
       topK: 'Top-K',
       topKTip:
         'In Verbindung mit dem Rerank model wird mit dieser Einstellung die Anzahl der Textblöcke festgelegt, die an das angegebene reranking model gesendet werden.',
@@ -394,13 +394,13 @@ Beispiel: Eine 1 KB Nachricht mit 1024-dim Einbettung verwendet ~9 KB. Das Stand
         'Ein Trennzeichen oder Separator kann aus einem oder mehreren Sonderzeichen bestehen. Bei mehreren Zeichen stellen Sie sicher, dass sie in Backticks (` `) eingeschlossen sind. Wenn Sie beispielsweise Ihre Trennzeichen so konfigurieren: \\n`##`;, dann werden Ihre Texte an Zeilenumbrüchen, doppelten Rautenzeichen (##) oder Semikolons getrennt.',
       html4excel: 'Excel zu HTML',
       html4excelTip:
-        'Verwenden Sie dies zusammen mit der General-Schnittmethode. Wenn deaktiviert, werden Tabellenkalkulationsdateien (XLSX, XLS (Excel 97-2003)) zeilenweise in Schlüssel-Wert-Paare analysiert. Wenn aktiviert, werden Tabellenkalkulationsdateien in HTML-Tabellen umgewandelt. Wenn die ursprüngliche Tabelle mehr als 12 Zeilen enthält, teilt das System sie automatisch alle 12 Zeilen in mehrere HTML-Tabellen auf. Für weitere Informationen siehe https://zsre.io/docs/dev/enable_excel2html.',
+        'Verwenden Sie dies zusammen mit der General-Schnittmethode. Wenn deaktiviert, werden Tabellenkalkulationsdateien (XLSX, XLS (Excel 97-2003)) zeilenweise in Schlüssel-Wert-Paare analysiert. Wenn aktiviert, werden Tabellenkalkulationsdateien in HTML-Tabellen umgewandelt. Wenn die ursprüngliche Tabelle mehr als 12 Zeilen enthält, teilt das System sie automatisch alle 12 Zeilen in mehrere HTML-Tabellen auf. Für weitere Informationen siehe https://ragflow.io/docs/dev/enable_excel2html.',
       autoKeywords: 'Auto-Schlüsselwort',
       autoKeywordsTip:
-        'Extrahieren Sie automatisch N Schlüsselwörter für jeden Abschnitt, um deren Ranking in Abfragen mit diesen Schlüsselwörtern zu verbessern. Beachten Sie, dass zusätzliche Tokens vom in den "Systemmodelleinstellungen" angegebenen Chat-Modell verbraucht werden. Sie können die hinzugefügten Schlüsselwörter eines Abschnitts in der Abschnittsliste überprüfen oder aktualisieren. Für weitere Informationen siehe https://zsre.io/docs/dev/autokeyword_autoquestion.',
+        'Extrahieren Sie automatisch N Schlüsselwörter für jeden Abschnitt, um deren Ranking in Abfragen mit diesen Schlüsselwörtern zu verbessern. Beachten Sie, dass zusätzliche Tokens vom in den "Systemmodelleinstellungen" angegebenen Chat-Modell verbraucht werden. Sie können die hinzugefügten Schlüsselwörter eines Abschnitts in der Abschnittsliste überprüfen oder aktualisieren. Für weitere Informationen siehe https://ragflow.io/docs/dev/autokeyword_autoquestion.',
       autoQuestions: 'Auto-Frage',
       autoQuestionsTip:
-        'Um die Ranking-Ergebnisse zu verbessern, extrahieren Sie N Fragen für jeden Wissensdatenbank-Chunk mithilfe des im "Systemmodell-Setup" definierten Chatmodells. Beachten Sie, dass dies zusätzliche Token verbraucht. Die Ergebnisse können in der Chunk-Liste eingesehen und bearbeitet werden. Fehler bei der Fragenextraktion blockieren den Chunking-Prozess nicht; leere Ergebnisse werden dem ursprünglichen Chunk hinzugefügt. Für weitere Informationen siehe https://zsre.io/docs/dev/autokeyword_autoquestion.',
+        'Um die Ranking-Ergebnisse zu verbessern, extrahieren Sie N Fragen für jeden Wissensdatenbank-Chunk mithilfe des im "Systemmodell-Setup" definierten Chatmodells. Beachten Sie, dass dies zusätzliche Token verbraucht. Die Ergebnisse können in der Chunk-Liste eingesehen und bearbeitet werden. Fehler bei der Fragenextraktion blockieren den Chunking-Prozess nicht; leere Ergebnisse werden dem ursprünglichen Chunk hinzugefügt. Für weitere Informationen siehe https://ragflow.io/docs/dev/autokeyword_autoquestion.',
       redo: 'Möchten Sie die vorhandenen {{chunkNum}} Chunks löschen?',
       setMetaData: 'Metadaten festlegen',
       pleaseInputJson: 'Bitte JSON eingeben',
@@ -636,7 +636,7 @@ Beispiel: Eine 1 KB Nachricht mit 1024-dim Einbettung verwendet ~9 KB. Das Stand
 `,
       useRaptor: 'RAPTOR zur Verbesserung des Abrufs verwenden',
       useRaptorTip:
-        'RAPTOR für Multi-Hop-Frage-Antwort-Aufgaben aktivieren. Details unter https://zsre.io/docs/dev/enable_raptor.',
+        'RAPTOR für Multi-Hop-Frage-Antwort-Aufgaben aktivieren. Details unter https://ragflow.io/docs/dev/enable_raptor.',
       prompt: 'Prompt',
       promptTip:
         'Verwenden Sie den Systemprompt, um die Aufgabe für das LLM zu beschreiben, festzulegen, wie es antworten soll, und andere verschiedene Anforderungen zu skizzieren. Der Systemprompt wird oft in Verbindung mit Schlüsseln (Variablen) verwendet, die als verschiedene Dateninputs für das LLM dienen. Verwenden Sie einen Schrägstrich `/` oder die (x)-Schaltfläche, um die zu verwendenden Schlüssel anzuzeigen.',
@@ -661,7 +661,7 @@ Das oben Genannte ist der Inhalt, den Sie zusammenfassen müssen.`,
       vietnamese: 'Vietnamesisch',
       pageRank: 'PageRank',
       pageRankTip:
-        'Sie können während des Abrufs bestimmten Wissensdatenbanken eine höhere PageRank-Bewertung zuweisen. Die entsprechende Bewertung wird zu den hybriden Ähnlichkeitswerten der abgerufenen Chunks aus diesen Wissensdatenbanken addiert, wodurch deren Ranking erhöht wird. Weitere Informationen finden Sie unter https://zsre.io/docs/dev/set_page_rank.',
+        'Sie können während des Abrufs bestimmten Wissensdatenbanken eine höhere PageRank-Bewertung zuweisen. Die entsprechende Bewertung wird zu den hybriden Ähnlichkeitswerten der abgerufenen Chunks aus diesen Wissensdatenbanken addiert, wodurch deren Ranking erhöht wird. Weitere Informationen finden Sie unter https://ragflow.io/docs/dev/set_page_rank.',
       tagName: 'Tag',
       frequency: 'Häufigkeit',
       searchTags: 'Tags durchsuchen',
@@ -678,14 +678,14 @@ Diese Auto-Tag-Funktion verbessert den Abruf, indem sie eine weitere Schicht dom
   <li>Sie müssen Tag-Sets in bestimmten Formaten hochladen, bevor Sie die Auto-Tag-Funktion ausführen.</li>
   <li>Die Auto-Schlüsselwort-Funktion ist vom LLM abhängig und verbraucht eine erhebliche Anzahl an Tokens.</li>
 </ul>
-<p>Siehe https://zsre.io/docs/dev/use_tag_sets für Details.</p>
+<p>Siehe https://ragflow.io/docs/dev/use_tag_sets für Details.</p>
       `,
       topnTags: 'Top-N Tags',
       tags: 'Tags',
       addTag: 'Tag hinzufügen',
       useGraphRag: 'Wissensgraph extrahieren',
       useGraphRagTip:
-        'Erstellen Sie einen Wissensgraph über Dateiabschnitte der aktuellen Wissensbasis, um die Beantwortung von Fragen mit mehreren Schritten und verschachtelter Logik zu verbessern. Weitere Informationen finden Sie unter https://zsre.io/docs/dev/construct_knowledge_graph.',
+        'Erstellen Sie einen Wissensgraph über Dateiabschnitte der aktuellen Wissensbasis, um die Beantwortung von Fragen mit mehreren Schritten und verschachtelter Logik zu verbessern. Weitere Informationen finden Sie unter https://ragflow.io/docs/dev/construct_knowledge_graph.',
       graphRagMethod: 'Methode',
       graphRagMethodTip: `
       Light: (Standard) Verwendet von github.com/HKUDS/LightRAG bereitgestellte Prompts, um Entitäten und Beziehierungen zu extrahieren. Diese Option verbraucht weniger Tokens, weniger Speicher und weniger Rechenressourcen.</br>
@@ -790,7 +790,7 @@ Diese Auto-Tag-Funktion verbessert den Abruf, indem sie eine weitere Schicht dom
         'Nicht alle Chunks mit einem Ähnlichkeitswert über dem "Ähnlichkeitsschwellenwert" werden an das LLM gesendet. Dies wählt die "Top N" Chunks aus den abgerufenen aus.',
       variable: 'Variable',
       variableTip:
-        'In Kombination mit den APIs zur Verwaltung von Chat-Assistenten von zsre können Variablen dazu beitragen, flexiblere System-Prompt-Strategien zu entwickeln. Die definierten Variablen werden von „System-Prompt“ als Teil der Prompts für das LLM verwendet. {knowledge} ist eine spezielle reservierte Variable, die Teile darstellt, die aus den angegebenen Wissensbasen abgerufen werden, und alle Variablen sollten in geschweiften Klammern {} im „System-Prompt“ eingeschlossen werden. Weitere Informationen finden Sie unter https://zsre.io/docs/dev/set_chat_variables.',
+        'In Kombination mit den APIs zur Verwaltung von Chat-Assistenten von RAGFlow können Variablen dazu beitragen, flexiblere System-Prompt-Strategien zu entwickeln. Die definierten Variablen werden von „System-Prompt“ als Teil der Prompts für das LLM verwendet. {knowledge} ist eine spezielle reservierte Variable, die Teile darstellt, die aus den angegebenen Wissensbasen abgerufen werden, und alle Variablen sollten in geschweiften Klammern {} im „System-Prompt“ eingeschlossen werden. Weitere Informationen finden Sie unter https://ragflow.io/docs/dev/set_chat_variables.',
       add: 'Hinzufügen',
       key: 'Schlüssel',
       optional: 'Optional',
@@ -859,9 +859,9 @@ Diese Auto-Tag-Funktion verbessert den Abruf, indem sie eine weitere Schicht dom
         'Betten Sie den folgenden iframe an der gewünschten Stelle in Ihre Website ein',
       partialTitle: 'Teilweise Einbettung',
       extensionTitle: 'Chrome-Erweiterung',
-      tokenError: 'Bitte erstellen Sie zuerst einen API-Schlüssel.',
+      tokenError: 'Bitte erstellen Sie zuerst einen API-SCHLÜSSEL.',
       betaError:
-        'Bitte erwerben Sie zuerst einen zsre-API-Schlüssel auf der Systemeinstellungsseite.',
+        'Bitte erwerben Sie zuerst einen RAGFlow-API-SCHLÜSSEL auf der Systemeinstellungsseite.',
       searching: 'Suche...',
       parsing: 'Analysiere',
       uploading: 'Hochladen',
@@ -894,8 +894,8 @@ Diese Auto-Tag-Funktion verbessert den Abruf, indem sie eine weitere Schicht dom
       reasoningTip:
         'Ob beim Frage-Antwort-Prozess ein logisches Arbeitsverfahren aktiviert werden soll, wie es bei Modellen wie Deepseek-R1 oder OpenAI o1 der Fall ist. Wenn aktiviert, ermöglicht diese Funktion dem Modell, auf externes Wissen zuzugreifen und komplexe Fragen schrittweise mithilfe von Techniken wie der „Chain-of-Thought“-Argumentation zu lösen. Durch die Zerlegung von Problemen in überschaubare Schritte verbessert dieser Ansatz die Fähigkeit des Modells, präzise Antworten zu liefern, was die Leistung bei Aufgaben, die logisches Denken und mehrschrittige Überlegungen erfordern, steigert.',
       tavilyApiKeyTip:
-        'Wenn hier ein API-Schlüssel korrekt eingestellt ist, werden Tavily-basierte Websuchen verwendet, um den Abruf aus der Wissensdatenbank zu ergänzen.',
-      tavilyApiKeyMessage: 'Bitte geben Sie Ihren Tavily-API-Schlüssel ein',
+        'Wenn hier ein API-SCHLÜSSEL korrekt eingestellt ist, werden Tavily-basierte Websuchen verwendet, um den Abruf aus der Wissensdatenbank zu ergänzen.',
+      tavilyApiKeyMessage: 'Bitte geben Sie Ihren Tavily-API-SCHLÜSSEL ein',
       tavilyApiKeyHelp: 'Wie bekomme ich ihn?',
       crossLanguage: 'Sprachübergreifende Suche',
       crossLanguageTip:
@@ -930,12 +930,12 @@ Diese Auto-Tag-Funktion verbessert den Abruf, indem sie eine weitere Schicht dom
     setting: {
       deleteModel: 'Modell löschen',
       bedrockCredentialsHint:
-        'Tipp: Lassen Sie Access Key / Secret Key leer, um AWS IAM-Authentifizierung zu verwenden.',
-      awsAuthModeAccessKeySecret: 'Access Key',
+        'Tipp: Lassen Sie ACCESS KEY / SECRET KEY leer, um AWS IAM-Authentifizierung zu verwenden.',
+      awsAuthModeAccessKeySecret: 'ACCESS KEY',
       awsAuthModeIamRole: 'IAM Role',
       awsAuthModeAssumeRole: 'Assume Role',
-      awsAccessKeyId: 'AWS Access Key ID',
-      awsSecretAccessKey: 'AWS Secret Access Key',
+      awsAccessKeyId: 'AWS ACCESS KEY ID',
+      awsSecretAccessKey: 'AWS SECRET ACCESS KEY',
       awsRoleArn: 'AWS Role ARN',
       awsRoleArnMessage: 'Bitte geben Sie die AWS Role ARN ein',
       awsAssumeRoleTip:
@@ -955,7 +955,7 @@ Diese Auto-Tag-Funktion verbessert den Abruf, indem sie eine weitere Schicht dom
       confluenceIsCloudTip:
         'Aktivieren Sie dies, wenn es sich um eine Confluence Cloud-Instanz handelt, deaktivieren Sie es für Confluence Server/Data Center',
       confluenceWikiBaseUrlTip:
-        'Die Basis-URL Ihrer Confluence-Instanz (z.B. https://your-domain.atlassian.net/wiki)',
+        'Die BASIS-URL Ihrer Confluence-Instanz (z.B. https://your-domain.atlassian.net/wiki)',
       confluenceSpaceKeyTip:
         'Optional: Geben Sie einen Space-Key an, um die Synchronisierung auf einen bestimmten Bereich zu beschränken. Lassen Sie das Feld leer, um alle zugänglichen Bereiche zu synchronisieren. Trennen Sie mehrere Bereiche durch Kommas (z.B. DEV,DOCS,HR)',
       s3PrefixTip: `Geben Sie den Ordnerpfad innerhalb Ihres S3-Buckets an, aus dem Dateien abgerufen werden sollen.
@@ -1042,7 +1042,7 @@ Beispiel: Virtual Hosted Style`,
       moodleDescription:
         'Verbinden Sie sich mit Ihrem Moodle LMS, um Kursinhalte, Foren und Ressourcen zu synchronisieren.',
       moodleUrlTip:
-        'Die Basis-URL Ihrer Moodle-Instanz (z.B. https://moodle.university.edu). Fügen Sie nicht /webservice oder /login hinzu.',
+        'Die BASIS-URL Ihrer Moodle-Instanz (z.B. https://moodle.university.edu). Fügen Sie nicht /webservice oder /login hinzu.',
       moodleTokenTip:
         'Generieren Sie ein Web-Service-Token in Moodle: Gehen Sie zu Website-Administration → Server → Web-Services → Token verwalten. Der Benutzer muss in den Kursen eingeschrieben sein, die Sie synchronisieren möchten.',
       seafileDescription:
@@ -1101,7 +1101,7 @@ Beispiel: Virtual Hosted Style`,
       jiraDescription:
         'Verbinden Sie Ihren Jira-Arbeitsbereich, um Vorgänge, Kommentare und Anhänge zu synchronisieren.',
       jiraBaseUrlTip:
-        'Basis-URL Ihrer Jira-Site (z.B. https://your-domain.atlassian.net).',
+        'BASIS-URL Ihrer Jira-Site (z.B. https://your-domain.atlassian.net).',
       jiraProjectKeyTip:
         'Optional: Beschränken Sie die Synchronisierung auf einen einzelnen Projektschlüssel (z.B. ENG).',
       jiraJqlTip:
@@ -1182,16 +1182,16 @@ Beispiel: Virtual Hosted Style`,
       addedModels: 'Hinzugefügte Modelle',
       modelsToBeAdded: 'Hinzuzufügende Modelle',
       addTheModel: 'Modell hinzufügen',
-      apiKey: 'API-Schlüssel',
+      apiKey: 'API-SCHLÜSSEL',
       apiKeyMessage:
-        'Bitte geben Sie den API-Schlüssel ein (für lokal bereitgestellte Modelle ignorieren Sie dies).',
+        'Bitte geben Sie den API-SCHLÜSSEL ein (für lokal bereitgestellte Modelle ignorieren Sie dies).',
       apiKeyTip:
-        'Der API-Schlüssel kann durch Registrierung beim entsprechenden LLM-Anbieter erhalten werden.',
+        'Der API-SCHLÜSSEL kann durch Registrierung beim entsprechenden LLM-Anbieter erhalten werden.',
       showMoreModels: 'Mehr Modelle anzeigen',
       hideModels: 'Modelle ausblenden',
-      baseUrl: 'Basis-URL',
+      baseUrl: 'BASIS-URL',
       baseUrlTip:
-        'Wenn Ihr API-Schlüssel von OpenAI stammt, ignorieren Sie dies. Andere Zwischenanbieter geben diese Basis-URL mit dem API-Schlüssel an.',
+        'Wenn Ihr API-SCHLÜSSEL von OpenAI stammt, ignorieren Sie dies. Andere Zwischenanbieter geben diese BASIS-URL mit dem API-SCHLÜSSEL an.',
       tongyiBaseUrlTip:
         'Für chinesische Benutzer ist keine Eingabe erforderlich oder verwenden Sie https://dashscope.aliyuncs.com/compatible-mode/v1. Für internationale Benutzer verwenden Sie https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
       siliconBaseUrlTip:
@@ -1209,19 +1209,19 @@ Beispiel: Virtual Hosted Style`,
         'Das Standard-Chat-LLM, das alle neu erstellten Wissensdatenbanken verwenden werden.',
       embeddingModel: 'Embedding-Modell',
       embeddingModelTip:
-        'Das Standard-Einbettungsmodell für jede neu erstellte Wissensdatenbank. Wenn Sie kein Einbettungsmodell in der Dropdown-Liste finden, prüfen Sie, ob Sie die zsre Slim Edition verwenden (die keine Einbettungsmodelle enthält), oder überprüfen Sie https://zsre.io/docs/dev/supported_models, um zu sehen, ob Ihr Modellanbieter dieses Modell unterstützt.',
+        'Das Standard-Einbettungsmodell für jede neu erstellte Wissensdatenbank. Wenn Sie kein Einbettungsmodell in der Dropdown-Liste finden, prüfen Sie, ob Sie die RAGFlow Slim Edition verwenden (die keine Einbettungsmodelle enthält), oder überprüfen Sie https://ragflow.io/docs/dev/supported_models, um zu sehen, ob Ihr Modellanbieter dieses Modell unterstützt.',
       img2txtModel: 'Img2txt-Modell',
       img2txtModelTip:
-        'Das Standardmodell img2txt für jede neu erstellte Wissensdatenbank. Es beschreibt ein Bild oder Video. Wenn Sie kein Modell im Dropdown-Menü finden können, überprüfen Sie https://zsre.io/docs/dev/supported_models, um zu sehen, ob Ihr Modellanbieter dieses Modell unterstützt.',
+        'Das Standardmodell img2txt für jede neu erstellte Wissensdatenbank. Es beschreibt ein Bild oder Video. Wenn Sie kein Modell im Dropdown-Menü finden können, überprüfen Sie https://ragflow.io/docs/dev/supported_models, um zu sehen, ob Ihr Modellanbieter dieses Modell unterstützt.',
       sequence2txtModel: 'Sequence2txt-Modell',
       sequence2txtModelTip:
-        'Das Standard-ASR-Modell, das alle neu erstellten Wissensdatenbanken verwenden werden. Verwenden Sie dieses Modell, um Stimmen in entsprechenden Text zu übersetzen. Wenn Sie kein Modell im Dropdown-Menü finden können, überprüfen Sie https://zsre.io/docs/dev/supported_models, um zu sehen, ob Ihr Modellanbieter dieses Modell unterstützt.',
+        'Das Standard-ASR-Modell, das alle neu erstellten Wissensdatenbanken verwenden werden. Verwenden Sie dieses Modell, um Stimmen in entsprechenden Text zu übersetzen. Wenn Sie kein Modell im Dropdown-Menü finden können, überprüfen Sie https://ragflow.io/docs/dev/supported_models, um zu sehen, ob Ihr Modellanbieter dieses Modell unterstützt.',
       rerankModel: 'Rerank-Modell',
       rerankModelTip:
-        'Das Standard-Rerank-Modell zum Reranking von Textabschnitten. Wenn Sie kein Modell im Dropdown-Menü finden, überprüfen Sie https://zsre.io/docs/dev/supported_models, um zu sehen, ob Ihr Modellanbieter dieses Modell unterstützt.',
+        'Das Standard-Rerank-Modell zum Reranking von Textabschnitten. Wenn Sie kein Modell im Dropdown-Menü finden, überprüfen Sie https://ragflow.io/docs/dev/supported_models, um zu sehen, ob Ihr Modellanbieter dieses Modell unterstützt.',
       ttsModel: 'TTS-Modell',
       ttsModelTip:
-        'Das Standard-Text-to-Speech-Modell. Wenn Sie kein Modell im Dropdown-Menü finden, überprüfen Sie https://zsre.io/docs/dev/supported_models, um zu sehen, ob Ihr Modellanbieter dieses Modell unterstützt.',
+        'Das Standard-Text-to-Speech-Modell. Wenn Sie kein Modell im Dropdown-Menü finden, überprüfen Sie https://ragflow.io/docs/dev/supported_models, um zu sehen, ob Ihr Modellanbieter dieses Modell unterstützt.',
       workspace: 'Arbeitsbereich',
       upgrade: 'Upgrade',
       addLlmTitle: 'LLM hinzufügen',
@@ -1233,8 +1233,8 @@ Beispiel: Virtual Hosted Style`,
       modelNameMessage: 'Bitte geben Sie Ihren Modellnamen ein!',
       modelType: 'Modelltyp',
       modelTypeMessage: 'Bitte geben Sie Ihren Modelltyp ein!',
-      addLlmBaseUrl: 'Basis-URL',
-      baseUrlNameMessage: 'Bitte geben Sie Ihre Basis-URL ein!',
+      addLlmBaseUrl: 'BASIS-URL',
+      baseUrlNameMessage: 'Bitte geben Sie Ihre BASIS-URL ein',
       paddleocr: {
         apiUrl: 'PaddleOCR API-URL',
         apiUrlPlaceholder:
@@ -1256,13 +1256,13 @@ Beispiel: Virtual Hosted Style`,
       endpointIDMessage: 'Bitte geben Sie Ihre Model ID ein',
       addArkApiKey: 'VOLC ARK_API_KEY',
       ArkApiKeyMessage: 'Bitte geben Sie Ihren ARK_API_KEY ein',
-      bedrockModelNameMessage: 'Bitte geben Sie Ihren Modellnamen ein!',
+      bedrockModelNameMessage: 'Bitte geben Sie Ihren Modellnamen ein',
       addBedrockEngineAK: 'ZUGRIFFSSCHLÜSSEL',
       bedrockAKMessage: 'Bitte geben Sie Ihren ZUGRIFFSSCHLÜSSEL ein',
       addBedrockSK: 'GEHEIMER SCHLÜSSEL',
       bedrockSKMessage: 'Bitte geben Sie Ihren GEHEIMEN SCHLÜSSEL ein',
       bedrockRegion: 'AWS-Region',
-      bedrockRegionMessage: 'Bitte auswählen!',
+      bedrockRegionMessage: 'Bitte auswählen',
       'us-east-2': 'US-Ost (Ohio)',
       'us-east-1': 'US-Ost (N. Virginia)',
       'us-west-1': 'US-West (N. Kalifornien)',
@@ -1300,26 +1300,26 @@ Beispiel: Virtual Hosted Style`,
       'us-gov-west-1': 'AWS GovCloud (US-West)',
       addTencentCloudSID: 'TencentCloud Secret ID',
       TencentCloudSIDMessage: 'Bitte geben Sie Ihre Secret ID ein',
-      addTencentCloudSK: 'TencentCloud Secret Key',
-      TencentCloudSKMessage: 'Bitte geben Sie Ihren Secret Key ein',
+      addTencentCloudSK: 'TencentCloud SECRET KEY',
+      TencentCloudSKMessage: 'Bitte geben Sie Ihren SECRET KEY ein',
       SparkModelNameMessage: 'Bitte wählen Sie das Spark-Modell',
       addSparkAPIPassword: 'Spark APIPassword',
       SparkAPIPasswordMessage: 'Bitte geben Sie Ihr APIPassword ein',
       addSparkAPPID: 'Spark APP ID',
       SparkAPPIDMessage: 'Bitte geben Sie Ihre APP ID ein',
-      addSparkAPISecret: 'Spark APISecret',
-      SparkAPISecretMessage: 'Bitte geben Sie Ihr APISecret ein',
+      addSparkAPISecret: 'Spark API SECRET',
+      SparkAPISecretMessage: 'Bitte geben Sie Ihr API SECRET ein',
       addSparkAPIKey: 'Spark APIKey',
       SparkAPIKeyMessage: 'Bitte geben Sie Ihren APIKey ein',
       yiyanModelNameMessage: 'Bitte geben Sie den Modellnamen ein',
-      addyiyanAK: 'yiyan API KEY',
-      yiyanAKMessage: 'Bitte geben Sie Ihren API KEY ein',
-      addyiyanSK: 'yiyan Secret KEY',
-      yiyanSKMessage: 'Bitte geben Sie Ihren Secret KEY ein',
+      addyiyanAK: 'yiyan API Key',
+      yiyanAKMessage: 'Bitte geben Sie Ihren API Key ein',
+      addyiyanSK: 'yiyan SECRET KEY',
+      yiyanSKMessage: 'Bitte geben Sie Ihren SECRET KEY ein',
       FishAudioModelNameMessage:
         'Bitte geben Sie Ihrem Sprachsynthesemodell einen Namen',
-      addFishAudioAK: 'Fish Audio API KEY',
-      addFishAudioAKMessage: 'Bitte geben Sie Ihren API KEY ein',
+      addFishAudioAK: 'Fish Audio API Key',
+      addFishAudioAKMessage: 'Bitte geben Sie Ihren API Key ein',
       addFishAudioRefID: 'FishAudio Referenz-ID',
       addFishAudioRefIDMessage:
         'Bitte geben Sie die Referenz-ID ein (lassen Sie das Feld leer, um das Standardmodell zu verwenden).',
@@ -1446,7 +1446,7 @@ Beispiel: Virtual Hosted Style`,
       directory: 'Verzeichnis',
       uploadTitle: 'Ziehen Sie Ihre Datei hierher, um sie hochzuladen',
       uploadDescription:
-        'zsre unterstützt das Hochladen von Dateien einzeln oder in Batches. Für lokal bereitgestelltes zsre: Die maximale Dateigröße pro Upload beträgt 1 GB, mit einem Batch-Upload-Limit von 32 Dateien. Es gibt keine Begrenzung der Gesamtanzahl an Dateien pro Konto. Für cloud.zsre.io: Die maximale Dateigröße pro Upload beträgt 10 MB, wobei jede Datei nicht größer als 10 MB sein darf und maximal 128 Dateien pro Konto erlaubt sind.',
+        'RAGFlow unterstützt das Hochladen von Dateien einzeln oder in Batches. Für lokal bereitgestelltes RAGFlow: Die maximale Dateigröße pro Upload beträgt 1 GB, mit einem Batch-Upload-Limit von 32 Dateien. Es gibt keine Begrenzung der Gesamtanzahl an Dateien pro Konto. Für cloud.ragflow.io: Die maximale Dateigröße pro Upload beträgt 10 MB, wobei jede Datei nicht größer als 10 MB sein darf und maximal 128 Dateien pro Konto erlaubt sind.',
       local: 'Lokale Uploads',
       s3: 'S3-Uploads',
       preview: 'Vorschau',
@@ -1680,10 +1680,10 @@ Beispiel: Virtual Hosted Style`,
       relevance: 'Relevanz',
       google: 'Google',
       googleDescription:
-        'Eine Komponente, die auf https://www.google.com/ sucht und Ihnen ermöglicht, die Anzahl der Suchergebnisse mit TopN anzugeben. Sie ergänzt die vorhandenen Wissensdatenbanken. Bitte beachten Sie, dass hierfür ein API-Schlüssel von serpapi.com erforderlich ist.',
+        'Eine Komponente, die auf https://www.google.com/ sucht und Ihnen ermöglicht, die Anzahl der Suchergebnisse mit TopN anzugeben. Sie ergänzt die vorhandenen Wissensdatenbanken. Bitte beachten Sie, dass hierfür ein API-SCHLÜSSEL von serpapi.com erforderlich ist.',
       bing: 'Bing',
       bingDescription:
-        'Eine Komponente, die auf https://www.bing.com/ sucht und Ihnen ermöglicht, die Anzahl der Suchergebnisse mit TopN anzugeben. Sie ergänzt die vorhandenen Wissensdatenbanken. Bitte beachten Sie, dass hierfür ein API-Schlüssel von microsoft.com erforderlich ist.',
+        'Eine Komponente, die auf https://www.bing.com/ sucht und Ihnen ermöglicht, die Anzahl der Suchergebnisse mit TopN anzugeben. Sie ergänzt die vorhandenen Wissensdatenbanken. Bitte beachten Sie, dass hierfür ein API-SCHLÜSSEL von microsoft.com erforderlich ist.',
       apiKey: 'API-SCHLÜSSEL',
       country: 'Land & Region',
       language: 'Sprache',
@@ -1763,7 +1763,7 @@ Beispiel: Virtual Hosted Style`,
         'Eine Komponente, die Wetterinformationen wie Temperatur und Luftqualität von https://www.qweather.com/ abruft.',
       lang: 'Sprache',
       type: 'Typ',
-      webApiKey: 'Web-API-Schlüssel',
+      webApiKey: 'Web-API-SCHLÜSSEL',
       userType: 'Benutzertyp',
       timePeriod: 'Zeitraum',
       qWeatherLangOptions: {
@@ -2369,7 +2369,7 @@ Wichtige strukturierte Informationen können sein: Namen, Daten, Orte, Ereigniss
         bodyTemplate: 'Body-Vorlage',
         basic: 'Basic',
         bearer: 'Bearer',
-        apiKey: 'Api Key',
+        apiKey: 'API Key',
         queryParameters: 'Abfrageparameter',
         headerParameters: 'Header-Parameter',
         requestBodyParameters: 'Anfrage-Body-Parameter',
@@ -2543,7 +2543,7 @@ Wichtige strukturierte Informationen können sein: Namen, Daten, Orte, Ereigniss
     },
     admin: {
       loginTitle: 'Admin-Konsole',
-      title: 'zsre',
+      title: 'RAGFlow',
       confirm: 'Bestätigen',
       close: 'Schließen',
       yes: 'Ja',

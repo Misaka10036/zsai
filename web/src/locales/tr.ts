@@ -59,7 +59,7 @@ export default {
       submit: 'Gönder',
       clear: 'Temizle',
       embedIntoSite: 'Web sayfasına göm',
-      openInNewTab: 'Yeni sekmede sohbet et',
+      openInNewTab: 'Yeni sekmede aç',
       previousPage: 'Önceki',
       nextPage: 'Sonraki',
       previous: 'Önceki',
@@ -476,7 +476,7 @@ Prosedürel Bellek: Öğrenilen beceriler, alışkanlıklar ve otomatik prosedü
       testSetting: 'Ayar',
       retrievalTesting: 'Alım testi',
       retrievalTestingDescription:
-        "zsre'nun LLM için hedeflenen içeriği alıp alamadığını kontrol etmek için bir alım testi yapın.",
+        "RAGFlow'nun LLM için hedeflenen içeriği alıp alamadığını kontrol etmek için bir alım testi yapın.",
       Parse: 'Ayrıştır',
       dataset: 'Dataset',
       testing: 'Alım testi',
@@ -501,7 +501,7 @@ Prosedürel Bellek: Öğrenilen beceriler, alışkanlıklar ve otomatik prosedü
       action: 'İşlem',
       parsingStatus: 'Ayrıştırma durumu',
       parsingStatusTip:
-        "Belge ayrıştırma süresi çeşitli faktörlere bağlıdır. Bilgi Grafiği, RAPTOR, Otomatik Soru Çıkarma veya Otomatik Anahtar Kelime Çıkarma gibi özelliklerin etkinleştirilmesi işlem süresini önemli ölçüde artıracaktır. İlerleme çubuğu durursa, lütfen şu SSS'ye başvurun: https://zsre.io/docs/dev/faq#why-does-my-document-parsing-stall-at-under-one-percent.",
+        "Belge ayrıştırma süresi çeşitli faktörlere bağlıdır. Bilgi Grafiği, RAPTOR, Otomatik Soru Çıkarma veya Otomatik Anahtar Kelime Çıkarma gibi özelliklerin etkinleştirilmesi işlem süresini önemli ölçüde artıracaktır. İlerleme çubuğu durursa, lütfen şu SSS'ye başvurun: https://ragflow.io/docs/dev/faq#why-does-my-document-parsing-stall-at-under-one-percent.",
       processBeginAt: 'Başlangıç zamanı',
       processDuration: 'Süre',
       progressMsg: 'İlerleme',
@@ -510,10 +510,10 @@ Prosedürel Bellek: Öğrenilen beceriler, alışkanlıklar ve otomatik prosedü
       noTestResultsForNotRuned:
         'Henüz test çalıştırılmadı. Sonuçlar burada görünecek.',
       testingDescription:
-        "zsre'nun LLM için hedeflenen içeriği alıp alamadığını kontrol etmek için bir alım testi yapın.",
+        "RAGFlow'nun LLM için hedeflenen içeriği alıp alamadığını kontrol etmek için bir alım testi yapın.",
       similarityThreshold: 'Benzerlik eşiği',
       similarityThresholdTip:
-        'zsre, alım sırasında ağırlıklı anahtar kelime benzerliği ile ağırlıklı vektör kosinüs benzerliğinin veya ağırlıklı yeniden sıralama puanının kombinasyonunu kullanır. Bu parametre, kullanıcı sorgusu ile parçalar arasındaki benzerlik eşiğini belirler. Bu eşiğin altında benzerlik puanına sahip parçalar sonuçlardan çıkarılır. Varsayılan eşik 0.2 olarak ayarlanmıştır, yani yalnızca 20 veya daha yüksek hibrit benzerlik puanına sahip parçalar alınacaktır.',
+        'RAGFlow, alım sırasında ağırlıklı anahtar kelime benzerliği ile ağırlıklı vektör kosinüs benzerliğinin veya ağırlıklı yeniden sıralama puanının kombinasyonunu kullanır. Bu parametre, kullanıcı sorgusu ile parçalar arasındaki benzerlik eşiğini belirler. Bu eşiğin altında benzerlik puanına sahip parçalar sonuçlardan çıkarılır. Varsayılan eşik 0.2 olarak ayarlanmıştır, yani yalnızca 20 veya daha yüksek hibrit benzerlik puanına sahip parçalar alınacaktır.',
       vectorSimilarityWeight: 'Vektör benzerlik ağırlığı',
       vectorSimilarityWeightTip:
         "Bu, birleşik benzerlik puanındaki anahtar kelime benzerliğinin ağırlığını ayarlar. İki ağırlığın toplamı 1.0'a eşit olmalıdır.",
@@ -557,14 +557,14 @@ Prosedürel Bellek: Öğrenilen beceriler, alışkanlıklar ve otomatik prosedü
       changeSpecificCategory: 'Belirli kategoriyi değiştir',
       uploadTitle: 'Yüklemek için dosyanızı buraya sürükleyip bırakın',
       uploadDescription:
-        'Tekil veya toplu dosya yüklemeyi destekler. Yerel olarak dağıtılan zsre için: yükleme başına toplam dosya boyutu sınırı 1GB, 32 dosyalık toplu yükleme sınırı vardır. Hesap başına toplam dosya sayısında sınır yoktur. cloud.zsre.io için yükleme başına toplam dosya boyutu sınırı 10MB, her dosya en fazla 10MB ve hesap başına en fazla 128 dosya.',
+        'Tekil veya toplu dosya yüklemeyi destekler. Yerel olarak dağıtılan RAGFlow için: yükleme başına toplam dosya boyutu sınırı 1GB, 32 dosyalık toplu yükleme sınırı vardır. Hesap başına toplam dosya sayısında sınır yoktur. cloud.ragflow.io için yükleme başına toplam dosya boyutu sınırı 10MB, her dosya en fazla 10MB ve hesap başına en fazla 128 dosya.',
       chunk: 'Parça',
       bulk: 'Toplu',
       cancel: 'İptal',
       close: 'Kapat',
       rerankModel: 'Yeniden sıralama modeli',
       rerankPlaceholder: 'Değer seçin',
-      rerankTip: `İsteğe bağlı. Boş bırakılırsa zsre ağırlıklı anahtar kelime benzerliği ve ağırlıklı vektör kosinüs benzerliğinin kombinasyonunu kullanır; yeniden sıralama modeli seçilirse ağırlıklı yeniden sıralama puanı ağırlıklı vektör kosinüs benzerliğinin yerini alır. Yeniden sıralama modeli kullanmanın sistemin yanıt süresini önemli ölçüde artıracağını unutmayın. Yeniden sıralama modeli kullanmak istiyorsanız bir SaaS yeniden sıralayıcı kullandığınızdan emin olun; yerel olarak dağıtılmış yeniden sıralama modelini tercih ediyorsanız zsre'u docker-compose-gpu.yml ile başlattığınızdan emin olun.`,
+      rerankTip: `İsteğe bağlı. Boş bırakılırsa RAGFlow ağırlıklı anahtar kelime benzerliği ve ağırlıklı vektör kosinüs benzerliğinin kombinasyonunu kullanır; yeniden sıralama modeli seçilirse ağırlıklı yeniden sıralama puanı ağırlıklı vektör kosinüs benzerliğinin yerini alır. Yeniden sıralama modeli kullanmanın sistemin yanıt süresini önemli ölçüde artıracağını unutmayın. Yeniden sıralama modeli kullanmak istiyorsanız bir SaaS yeniden sıralayıcı kullandığınızdan emin olun; yerel olarak dağıtılmış yeniden sıralama modelini tercih ediyorsanız RAGFlow'u docker-compose-gpu.yml ile başlattığınızdan emin olun.`,
       topK: 'Top-K',
       topKTip: `Yeniden sıralama modeli ile birlikte kullanılır; bu ayar belirtilen yeniden sıralama modeline gönderilecek metin parçası sayısını tanımlar.`,
       delimiter: `Metin sınırlayıcısı`,
@@ -575,11 +575,11 @@ Prosedürel Bellek: Öğrenilen beceriler, alışkanlıklar ve otomatik prosedü
       childrenDelimiterTip:
         'Bir sınırlayıcı bir veya birden fazla özel karakterden oluşabilir. Birden fazla karakter ise ters tırnak içine alındığından emin olun( ``). Örneğin, sınırlayıcılarınızı şöyle yapılandırırsanız: \\n`##`;, metinleriniz satır sonlarında, çift kare işaretlerinde (##) ve noktalı virgüllerde ayrılacaktır.',
       html4excel: "Excel'i HTML'ye dönüştür",
-      html4excelTip: `Genel parçalama yöntemi ile kullanın. Devre dışı bırakıldığında, datasetteki elektronik tablolar (XLSX veya XLS(Excel 97-2003)) anahtar-değer çiftlerine ayrıştırılır. Etkinleştirildiğinde HTML tablolarına ayrıştırılır; orijinal tabloda 12'den fazla satır varsa her 12 satırda bölünür. Ayrıntılar için bkz. https://zsre.io/docs/dev/enable_excel2html.`,
+      html4excelTip: `Genel parçalama yöntemi ile kullanın. Devre dışı bırakıldığında, datasetteki elektronik tablolar (XLSX veya XLS(Excel 97-2003)) anahtar-değer çiftlerine ayrıştırılır. Etkinleştirildiğinde HTML tablolarına ayrıştırılır; orijinal tabloda 12'den fazla satır varsa her 12 satırda bölünür. Ayrıntılar için bkz. https://ragflow.io/docs/dev/enable_excel2html.`,
       autoKeywords: 'Otomatik anahtar kelime',
-      autoKeywordsTip: `Her parça için otomatik olarak N anahtar kelime çıkarır ve o anahtar kelimeleri içeren sorgular için sıralamalarını artırır. 'Yapılandırma'da belirtilen indeksleme modeli tarafından ekstra tokenlar tüketileceğini unutmayın. Bir parçaya eklenen anahtar kelimeleri parça listesinden kontrol edebilir veya güncelleyebilirsiniz. Ayrıntılar için bkz. https://zsre.io/docs/dev/autokeyword_autoquestion.`,
+      autoKeywordsTip: `Her parça için otomatik olarak N anahtar kelime çıkarır ve o anahtar kelimeleri içeren sorgular için sıralamalarını artırır. 'Yapılandırma'da belirtilen indeksleme modeli tarafından ekstra tokenlar tüketileceğini unutmayın. Bir parçaya eklenen anahtar kelimeleri parça listesinden kontrol edebilir veya güncelleyebilirsiniz. Ayrıntılar için bkz. https://ragflow.io/docs/dev/autokeyword_autoquestion.`,
       autoQuestions: 'Otomatik soru',
-      autoQuestionsTip: `Her parça için otomatik olarak N soru çıkarır ve o soruları içeren sorgular için sıralamalarını artırır. Bir parçaya eklenen soruları parça listesinden kontrol edebilir veya güncelleyebilirsiniz. Bir hata oluşursa bu özellik parçalama işlemini bozmaz, ancak orijinal parçaya boş bir sonuç ekleyebilir. 'Yapılandırma'da belirtilen indeksleme modeli tarafından ekstra tokenlar tüketileceğini unutmayın. Ayrıntılar için bkz. https://zsre.io/docs/dev/autokeyword_autoquestion.`,
+      autoQuestionsTip: `Her parça için otomatik olarak N soru çıkarır ve o soruları içeren sorgular için sıralamalarını artırır. Bir parçaya eklenen soruları parça listesinden kontrol edebilir veya güncelleyebilirsiniz. Bir hata oluşursa bu özellik parçalama işlemini bozmaz, ancak orijinal parçaya boş bir sonuç ekleyebilir. 'Yapılandırma'da belirtilen indeksleme modeli tarafından ekstra tokenlar tüketileceğini unutmayın. Ayrıntılar için bkz. https://ragflow.io/docs/dev/autokeyword_autoquestion.`,
       redo: 'Mevcut {{chunkNum}} parçayı temizlemek istiyor musunuz?',
       setMetaData: 'Meta veri ayarla',
       pleaseInputJson: 'Lütfen JSON girin',
@@ -830,7 +830,7 @@ Prosedürel Bellek: Öğrenilen beceriler, alışkanlıklar ve otomatik prosedü
 `,
       useRaptor: 'RAPTOR',
       useRaptorTip:
-        "RAPTOR çok adımlı soru-cevap görevleri için kullanılabilir. Dosyalar sayfasına gidin, Oluştur > RAPTOR'a tıklayarak etkinleştirin. Ayrıntılar için bkz. https://zsre.io/docs/dev/enable_raptor.",
+        "RAPTOR çok adımlı soru-cevap görevleri için kullanılabilir. Dosyalar sayfasına gidin, Oluştur > RAPTOR'a tıklayarak etkinleştirin. Ayrıntılar için bkz. https://ragflow.io/docs/dev/enable_raptor.",
       prompt: 'İstem',
       promptTip:
         'Görevi tanımlamak, nasıl yanıt vermesi gerektiğini belirtmek ve diğer çeşitli gereksinimleri belirlemek için sistem istemini kullanın. Sistem istemi genellikle LLM için çeşitli veri girdileri olarak hizmet eden anahtarlarla (değişkenlerle) birlikte kullanılır. Kullanacağınız anahtarları göstermek için eğik çizgi `/` veya (x) düğmesini kullanın.',
@@ -853,7 +853,7 @@ Yukarısı özetlemeniz gereken içeriktir.`,
       entityTypes: 'Varlık türleri',
       vietnamese: 'Vietnamca',
       pageRank: 'Sayfa sıralaması',
-      pageRankTip: `Alım sırasında belirli datasets'e daha yüksek PageRank puanı atayabilirsiniz. İlgili puan, bu datasetlerden alınan parçaların hibrit benzerlik puanlarına eklenir ve sıralamalarını yükseltir. Ayrıntılar için bkz. https://zsre.io/docs/dev/set_page_rank.`,
+      pageRankTip: `Alım sırasında belirli datasets'e daha yüksek PageRank puanı atayabilirsiniz. İlgili puan, bu datasetlerden alınan parçaların hibrit benzerlik puanlarına eklenir ve sıralamalarını yükseltir. Ayrıntılar için bkz. https://ragflow.io/docs/dev/set_page_rank.`,
       tagName: 'Etiket',
       frequency: 'Sıklık',
       searchTags: 'Etiketleri ara',
@@ -861,7 +861,7 @@ Yukarısı özetlemeniz gereken içeriktir.`,
       tagTable: 'Tablo',
       tagSet: 'Etiket kümeleri',
       tagSetTip: `
-     <p> Dataset'inizdeki parçaları otomatik olarak etiketlemek için bir veya birden fazla etiket dataset seçin. Ayrıntılar için bkz. https://zsre.io/docs/dev/use_tag_sets.</p>
+     <p> Dataset'inizdeki parçaları otomatik olarak etiketlemek için bir veya birden fazla etiket dataset seçin. Ayrıntılar için bkz. https://ragflow.io/docs/dev/use_tag_sets.</p>
 <p>Kullanıcı sorgusu da otomatik olarak etiketlenecektir.</p>
 Bu otomatik etiketleme özelliği, mevcut datasete alanına özgü bilgi katmanı ekleyerek alımı geliştirir.
 <p>Otomatik etiket ve otomatik anahtar kelime arasındaki fark:</p>
@@ -876,7 +876,7 @@ Bu otomatik etiketleme özelliği, mevcut datasete alanına özgü bilgi katman�
       addTag: 'Etiket ekle',
       useGraphRag: 'Bilgi grafiği',
       useGraphRagTip:
-        'İç içe geçmiş mantık içeren çok adımlı soru-cevabı geliştirmek için mevcut dataset dosya parçaları üzerinde bir bilgi grafiği oluşturun. Ayrıntılar için bkz. https://zsre.io/docs/dev/construct_knowledge_graph.',
+        'İç içe geçmiş mantık içeren çok adımlı soru-cevabı geliştirmek için mevcut dataset dosya parçaları üzerinde bir bilgi grafiği oluşturun. Ayrıntılar için bkz. https://ragflow.io/docs/dev/construct_knowledge_graph.',
       graphRagMethod: 'Yöntem',
       graphRagMethodTip: `
       Hafif: (Varsayılan) Varlıkları ve ilişkileri çıkarmak için github.com/HKUDS/LightRAG tarafından sağlanan istemler kullanılır.</br>
@@ -989,7 +989,7 @@ Bu otomatik etiketleme özelliği, mevcut datasete alanına özgü bilgi katman�
       topN: 'İlk N',
       topNTip: `Benzerlik eşiğinin üzerindeki tüm parçalar LLM'ye gönderilmeyecek. Bu, alınanlardan 'İlk N' parçayı seçer.`,
       variable: 'Değişken',
-      variableTip: `zsre'nun sohbet asistanı yönetim API'leri ile birlikte kullanılır.`,
+      variableTip: `RAGFlow'nun sohbet asistanı yönetim API'leri ile birlikte kullanılır.`,
       add: 'Ekle',
       key: 'Anahtar',
       optional: 'İsteğe bağlı',
@@ -1041,7 +1041,7 @@ Bu otomatik etiketleme özelliği, mevcut datasete alanına özgü bilgi katman�
       preview: 'Önizleme',
       embedded: 'Gömülü',
       serviceApiEndpoint: 'Servis API uç noktası',
-      apiKey: 'API Anahtarı',
+      apiKey: 'API ANAHTARI',
       apiReference: 'API belgeleri',
       dateRange: 'Tarih aralığı:',
       backendServiceApi: 'API sunucusu',
@@ -1066,7 +1066,7 @@ Bu otomatik etiketleme özelliği, mevcut datasete alanına özgü bilgi katman�
       extensionTitle: 'Chrome uzantısı',
       tokenError: 'Lütfen önce API anahtarı oluşturun.',
       betaError:
-        'Lütfen önce Sistem Ayarları sayfasından bir zsre API anahtarı edinin.',
+        'Lütfen önce Sistem Ayarları sayfasından bir RAGFlow API anahtarı edinin.',
       searching: 'Aranıyor...',
       parsing: 'Ayrıştırılıyor',
       uploading: 'Yükleniyor',
@@ -1098,7 +1098,7 @@ Bu otomatik etiketleme özelliği, mevcut datasete alanına özgü bilgi katman�
       reasoningTip: `Deepseek-R1 veya OpenAI o1 gibi modellerde görüldüğü şekilde soru yanıtlama sırasında bir akıl yürütme iş akışı etkinleştirilsin mi. Etkinleştirildiğinde, model harici bilgiye erişebilir ve karmaşık soruları düşünce zinciri akıl yürütmesi gibi tekniklerden yararlanarak adım adım ele alabilir. Bu yaklaşım, problemleri yönetilebilir adımlara bölerek modelin doğru yanıtlar sağlama yeteneğini artırır.`,
       tavilyApiKeyTip:
         'Burada bir API anahtarı doğru şekilde ayarlanırsa, Tavily tabanlı web aramaları dataset alımını desteklemek için kullanılacaktır.',
-      tavilyApiKeyMessage: 'Lütfen Tavily API Anahtarınızı girin',
+      tavilyApiKeyMessage: 'Lütfen Tavily API ANAHTARInızı girin',
       tavilyApiKeyHelp: 'Nasıl alınır?',
       crossLanguage: 'Çapraz dil araması',
       crossLanguagePlaceholder: 'Değer seçin',
@@ -1381,7 +1381,7 @@ Bu otomatik etiketleme özelliği, mevcut datasete alanına özgü bilgi katman�
       addedModels: 'Eklenen modeller',
       modelsToBeAdded: 'Eklenecek modeller',
       addTheModel: 'Ekle',
-      apiKey: 'API Anahtarı',
+      apiKey: 'API ANAHTARI',
       apiKeyMessage: 'Lütfen API anahtarını girin',
       apiKeyTip:
         'API anahtarı, ilgili LLM sağlayıcısına kaydolarak elde edilebilir.',
@@ -1401,18 +1401,18 @@ Bu otomatik etiketleme özelliği, mevcut datasete alanına özgü bilgi katman�
       chatModelTip: 'Her yeni oluşturulan dataset için varsayılan LLM.',
       embeddingModel: 'Embedding',
       embeddingModelTip:
-        'Her yeni oluşturulan dataset için varsayılan embedding model. Açılır listede bir embedding model bulamıyorsanız, zsre slim sürümünü (embedding modeller içermez) kullanıp kullanmadığınızı kontrol edin veya model sağlayıcınızın bu modeli destekleyip desteklemediğini görmek için https://zsre.io/docs/dev/supported_models adresine bakın.',
+        'Her yeni oluşturulan dataset için varsayılan embedding model. Açılır listede bir embedding model bulamıyorsanız, RAGFlow slim sürümünü (embedding modeller içermez) kullanıp kullanmadığınızı kontrol edin veya model sağlayıcınızın bu modeli destekleyip desteklemediğini görmek için https://ragflow.io/docs/dev/supported_models adresine bakın.',
       img2txtModel: 'VLM',
       img2txtModelTip:
-        'Her yeni oluşturulan dataset için varsayılan VLM. Bir resmi veya videoyu tanımlar. Açılır listede bir model bulamıyorsanız, model sağlayıcınızın bu modeli destekleyip desteklemediğini görmek için https://zsre.io/docs/dev/supported_models adresine bakın.',
+        'Her yeni oluşturulan dataset için varsayılan VLM. Bir resmi veya videoyu tanımlar. Açılır listede bir model bulamıyorsanız, model sağlayıcınızın bu modeli destekleyip desteklemediğini görmek için https://ragflow.io/docs/dev/supported_models adresine bakın.',
       sequence2txtModel: 'ASR',
       sequence2txtModelTip:
         'Her yeni oluşturulan dataset için varsayılan ASR modeli. Bu modeli sesleri ilgili metne dönüştürmek için kullanın.',
       rerankModel: 'Rerank',
-      rerankModelTip: `Parçaları yeniden sıralamak için varsayılan yeniden sıralama modeli. Açılır listede bir model bulamıyorsanız, model sağlayıcınızın bu modeli destekleyip desteklemediğini görmek için https://zsre.io/docs/dev/supported_models adresine bakın.`,
+      rerankModelTip: `Parçaları yeniden sıralamak için varsayılan yeniden sıralama modeli. Açılır listede bir model bulamıyorsanız, model sağlayıcınızın bu modeli destekleyip desteklemediğini görmek için https://ragflow.io/docs/dev/supported_models adresine bakın.`,
       ttsModel: 'TTS',
       ttsModelTip:
-        'Varsayılan metin-konuşma dönüştürme modeli. Açılır listede bir model bulamıyorsanız, model sağlayıcınızın bu modeli destekleyip desteklemediğini görmek için https://zsre.io/docs/dev/supported_models adresine bakın.',
+        'Varsayılan metin-konuşma dönüştürme modeli. Açılır listede bir model bulamıyorsanız, model sağlayıcınızın bu modeli destekleyip desteklemediğini görmek için https://ragflow.io/docs/dev/supported_models adresine bakın.',
       workspace: 'çalışma alanı',
       upgrade: 'Yükselt',
       addLlmTitle: 'LLM Ekle',
@@ -1424,8 +1424,8 @@ Bu otomatik etiketleme özelliği, mevcut datasete alanına özgü bilgi katman�
       modelNameMessage: 'Lütfen model adınızı girin!',
       modelType: 'Model türü',
       modelTypeMessage: 'Lütfen model türünüzü girin!',
-      addLlmBaseUrl: 'Temel url',
-      baseUrlNameMessage: "Lütfen temel url'nizi girin!",
+      addLlmBaseUrl: 'Temel URL',
+      baseUrlNameMessage: "Lütfen temel URL'nizi girin",
       paddleocr: {
         apiUrl: 'PaddleOCR API URL',
         apiUrlPlaceholder: 'Örnek: https://paddleocr-server.com/layout-parsing',
@@ -1446,13 +1446,13 @@ Bu otomatik etiketleme özelliği, mevcut datasete alanına özgü bilgi katman�
       endpointIDMessage: 'Lütfen modelin Model ID bilgisini girin',
       addArkApiKey: 'VOLC ARK_API_KEY',
       ArkApiKeyMessage: "Lütfen ARK_API_KEY'inizi girin",
-      bedrockModelNameMessage: 'Lütfen model adınızı girin!',
+      bedrockModelNameMessage: 'Lütfen model adınızı girin',
       addBedrockEngineAK: 'ERİŞİM ANAHTARI',
       bedrockAKMessage: 'Lütfen ERİŞİM ANAHTARINIZI girin',
       addBedrockSK: 'GİZLİ ANAHTAR',
       bedrockSKMessage: 'Lütfen GİZLİ ANAHTARINIZI girin',
       bedrockRegion: 'AWS bölgesi',
-      bedrockRegionMessage: 'Lütfen seçin!',
+      bedrockRegionMessage: 'Lütfen seçin',
       'us-east-2': 'ABD Doğu (Ohio)',
       'us-east-1': 'ABD Doğu (K. Virginia)',
       'us-west-1': 'ABD Batı (K. Kaliforniya)',
@@ -1499,8 +1499,8 @@ Bu otomatik etiketleme özelliği, mevcut datasete alanına özgü bilgi katman�
       SparkAPPIDMessage: 'lütfen APP Kimliğinizi girin',
       addSparkAPISecret: 'Spark API Gizlisi',
       SparkAPISecretMessage: 'lütfen API Gizlinizi girin',
-      addSparkAPIKey: 'Spark API Anahtarı',
-      SparkAPIKeyMessage: 'lütfen API Anahtarınızı girin',
+      addSparkAPIKey: 'Spark API ANAHTARI',
+      SparkAPIKeyMessage: 'lütfen API ANAHTARInızı girin',
       yiyanModelNameMessage: 'Lütfen model adını girin',
       addyiyanAK: 'yiyan API ANAHTARI',
       yiyanAKMessage: 'Lütfen API ANAHTARINIZI girin',
@@ -1636,7 +1636,7 @@ Bu otomatik etiketleme özelliği, mevcut datasete alanına özgü bilgi katman�
       directory: 'Dizin',
       uploadTitle: 'Yüklemek için dosyanızı buraya sürükleyip bırakın',
       uploadDescription:
-        'Tekil veya toplu dosya yüklemeyi destekler. Yerel zsre için 1GB sınır, 32 dosya toplu yükleme sınırı.',
+        'Tekil veya toplu dosya yüklemeyi destekler. Yerel RAGFlow için 1GB sınır, 32 dosya toplu yükleme sınırı.',
       local: 'Yerel yüklemeler',
       s3: 'S3 yüklemeleri',
       preview: 'Önizleme',
@@ -2584,7 +2584,7 @@ Temel Talimatlar:
         bodyTemplate: 'Gövde şablonu',
         basic: 'Temel',
         bearer: 'Taşıyıcı',
-        apiKey: 'Api anahtarı',
+        apiKey: 'API ANAHTARI',
         queryParameters: 'Sorgu parametreleri',
         headerParameters: 'Başlık parametreleri',
         requestBodyParameters: 'İstek gövdesi parametreleri',
@@ -2764,7 +2764,7 @@ Temel Talimatlar:
     },
     admin: {
       loginTitle: 'Yönetici konsolu',
-      title: 'zsre',
+      title: 'RAGFlow',
       confirm: 'Onayla',
       close: 'Kapat',
       yes: 'Evet',

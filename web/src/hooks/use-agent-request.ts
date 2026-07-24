@@ -7,6 +7,7 @@ import {
   IAgentLogResponse,
   IAgentLogsRequest,
   IAgentLogsResponse,
+  IBuiltinPipelineListResponse,
   IFlow,
   IFlowTemplate,
   IPipeLineListRequest,
@@ -29,9 +30,7 @@ import agentService, {
   fetchSharedTrace,
   fetchTrace,
   fetchWebhookTrace,
-  getAgentSchedule,
   updateAgent,
-  updateAgentSchedule,
   updateAgentTags,
   uploadAgentFile,
 } from '@/services/agent-service';
@@ -79,8 +78,9 @@ export const enum AgentApiAction {
   FetchSharedAgent = 'fetchSharedAgent',
   FetchAgentTags = 'fetchAgentTags',
   UpdateAgentTags = 'updateAgentTags',
-  FetchAgentSchedule = 'fetchAgentSchedule',
-  UpdateAgentSchedule = 'updateAgentSchedule',
+  FetchPipelineNodes = 'fetchPipelineNodes',
+  FetchBuiltinPipelineList = 'fetchBuiltinPipelineList',
+  FetchBuiltinPipelineDetail = 'fetchBuiltinPipelineDetail',
 }
 
 export const useFetchAgentTemplates = () => {
@@ -253,6 +253,59 @@ export const useUpdateAgentSetting = () => {
   });
 
   return { data, loading, updateAgentSetting: mutateAsync };
+};
+
+export const useDuplicateAgent = () => {
+  const queryClient = useQueryClient();
+  const {
+    data,
+    isPending: loading,
+    mutateAsync,
+  } = useMutation({
+    mutationKey: [AgentApiAction.SetAgent, 'duplicate'],
+    mutationFn: async (agent: Pick<IFlow, 'id' | 'title'>) => {
+      try {
+        const { data: detail } = await agentService.getAgent(agent.id);
+        const source = detail?.data;
+        if (!source) {
+          message.error(i18n.t('message.requestError'));
+          return null;
+        }
+
+        const sourceTitle = agent.title ?? source.title ?? '';
+        const { data } = await agentService.createAgent({
+          title: i18n.t('flow.copyOfAgentName', {
+            name: sourceTitle,
+            defaultValue: `${sourceTitle} (Copy)`,
+          }),
+          dsl: source.dsl,
+          avatar: source.avatar,
+          description: source.description,
+          canvas_category: source.canvas_category,
+        });
+
+        if (data?.code === 0) {
+          message.success(i18n.t('message.created'));
+          queryClient.invalidateQueries({
+            queryKey: [AgentApiAction.FetchAgentListByPage],
+          });
+          return data;
+        }
+
+        message.error(data?.message ?? i18n.t('message.requestError'));
+        return null;
+      } catch (error) {
+        console.error('useDuplicateAgent failed:', error);
+        message.error(
+          (error as { message?: string })?.message ??
+            i18n.t('message.requestError'),
+        );
+        return null;
+      }
+    },
+  });
+
+  return { data, loading, duplicateAgent: mutateAsync };
 };
 
 export const useDeleteAgent = () => {
@@ -818,6 +871,37 @@ export const useFetchAgentList = ({
   return { data, loading };
 };
 
+export const BuiltinPipelineKeys = {
+  list: (type: string) =>
+    [AgentApiAction.FetchBuiltinPipelineList, type] as const,
+  detail: (id: string) =>
+    [AgentApiAction.FetchBuiltinPipelineDetail, id] as const,
+};
+
+export const useFetchBuiltinPipelines = (type = 'builtin', enabled = true) => {
+  const { data, isFetching: loading } = useQuery<IBuiltinPipelineListResponse>({
+    queryKey: BuiltinPipelineKeys.list(type),
+    initialData: { canvas: [], total: 0 },
+    gcTime: 0,
+    enabled,
+    queryFn: async () => {
+      const { data } = await agentService.listBuiltinPipelines(
+        { params: { type } },
+        true,
+      );
+      return data?.data ?? { canvas: [], total: 0 };
+    },
+  });
+
+  const options =
+    data?.canvas?.map((item) => ({
+      label: item.title,
+      value: item.id,
+    })) ?? [];
+
+  return { data, loading, options };
+};
+
 export const useCancelDataflow = () => {
   const {
     data,
@@ -1052,72 +1136,6 @@ export function useFetchSessionManually() {
   return { data, loading, fetchSessionManually: mutateAsync };
 }
 
-export function useFetchAgentSchedule(agentId: string) {
-  return useQuery({
-    queryKey: [AgentApiAction.FetchAgentSchedule, agentId],
-    queryFn: async () => {
-      const { data } = await getAgentSchedule(agentId);
-      if (data.code !== 0 || !data.data) {
-        return null;
-      }
-      const schedule = data.data;
-      // Normalize MySQL 0/1 and string flags so Switch always gets a real boolean.
-      return {
-        ...schedule,
-        auto_run: Boolean(schedule.auto_run),
-        schedule_input: schedule.schedule_input ?? '',
-        schedule_config:
-          schedule.schedule_config &&
-          typeof schedule.schedule_config === 'object' &&
-          Object.keys(schedule.schedule_config).length > 0
-            ? schedule.schedule_config
-            : null,
-      };
-    },
-    enabled: !!agentId,
-    staleTime: 0,
-    refetchOnMount: 'always',
-  });
-}
-
-export function useUpdateAgentSchedule() {
-  const queryClient = useQueryClient();
-
-  const {
-    data,
-    isPending: loading,
-    mutateAsync,
-  } = useMutation({
-    mutationKey: [AgentApiAction.UpdateAgentSchedule],
-    mutationFn: async (params: {
-      agentId: string;
-      auto_run: boolean;
-      schedule_config: {
-        type: 'cron' | 'interval';
-        expr?: string;
-        seconds?: number;
-        tz?: string;
-      } | null;
-      schedule_input?: string;
-    }) => {
-      const { agentId, ...body } = params;
-      const { data } = await updateAgentSchedule(agentId, body);
-      if (data.code === 0) {
-        message.success(i18n.t('flow.schedule.saveSuccess'));
-        queryClient.invalidateQueries({
-          queryKey: [AgentApiAction.FetchAgentSchedule, agentId],
-        });
-        queryClient.invalidateQueries({
-          queryKey: [AgentApiAction.FetchAgentDetail, agentId],
-        });
-      }
-      return data;
-    },
-  });
-
-  return { data, loading, updateAgentSchedule: mutateAsync };
-}
-
 export const useExportAgentLog = () => {
   const { id } = useParams();
   const { mutateAsync, isPending: loading } = useMutation({
@@ -1132,4 +1150,27 @@ export const useExportAgentLog = () => {
   });
 
   return { exportLogs: mutateAsync, loading };
+};
+
+export const useFetchPipelineDslByPipelineId = (
+  pipelineId?: string,
+  isBuiltin = false,
+) => {
+  const { data: dsl, isFetching: loading } = useQuery({
+    queryKey: isBuiltin
+      ? BuiltinPipelineKeys.detail(pipelineId!)
+      : [AgentApiAction.FetchPipelineNodes, pipelineId],
+    initialData: {},
+    gcTime: 0,
+    enabled: !!pipelineId,
+    queryFn: async () => {
+      const { data } = isBuiltin
+        ? await agentService.getBuiltinPipeline(pipelineId!)
+        : await agentService.getAgent(pipelineId!);
+      const flow = data?.data;
+      return flow?.dsl ?? {};
+    },
+  });
+
+  return { dsl, loading };
 };

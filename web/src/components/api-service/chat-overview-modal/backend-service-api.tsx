@@ -11,7 +11,7 @@ const BackendServiceApi = ({ show }: { show(): void }) => {
     <Card>
       <CardHeader>
         <div className="flex items-center gap-4">
-          <CardTitle>zsre API</CardTitle>
+          <CardTitle>RAGFlow API</CardTitle>
           <Button onClick={show}>{t('apiKey')}</Button>
         </div>
       </CardHeader>

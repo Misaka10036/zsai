@@ -5,25 +5,33 @@ import i18n from 'i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import { upperFirst } from 'lodash';
 import { initReactI18next } from 'react-i18next';
-import translation_zh from './zh';
+import translation_en from './en';
 
 //The language is based on the .ng file stored in the client's local storage.
 // The language stored in the database is for agent template resources, as these resources reside on the server.
-// The app UI is fixed to the supported language list below.
+// When a user logs in from a different machine, the login page language is the language configured by VITE_DEFAULT_LANGUAGE_CODE.
 
 const languageImports: Record<string, () => Promise<{ default: any }>> = {
+  [LanguageAbbreviation.En]: () => import('./en'),
   [LanguageAbbreviation.Zh]: () => import('./zh'),
+  [LanguageAbbreviation.ZhTraditional]: () => import('./zh-traditional'),
+  [LanguageAbbreviation.Id]: () => import('./id'),
+  [LanguageAbbreviation.Ja]: () => import('./ja'),
+  [LanguageAbbreviation.Es]: () => import('./es'),
+  [LanguageAbbreviation.Vi]: () => import('./vi'),
+  [LanguageAbbreviation.Ru]: () => import('./ru'),
+  [LanguageAbbreviation.PtBr]: () => import('./pt-br'),
+  [LanguageAbbreviation.De]: () => import('./de'),
+  [LanguageAbbreviation.Fr]: () => import('./fr'),
+  [LanguageAbbreviation.It]: () => import('./it'),
+  [LanguageAbbreviation.Bg]: () => import('./bg'),
+  [LanguageAbbreviation.Ar]: () => import('./ar'),
+  [LanguageAbbreviation.Tr]: () => import('./tr'),
+  [LanguageAbbreviation.Ko]: () => import('./ko'),
 };
 
 const supportedLanguageCodes: Intl.UnicodeBCP47LocaleIdentifier[] =
   Object.keys(languageImports);
-
-export const DEFAULT_LANGUAGE_CODE = LanguageAbbreviation.Zh;
-
-export const normalizeLanguageCode = (lng?: string | null) =>
-  supportedLanguageCodes.includes(lng as Intl.UnicodeBCP47LocaleIdentifier)
-    ? (lng as Intl.UnicodeBCP47LocaleIdentifier)
-    : DEFAULT_LANGUAGE_CODE;
 
 export const supportedLanguages = supportedLanguageCodes.map((code) => {
   const locale = new Intl.Locale(code);
@@ -37,14 +45,17 @@ export const supportedLanguages = supportedLanguageCodes.map((code) => {
   };
 });
 
+export const DEFAULT_LANGUAGE_CODE =
+  import.meta.env.VITE_DEFAULT_LANGUAGE_CODE || LanguageAbbreviation.En;
+
 const resources = {
-  [LanguageAbbreviation.Zh]: translation_zh,
+  [LanguageAbbreviation.En]: translation_en,
 };
 
 const updateDocumentLocale = (lng: string) => {
   document.documentElement.lang = lng;
   document.documentElement.dir = 'ltr';
-  dayjs.locale(lng.startsWith('zh') ? 'zh-cn' : lng);
+  dayjs.locale(lng === 'zh' ? 'zh-cn' : lng);
 };
 
 i18n
@@ -65,7 +76,7 @@ i18n
   });
 
 export const loadLanguageAsync = async (lng: string): Promise<void> => {
-  const normalizedLng = normalizeLanguageCode(lng);
+  const normalizedLng = lng;
 
   if (i18n.hasResourceBundle(normalizedLng, 'translation')) {
     return;
@@ -87,23 +98,24 @@ export const loadLanguageAsync = async (lng: string): Promise<void> => {
 };
 
 export const changeLanguageAsync = async (lng: string): Promise<void> => {
-  const normalizedLng = normalizeLanguageCode(lng);
+  const normalizedLng = lng;
 
-  if (!i18n.hasResourceBundle(normalizedLng, 'translation')) {
+  if (
+    normalizedLng !== LanguageAbbreviation.En &&
+    !i18n.hasResourceBundle(normalizedLng, 'translation')
+  ) {
     await loadLanguageAsync(normalizedLng);
   }
 
-  storage.setLanguage(normalizedLng);
+  storage.setLanguage(lng);
 
-  updateDocumentLocale(normalizedLng);
+  updateDocumentLocale(lng);
 
   await i18n.changeLanguage(normalizedLng);
 };
 
 export const initLanguage = async (): Promise<void> => {
-  const currentLng = normalizeLanguageCode(
-    storage.getLanguage() || DEFAULT_LANGUAGE_CODE,
-  );
+  const currentLng = storage.getLanguage() || DEFAULT_LANGUAGE_CODE;
 
   await changeLanguageAsync(currentLng);
 };

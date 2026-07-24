@@ -96,6 +96,17 @@ func (e *elasticsearchEngine) CreateChunkStore(ctx context.Context, baseName, da
 				"number_of_shards":   1,
 				"number_of_replicas": 0,
 			},
+			"mappings": map[string]interface{}{
+				"properties": map[string]interface{}{
+					// tag_feas must be an object of numeric values (the
+					// "rank_features" ES type) so tag-based ranking works and
+					// inserts succeed. Without this, dynamic mapping could
+					// infer an incompatible type when a JSON string is sent.
+					"tag_feas": map[string]interface{}{
+						"type": "rank_features",
+					},
+				},
+			},
 		}
 	}
 
@@ -222,10 +233,38 @@ func (e *elasticsearchEngine) InsertChunks(ctx context.Context, chunks []map[str
 		return nil, fmt.Errorf("failed to parse bulk response: %w", err)
 	}
 
-	// Check for errors in bulk response
+	// Check for errors in bulk response. ES reports a 200 at the
+	// top level even when individual bulk items fail, so we must
+	// inspect the items and surface the reasons instead of returning
+	// success while the chunks were silently dropped.
 	if errors, ok := bulkResponse["errors"].(bool); ok && errors {
-		common.Warn("Bulk request had some errors")
-		// Could iterate through items to find specific errors if needed
+		var reasons []string
+		if items, ok := bulkResponse["items"].([]interface{}); ok {
+			for _, it := range items {
+				im, ok := it.(map[string]interface{})
+				if !ok {
+					continue
+				}
+				for _, op := range im {
+					om, ok := op.(map[string]interface{})
+					if !ok {
+						continue
+					}
+					if errObj, ok := om["error"].(map[string]interface{}); ok {
+						if reason, ok := errObj["reason"].(string); ok && reason != "" {
+							reasons = append(reasons, reason)
+						}
+					}
+				}
+			}
+		}
+		if len(reasons) > 5 {
+			reasons = reasons[:5]
+		}
+		common.Error("Elasticsearch bulk request had item errors",
+			fmt.Errorf("index %s: %d failed items; first reasons: %v", baseName, len(reasons), reasons))
+		return nil, fmt.Errorf("elasticsearch bulk request had %d item errors (index %s); first reasons: %v",
+			len(reasons), baseName, reasons)
 	}
 
 	common.Info("ElasticsearchConnection.InsertChunks result", zap.String("index_name", baseName), zap.Int("count", len(chunks)))
@@ -269,6 +308,93 @@ func (e *elasticsearchEngine) UpdateChunks(ctx context.Context, condition map[st
 
 	// Case 2: Multi-document update via UpdateByQuery
 	return e.updateChunksByQuery(ctx, fullIndexName, condition, newValue)
+}
+
+// AdjustChunkPagerank atomically adjusts pagerank_fea and clamps it to
+// [minWeight, maxWeight].
+func (e *elasticsearchEngine) AdjustChunkPagerank(ctx context.Context, indexName, chunkID, kbID string, delta, minWeight, maxWeight float64) error {
+	if indexName == "" {
+		return fmt.Errorf("index name cannot be empty")
+	}
+	if chunkID == "" {
+		return fmt.Errorf("chunk id cannot be empty")
+	}
+	script := `
+		if (ctx._source.kb_id == null || !ctx._source.kb_id.equals(params.kb_id)) {
+			ctx.op = 'noop';
+		} else {
+			double current = 0.0;
+			if (ctx._source.containsKey(params.field) && ctx._source[params.field] != null) {
+				Object currentValue = ctx._source[params.field];
+				if (currentValue instanceof Number) {
+					current = ((Number)currentValue).doubleValue();
+				} else {
+					try {
+						current = Double.parseDouble(currentValue.toString());
+					} catch (Exception e) {
+						current = 0.0;
+					}
+				}
+			}
+			double next = current + params.delta;
+			if (next < params.min_weight) {
+				next = params.min_weight;
+			}
+			if (next > params.max_weight) {
+				next = params.max_weight;
+			}
+			if (next <= 0.0) {
+				ctx._source.remove(params.field);
+			} else {
+				ctx._source[params.field] = next;
+			}
+		}
+	`
+	body, err := json.Marshal(map[string]interface{}{
+		"script": map[string]interface{}{
+			"source": script,
+			"lang":   "painless",
+			"params": map[string]interface{}{
+				"field":      common.PAGERANK_FLD,
+				"kb_id":      kbID,
+				"delta":      delta,
+				"min_weight": minWeight,
+				"max_weight": maxWeight,
+			},
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to marshal pagerank adjust request: %w", err)
+	}
+	retryOnConflict := 3
+	req := esapi.UpdateRequest{
+		Index:           indexName,
+		DocumentID:      chunkID,
+		Body:            bytes.NewReader(body),
+		RetryOnConflict: &retryOnConflict,
+	}
+	res, err := req.Do(ctx, e.client)
+	if err != nil {
+		return fmt.Errorf("failed to adjust chunk pagerank: %w", err)
+	}
+	defer res.Body.Close()
+	if res.IsError() {
+		if res.StatusCode == http.StatusNotFound {
+			return fmt.Errorf("%w: %s", types.ErrDocumentNotFound, chunkID)
+		}
+		bodyBytes, _ := io.ReadAll(res.Body)
+		return fmt.Errorf("elasticsearch pagerank adjust error: %s, body: %s", res.Status(), string(bodyBytes))
+	}
+	var updateResp struct {
+		Result string `json:"result"`
+	}
+	if err := json.NewDecoder(res.Body).Decode(&updateResp); err != nil {
+		return fmt.Errorf("failed to decode pagerank adjust response: %w", err)
+	}
+	if updateResp.Result == "noop" {
+		return fmt.Errorf("chunk %s does not belong to dataset %s", chunkID, kbID)
+	}
+	return nil
 }
 
 func (e *elasticsearchEngine) updateSingleMemoryMessage(ctx context.Context, indexName, messageDocID string, newValue map[string]interface{}) error {
@@ -573,7 +699,7 @@ func (e *elasticsearchEngine) updateChunksByQuery(ctx context.Context, indexName
 			sanitized := sanitizeString(val)
 			params[fmt.Sprintf("pp_%s", k)] = sanitized
 			scripts = append(scripts, fmt.Sprintf("ctx._source.%s=params.pp_%s;", k, k))
-		case int, float64:
+		case int, int8, int16, int32, int64, float32, float64:
 			scripts = append(scripts, fmt.Sprintf("ctx._source.%s=%v;", k, val))
 		case []interface{}:
 			params[fmt.Sprintf("pp_%s", k)] = val
@@ -582,6 +708,9 @@ func (e *elasticsearchEngine) updateChunksByQuery(ctx context.Context, indexName
 	}
 
 	scriptSource := strings.Join(scripts, "")
+	if scriptSource == "" {
+		return fmt.Errorf("no supported update fields for update by query")
+	}
 
 	// Build update by query body
 	updateBody := map[string]interface{}{
@@ -830,10 +959,7 @@ func (e *elasticsearchEngine) Search(ctx context.Context, req *types.SearchReque
 		return nil, fmt.Errorf("index names cannot be empty")
 	}
 
-	offset := req.Offset
-	if offset < 0 {
-		offset = 0
-	}
+	offset := max(req.Offset, 0)
 	limit := req.Limit
 	if limit <= 0 {
 		limit = 30
@@ -1224,10 +1350,7 @@ func searchAfterPaginate(
 	// Skip phase: walk past `offset` hits without retaining them.
 	remainingSkip := offset
 	for remainingSkip > 0 {
-		batch := remainingSkip
-		if batch > common.SearchAfterBatchSize {
-			batch = common.SearchAfterBatchSize
-		}
+		batch := min(remainingSkip, common.SearchAfterBatchSize)
 
 		resp, err := fetch(ctx, baseQuery, batch, cursor, firstCall)
 		firstCall = false
@@ -1261,10 +1384,7 @@ func searchAfterPaginate(
 	// target) regardless of how many we asked for in this iteration.
 	for collectedTake < limit {
 		want := limit - collectedTake
-		batch := want
-		if batch > common.SearchAfterBatchSize {
-			batch = common.SearchAfterBatchSize
-		}
+		batch := min(want, common.SearchAfterBatchSize)
 
 		resp, err := fetch(ctx, baseQuery, batch, cursor, firstCall)
 		firstCall = false
@@ -1291,6 +1411,7 @@ func searchAfterPaginate(
 			}
 			chunk["_score"] = hit.Score
 			chunk["_id"] = hit.ID
+			chunk["id"] = hit.ID // shim id to _id, matching Python es_conn.py behavior
 			chunk["_index"] = hit.Index
 			collected = append(collected, chunk)
 			collectedTake++
@@ -1659,6 +1780,9 @@ func buildQueryStringQuery(matchText *types.MatchTextExpr, vectorSimilarityWeigh
 			fields = []string{"title_tks^10", "title_sm_tks^5", "important_kwd^30", "important_tks^20", "question_tks^20", "content_ltks^2", "content_sm_ltks"}
 		}
 	}
+	if isSkillIndex {
+		fields = mapSkillSearchFields(fields)
+	}
 	if isMemoryIndex {
 		fields = mapMemoryMessageESFields(fields, true)
 	}
@@ -1679,6 +1803,29 @@ func buildQueryStringQuery(matchText *types.MatchTextExpr, vectorSimilarityWeigh
 			"boost":                boost,
 		},
 	}
+}
+
+func mapSkillSearchFields(fields []string) []string {
+	mapped := make([]string, 0, len(fields))
+	for _, field := range fields {
+		name, boost, hasBoost := strings.Cut(field, "^")
+		switch name {
+		case "name":
+			name = "name_tks"
+		case "tags":
+			name = "tags_tks"
+		case "description":
+			name = "description_tks"
+		case "content":
+			name = "content_tks"
+		}
+		if hasBoost {
+			mapped = append(mapped, name+"^"+boost)
+		} else {
+			mapped = append(mapped, name)
+		}
+	}
+	return mapped
 }
 
 // buildRankFeatureQuery builds rank_feature queries for learning to rank
@@ -2701,10 +2848,7 @@ func calculatePagination(page, size, topK int) (int, int) {
 
 	window := rerankWindow(size, topK)
 
-	offset := (page - 1) * window
-	if offset < 0 {
-		offset = 0
-	}
+	offset := max((page-1)*window, 0)
 
 	return offset, window
 }
@@ -2723,6 +2867,7 @@ func convertESResponse(esResp *SearchResponse, vectorFieldName string) []map[str
 		}
 		chunks[i]["_score"] = hit.Score
 		chunks[i]["_id"] = hit.ID
+		chunks[i]["id"] = hit.ID // shim id to _id, matching Python es_conn.py behavior
 		chunks[i]["_index"] = hit.Index
 		if len(hit.Highlight) > 0 {
 			chunks[i]["highlight"] = hit.Highlight

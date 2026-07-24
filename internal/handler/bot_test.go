@@ -492,6 +492,29 @@ func TestAgentbotCompletion_ResumesSession(t *testing.T) {
 	}
 }
 
+func TestAgentbotCompletion_BindsFileDescriptors(t *testing.T) {
+	var capturedReq service.AgentbotCompletionRequest
+	stub := &stubBotService{
+		agentbotCompleteFn: func(ctx context.Context, tenantID, agentID string, req service.AgentbotCompletionRequest) (<-chan canvas.RunEvent, common.ErrorCode, error) {
+			capturedReq = req
+			ch := make(chan canvas.RunEvent)
+			close(ch)
+			return ch, common.CodeSuccess, nil
+		},
+	}
+	r := botTestEngine(stub)
+	_ = doJSON(r, http.MethodPost, "/api/v1/agentbots/a1/completions", `{
+		"question":"hi",
+		"files":[{"id":"upload-1","name":"notes.txt","mime_type":"text/plain","created_by":"user-1"}]
+	}`)
+	if len(capturedReq.Files) != 1 {
+		t.Fatalf("files = %#v, want one descriptor", capturedReq.Files)
+	}
+	if capturedReq.Files[0]["id"] != "upload-1" || capturedReq.Files[0]["created_by"] != "user-1" {
+		t.Fatalf("file descriptor = %#v", capturedReq.Files[0])
+	}
+}
+
 // ----- AgentbotInputs tests (criteria 21, 22, 23) -----
 
 // TestAgentbotInputs_OK covers criterion 21.
@@ -688,15 +711,15 @@ type fakeFileService struct {
 	err  error
 }
 
-func (f *fakeFileService) DownloadAgentFile(tenantID, location string) ([]byte, error) {
+func (f *fakeFileService) DownloadAgentFile(ctx context.Context, tenantID, location string) ([]byte, error) {
 	return f.blob, f.err
 }
 
-func (f *fakeFileService) UploadInfos(userID string, files []*multipart.FileHeader) ([]map[string]interface{}, error) {
+func (f *fakeFileService) UploadInfos(ctx context.Context, userID string, files []*multipart.FileHeader) ([]map[string]interface{}, error) {
 	return nil, nil
 }
 
-func (f *fakeFileService) UploadFromURL(tenantID, rawURL string) (map[string]interface{}, error) {
+func (f *fakeFileService) UploadFromURL(ctx context.Context, tenantID, rawURL string) (map[string]interface{}, error) {
 	return nil, nil
 }
 
@@ -761,7 +784,7 @@ func TestBotRoutes_RequireAuth(t *testing.T) {
 func TestBotMiddleware_NonBearerRegularToken(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	stub := &stubUserTokenResolver{
-		getUserByTokenFn: func(auth string) (*entity.User, common.ErrorCode, error) {
+		getUserByTokenFn: func(ctx context.Context, auth string) (*entity.User, common.ErrorCode, error) {
 			if auth != "raw-access-token-abc" {
 				t.Errorf("GetUserByToken called with %q, want raw-access-token-abc", auth)
 			}
@@ -792,35 +815,83 @@ func TestBotMiddleware_NonBearerRegularToken(t *testing.T) {
 	}
 }
 
+func TestBotMiddleware_BetaTokenBindsAgentID(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	agentID := "agent-bound"
+	stub := &stubUserTokenResolver{
+		getUserByBetaAPITokenFn: func(ctx context.Context, auth string) (*entity.User, common.ErrorCode, error) {
+			if auth != "beta-token" {
+				t.Errorf("GetUserByBetaAPIToken called with %q, want beta-token", auth)
+			}
+			return &entity.User{ID: "u-beta"}, common.CodeSuccess, nil
+		},
+		getAPITokenByBetaFn: func(ctx context.Context, auth string) (*entity.APIToken, error) {
+			if auth != "beta-token" {
+				t.Errorf("GetAPITokenByBeta called with %q, want beta-token", auth)
+			}
+			return &entity.APIToken{DialogID: &agentID}, nil
+		},
+	}
+	r := gin.New()
+	ah := &AuthHandler{userService: stub}
+	g := r.Group("/api/v1")
+	g.Use(ah.BetaAuthMiddleware())
+	var seenAgentID string
+	g.GET("/x", func(c *gin.Context) {
+		rawAgentID, _ := c.Get("agent_id")
+		seenAgentID, _ = rawAgentID.(string)
+		c.String(http.StatusOK, "ok")
+	})
+	req, _ := http.NewRequest(http.MethodGet, "/api/v1/x", nil)
+	req.Header.Set("Authorization", "beta-token")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body = %s", w.Code, w.Body.String())
+	}
+	if seenAgentID != agentID {
+		t.Fatalf("agent_id = %q, want %q", seenAgentID, agentID)
+	}
+}
+
 // stubUserTokenResolver implements userTokenResolver for tests.
 // Each call site sets only the methods it needs; unset methods
 // return safe defaults (CodeUnauthorized so the middleware
 // short-circuits to 401).
 type stubUserTokenResolver struct {
-	getUserByTokenFn        func(authorization string) (*entity.User, common.ErrorCode, error)
-	getUserByAPITokenFn     func(token string) (*entity.User, common.ErrorCode, error)
-	getUserByBetaAPITokenFn func(token string) (*entity.User, common.ErrorCode, error)
+	getUserByTokenFn        func(ctx context.Context, authorization string) (*entity.User, common.ErrorCode, error)
+	getUserByAPITokenFn     func(ctx context.Context, token string) (*entity.User, common.ErrorCode, error)
+	getUserByBetaAPITokenFn func(ctx context.Context, token string) (*entity.User, common.ErrorCode, error)
+	getAPITokenByBetaFn     func(ctx context.Context, authorization string) (*entity.APIToken, error)
 }
 
-func (s *stubUserTokenResolver) GetUserByToken(authorization string) (*entity.User, common.ErrorCode, error) {
+func (s *stubUserTokenResolver) GetUserByToken(ctx context.Context, authorization string) (*entity.User, common.ErrorCode, error) {
 	if s.getUserByTokenFn != nil {
-		return s.getUserByTokenFn(authorization)
+		return s.getUserByTokenFn(ctx, authorization)
 	}
 	return nil, common.CodeUnauthorized, errors.New("not stubbed")
 }
 
-func (s *stubUserTokenResolver) GetUserByAPIToken(token string) (*entity.User, common.ErrorCode, error) {
+func (s *stubUserTokenResolver) GetUserByAPIToken(ctx context.Context, token string) (*entity.User, common.ErrorCode, error) {
 	if s.getUserByAPITokenFn != nil {
-		return s.getUserByAPITokenFn(token)
+		return s.getUserByAPITokenFn(ctx, token)
 	}
 	return nil, common.CodeUnauthorized, errors.New("not stubbed")
 }
 
-func (s *stubUserTokenResolver) GetUserByBetaAPIToken(token string) (*entity.User, common.ErrorCode, error) {
+func (s *stubUserTokenResolver) GetUserByBetaAPIToken(ctx context.Context, token string) (*entity.User, common.ErrorCode, error) {
 	if s.getUserByBetaAPITokenFn != nil {
-		return s.getUserByBetaAPITokenFn(token)
+		return s.getUserByBetaAPITokenFn(ctx, token)
 	}
 	return nil, common.CodeUnauthorized, errors.New("not stubbed")
+}
+
+func (s *stubUserTokenResolver) GetAPITokenByBeta(ctx context.Context, authorization string) (*entity.APIToken, error) {
+	if s.getAPITokenByBetaFn != nil {
+		return s.getAPITokenByBetaFn(ctx, authorization)
+	}
+	return nil, errors.New("not stubbed")
 }
 
 // TestBotRoutes_NoRegularAuthRequired covers criterion 25. The
@@ -839,7 +910,7 @@ func (s *stubUserTokenResolver) GetUserByBetaAPIToken(token string) (*entity.Use
 func TestBotRoutes_NoRegularAuthRequired(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	stub := &stubUserTokenResolver{
-		getUserByTokenFn: func(auth string) (*entity.User, common.ErrorCode, error) {
+		getUserByTokenFn: func(ctx context.Context, auth string) (*entity.User, common.ErrorCode, error) {
 			return &entity.User{ID: "u-regular"}, common.CodeSuccess, nil
 		},
 	}
@@ -870,7 +941,7 @@ func TestBotRoutes_NoRegularAuthRequired(t *testing.T) {
 		// production AuthMiddleware is exercised separately;
 		// here we just need to assert "the path resolves to
 		// something that is NOT a BotHandler".
-		jsonError(c, common.CodeUnauthorized, "no bot route on v1")
+		common.ResponseWithCodeData(c, common.CodeUnauthorized, nil, "no bot route on v1")
 	})
 
 	// (1) regular JWT on apiNoAuth bot path -> 200.
@@ -924,7 +995,7 @@ func TestBotRoutes_NoRegularAuthRequired(t *testing.T) {
 func TestDownloadAttachment_Unauth(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	stub := &stubUserTokenResolver{
-		getUserByTokenFn: func(auth string) (*entity.User, common.ErrorCode, error) {
+		getUserByTokenFn: func(ctx context.Context, auth string) (*entity.User, common.ErrorCode, error) {
 			return nil, common.CodeUnauthorized, errors.New("invalid token")
 		},
 	}
@@ -939,12 +1010,12 @@ func TestDownloadAttachment_Unauth(t *testing.T) {
 	g.Use(func(c *gin.Context) {
 		auth := c.GetHeader("Authorization")
 		if auth == "" {
-			jsonError(c, common.CodeUnauthorized, "Authorization required")
+			common.ResponseWithCodeData(c, common.CodeUnauthorized, nil, "Authorization required")
 			c.Abort()
 			return
 		}
-		if u, code, err := stub.GetUserByToken(auth); err != nil || code != common.CodeSuccess {
-			jsonError(c, common.CodeUnauthorized, "Invalid auth credentials")
+		if u, code, err := stub.GetUserByToken(c.Request.Context(), auth); err != nil || code != common.CodeSuccess {
+			common.ResponseWithCodeData(c, common.CodeUnauthorized, nil, "Invalid auth credentials")
 			c.Abort()
 			return
 		} else {
@@ -1078,4 +1149,118 @@ func TestDownloadAttachment_MissingID(t *testing.T) {
 // router.RegisterAgentRoutes directly.
 func inlineRegisterAgentRoutes(g *gin.RouterGroup, h *AgentHandler) {
 	g.GET("/attachments/:attachment_id/download", h.DownloadAttachment)
+}
+
+func TestGetAgentbotLogs_MissingRouteAgentID(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest("GET",
+		"/api/v1/agentbots/shared-x/logs/msg-1", nil)
+	c.Set("user", &entity.User{ID: "u1"})
+
+	h := NewBotHandler(nil)
+	h.GetAgentbotLogs(c)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body = %s", w.Code, w.Body.String())
+	}
+	var resp struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
+	if resp.Code != int(common.CodeArgumentError) {
+		t.Errorf("code = %d, want %d", resp.Code, common.CodeArgumentError)
+	}
+	if !strings.Contains(resp.Message, "agent_id") {
+		t.Errorf("message = %q, want it to mention 'agent_id'", resp.Message)
+	}
+}
+
+func TestGetAgentbotLogs_RequiresBoundAgentID(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest("GET",
+		"/api/v1/agentbots/agent-a/logs/msg-1", nil)
+	c.Set("user", &entity.User{ID: "u1"})
+	c.Params = gin.Params{
+		{Key: "agent_id", Value: "agent-a"},
+		{Key: "message_id", Value: "msg-1"},
+	}
+
+	h := NewBotHandler(nil)
+	h.GetAgentbotLogs(c)
+
+	var resp struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
+	if resp.Code != int(common.CodeDataError) {
+		t.Errorf("code = %d, want %d", resp.Code, common.CodeDataError)
+	}
+	if !strings.Contains(resp.Message, "not bound") {
+		t.Errorf("message = %q, want it to mention 'not bound'", resp.Message)
+	}
+}
+
+func TestGetAgentbotLogs_CrossAgentDenied(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest("GET",
+		"/api/v1/agentbots/agent-b/logs/msg-1", nil)
+	c.Set("user", &entity.User{ID: "u1"})
+	c.Set("agent_id", "agent-a")
+	c.Params = gin.Params{
+		{Key: "agent_id", Value: "agent-b"},
+		{Key: "message_id", Value: "msg-1"},
+	}
+
+	h := NewBotHandler(nil)
+	h.GetAgentbotLogs(c)
+
+	var resp struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
+	if resp.Code != int(common.CodeUnauthorized) {
+		t.Errorf("code = %d, want %d", resp.Code, common.CodeUnauthorized)
+	}
+	if !strings.Contains(resp.Message, "not authorized") {
+		t.Errorf("message = %q, want it to mention 'not authorized'", resp.Message)
+	}
+}
+
+// TestGetAgentbotLogs_MissingMessageID asserts the param contract:
+// message_id is required (used to build the Redis key).
+func TestGetAgentbotLogs_MissingMessageID(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest("GET",
+		"/api/v1/agentbots/shared-x/logs/", nil)
+	c.Set("user", &entity.User{ID: "u1"})
+	c.Set("agent_id", "agent-real")
+	c.Params = gin.Params{{Key: "agent_id", Value: "agent-real"}}
+	// Gin's path param extraction returns "" for a missing
+	// segment so the handler must reject with CodeArgumentError.
+
+	h := NewBotHandler(nil)
+	h.GetAgentbotLogs(c)
+
+	var resp struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
+	if resp.Code != int(common.CodeArgumentError) {
+		t.Errorf("code = %d, want %d", resp.Code, common.CodeArgumentError)
+	}
+	if !strings.Contains(resp.Message, "message_id") {
+		t.Errorf("message = %q, want it to mention 'message_id'", resp.Message)
+	}
 }

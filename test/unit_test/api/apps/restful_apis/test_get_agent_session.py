@@ -15,7 +15,6 @@
 #
 """Regression tests for agent session GET/DELETE (api/apps/restful_apis/agent_api.py)."""
 
-import asyncio
 import importlib.util
 import sys
 from pathlib import Path
@@ -45,16 +44,19 @@ def _load_agent_api(monkeypatch, get_by_id_result, delete_calls=None):
         delete_calls.append(session_id)
         return True
 
-    _stub(monkeypatch, "api.apps", current_user=SimpleNamespace(id="tenant-1"), login_required=lambda func: func)
+    _stub(
+        monkeypatch,
+        "api.apps",
+        AUTH_JWT="jwt",
+        AUTH_API="api",
+        AUTH_BETA="beta",
+        QuartAuthUnauthorized=Exception,
+        current_user=SimpleNamespace(id="tenant-1", is_superuser=True),
+        login_required=lambda func=None, **_kwargs: (lambda f: f) if func is None else func,
+    )
     _stub(monkeypatch, "api.apps.services.canvas_replica_service", CanvasReplicaService=SimpleNamespace())
     _stub(monkeypatch, "api.db", CanvasCategory=SimpleNamespace())
     _stub(monkeypatch, "api.db.db_models", Task=SimpleNamespace())
-    _stub(
-        monkeypatch,
-        "api.utils.web_utils",
-        CONTENT_TYPE_MAP={},
-        apply_safe_file_response_headers=lambda response, *_args, **_kwargs: response,
-    )
     _stub(
         monkeypatch,
         "api.db.services.api_service",
@@ -104,55 +106,6 @@ def _load_agent_api(monkeypatch, get_by_id_result, delete_calls=None):
     monkeypatch.setitem(sys.modules, "test_get_agent_session_agent_api", module)
     spec.loader.exec_module(module)
     return module, delete_calls
-
-
-@pytest.mark.p1
-def test_update_agent_schedule_rejects_dataflow_canvas(monkeypatch):
-    module, _ = _load_agent_api(monkeypatch, get_by_id_result=(False, None))
-    update_calls = []
-
-    module.CanvasCategory.Agent = "agent_canvas"
-    module.CanvasCategory.DataFlow = "dataflow_canvas"
-    monkeypatch.setattr(
-        module.UserCanvasService,
-        "query",
-        lambda **_kwargs: [SimpleNamespace(id="agent-1")],
-    )
-    monkeypatch.setattr(
-        module.UserCanvasService,
-        "get_by_id",
-        lambda _id: (
-            True,
-            SimpleNamespace(canvas_category=module.CanvasCategory.DataFlow),
-        ),
-        raising=False,
-    )
-    monkeypatch.setattr(
-        module.UserCanvasService,
-        "update_schedule",
-        lambda *_args, **_kwargs: update_calls.append(True) or True,
-        raising=False,
-    )
-
-    async def request_json():
-        return {
-            "auto_run": True,
-            "schedule_config": {"type": "interval", "seconds": 300},
-            "schedule_input": "run me",
-        }
-
-    monkeypatch.setattr(module, "get_request_json", request_json)
-
-    res = asyncio.run(
-        module.update_agent_schedule(
-            agent_id="agent-1",
-            tenant_id="tenant-1",
-        )
-    )
-
-    assert res["code"] == module.RetCode.OPERATING_ERROR
-    assert "Scheduled runs are only supported for agent canvases" in res["message"]
-    assert update_calls == []
 
 
 @pytest.mark.p1

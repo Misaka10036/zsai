@@ -105,12 +105,12 @@ export default {
       action: 'Aksi',
       parsingStatus: 'Status Parsing',
       parsingStatusTip:
-        'Waktu pemrosesan dokumen bervariasi tergantung beberapa faktor. Mengaktifkan fitur seperti Knowledge Graph, RAPTOR, Ekstraksi Pertanyaan Otomatis, atau Ekstraksi Kata Kunci Otomatis akan secara signifikan menambah waktu pemrosesan. Jika bilah kemajuan macet, silakan lihat dua FAQ berikut: https://zsre.io/docs/dev/faq#why-does-my-document-parsing-stall-at-under-one-percent.',
+        'Waktu pemrosesan dokumen bervariasi tergantung beberapa faktor. Mengaktifkan fitur seperti Knowledge Graph, RAPTOR, Ekstraksi Pertanyaan Otomatis, atau Ekstraksi Kata Kunci Otomatis akan secara signifikan menambah waktu pemrosesan. Jika bilah kemajuan macet, silakan lihat dua FAQ berikut: https://ragflow.io/docs/dev/faq#why-does-my-document-parsing-stall-at-under-one-percent.',
       processBeginAt: 'Proses Dimulai Pada',
       processDuration: 'Durasi Proses',
       progressMsg: 'Pesan Kemajuan',
       testingDescription:
-        'Lakukan tes pengambilan untuk memeriksa apakah zsre dapat memulihkan konten yang diinginkan untuk LLM. ',
+        'Lakukan tes pengambilan untuk memeriksa apakah RAGFlow dapat memulihkan konten yang diinginkan untuk LLM. ',
       similarityThreshold: 'Similarity threshold',
       similarityThresholdTip:
         'Kami menggunakan skor kesamaan hibrida untuk mengevaluasi jarak antara dua baris teks. Ini adalah kesamaan kata kunci berbobot dan kesamaan kosinus vektor. Jika kesamaan antara kueri dan potongan kurang dari ambang ini, potongan akan disaring. Secara default, ambang batas diatur ke 0,2. Itu berarti hanya potongan dengan skor kemiripan hibrida 20 atau lebih tinggi yang akan diambil.',
@@ -142,7 +142,7 @@ export default {
       toMessage: 'Nomor halaman akhir hilang (tidak termasuk)',
       layoutRecognize: 'Pengenalan tata letak',
       layoutRecognizeTip:
-        'Gunakan model visual untuk analisis tata letak untuk lebih mengidentifikasi struktur dokumen, menemukan di mana judul, blok teks, gambar, and tabel berada. Tanpa fitur ini, hanya teks biasa dari PDF yang dapat diperoleh. Untuk informasi lebih lanjut, lihat https://zsre.io/docs/dev/select_pdf_parser.',
+        'Gunakan model visual untuk analisis tata letak untuk lebih mengidentifikasi struktur dokumen, menemukan di mana judul, blok teks, gambar, and tabel berada. Tanpa fitur ini, hanya teks biasa dari PDF yang dapat diperoleh. Untuk informasi lebih lanjut, lihat https://ragflow.io/docs/dev/select_pdf_parser.',
       taskPageSize: 'Ukuran halaman tugas',
       taskPageSizeMessage: 'Silakan masukkan ukuran halaman tugas Anda!',
       taskPageSizeTip: `Jika menggunakan pengenalan tata letak, file PDF akan dibagi menjadi kelompok berturut-turut. Analisis tata letak akan dilakukan secara paralel antar kelompok untuk meningkatkan kecepatan pemrosesan. 'Ukuran halaman tugas' menentukan ukuran kelompok. Semakin besar ukuran halaman, semakin kecil kemungkinan teks berkelanjutan antara halaman dibagi menjadi potongan yang berbeda.`,
@@ -153,18 +153,18 @@ export default {
       changeSpecificCategory: 'Ubah kategori spesifik',
       uploadTitle: 'Klik atau seret file ke area ini untuk mengunggah',
       uploadDescription:
-        'zsre mendukung pengunggahan file secara tunggal atau batch. Untuk zsre yang dideploy secara lokal: batas ukuran total file per unggahan adalah 1GB, dengan batas unggahan batch sebanyak 32 file. Tidak ada batasan jumlah total file per akun. Untuk cloud.zsre.io: batas ukuran total file per unggahan adalah 10MB, dengan setiap file tidak melebihi 10MB dan maksimum 128 file per akun.',
+        'RAGFlow mendukung pengunggahan file secara tunggal atau batch. Untuk RAGFlow yang dideploy secara lokal: batas ukuran total file per unggahan adalah 1GB, dengan batas unggahan batch sebanyak 32 file. Tidak ada batasan jumlah total file per akun. Untuk cloud.ragflow.io: batas ukuran total file per unggahan adalah 10MB, dengan setiap file tidak melebihi 10MB dan maksimum 128 file per akun.',
       chunk: 'Potongan',
       bulk: 'Massal',
       cancel: 'Batal',
       rerankModel: 'Model Rerank',
       rerankPlaceholder: 'Silakan pilih',
-      rerankTip: `Opsional. Jika dikosongkan, zsre akan menggunakan kombinasi kesamaan kata kunci berbobot dan kesamaan kosinus vektor berbobot; jika model rerank dipilih, skor reranking berbobot akan menggantikan kesamaan kosinus vektor berbobot. Harap diperhatikan bahwa menggunakan model rerank akan secara signifikan meningkatkan waktu respons sistem. Jika Anda ingin menggunakan model rerank, pastikan menggunakan SaaS reranker; jika Anda lebih memilih model rerank yang dijalankan secara lokal, pastikan memulai zsre dengan docker-compose-gpu.yml.`,
+      rerankTip: `Opsional. Jika dikosongkan, RAGFlow akan menggunakan kombinasi kesamaan kata kunci berbobot dan kesamaan kosinus vektor berbobot; jika model rerank dipilih, skor reranking berbobot akan menggantikan kesamaan kosinus vektor berbobot. Harap diperhatikan bahwa menggunakan model rerank akan secara signifikan meningkatkan waktu respons sistem. Jika Anda ingin menggunakan model rerank, pastikan menggunakan SaaS reranker; jika Anda lebih memilih model rerank yang dijalankan secara lokal, pastikan memulai RAGFlow dengan docker-compose-gpu.yml.`,
       topK: 'Top-K',
       topKTip: `Digunakan bersama dengan Rerank model, pengaturan ini menentukan jumlah potongan teks yang akan dikirim ke model reranking yang ditentukan.`,
       delimiter: `Pemisah untuk segmentasi teks`,
       html4excel: 'Excel ke HTML',
-      html4excelTip: `Gunakan bersama dengan metode pemotongan General. Ketika dinonaktifkan, file spreadsheet (XLSX, XLS (Excel 97-2003)) akan dianalisis baris demi baris menjadi pasangan kunci-nilai. Ketika diaktifkan, file spreadsheet akan dianalisis menjadi tabel HTML. Jika tabel asli memiliki lebih dari 12 baris, sistem akan secara otomatis membagi menjadi beberapa tabel HTML setiap 12 baris. Untuk informasi lebih lanjut, lihat https://zsre.io/docs/dev/enable_excel2html.`,
+      html4excelTip: `Gunakan bersama dengan metode pemotongan General. Ketika dinonaktifkan, file spreadsheet (XLSX, XLS (Excel 97-2003)) akan dianalisis baris demi baris menjadi pasangan kunci-nilai. Ketika diaktifkan, file spreadsheet akan dianalisis menjadi tabel HTML. Jika tabel asli memiliki lebih dari 12 baris, sistem akan secara otomatis membagi menjadi beberapa tabel HTML setiap 12 baris. Untuk informasi lebih lanjut, lihat https://ragflow.io/docs/dev/enable_excel2html.`,
     },
     knowledgeConfiguration: {
       imageTableContextWindow: 'Jendela konteks gambar & tabel',
@@ -290,15 +290,15 @@ export default {
         Jika Anda ingin merangkum sesuatu yang membutuhkan semua konteks dari sebuah artikel and panjang konteks LLM yang dipilih mencakup panjang dokumen, Anda dapat mencoba metode ini.
         </p>`,
       knowledgeGraph: `<p>Format file yang didukung adalah <b>DOCX, EXCEL, PPT, IMAGE, PDF, TXT, MD, JSON, EML</b>
- 
+
      <p>Setelah file dipotong, digunakan potongan untuk mengekstrak grafik pengetahuan dan peta pikiran dari seluruh dokumen. Metode ini menerapkan cara naif untuk memotong file:
      Teks berturut-turut akan dipotong menjadi potongan masing-masing yang berjumlah sekitar 512 token.</p>
      <p>Selanjutnya, potongan akan dikirim ke LLM untuk mengekstrak node dan hubungan dari grafik pengetahuan, dan peta pikiran.</p>
- 
+
      Perhatikan jenis entitas yang perlu Anda tentukan.</p>`,
       useRaptor: 'Gunakan RAPTOR untuk meningkatkan pengambilan',
       useRaptorTip:
-        'Aktifkan RAPTOR untuk tugas tanya jawab multi-langkah. Lihat https://zsre.io/docs/dev/enable_raptor untuk informasi lebih lanjut.',
+        'Aktifkan RAPTOR untuk tugas tanya jawab multi-langkah. Lihat https://ragflow.io/docs/dev/enable_raptor untuk informasi lebih lanjut.',
       prompt: 'Prompt',
       promptTip:
         'Gunakan prompt sistem untuk menjelaskan tugas untuk LLM, tentukan bagaimana harus merespons, dan menguraikan persyaratan lainnya. Prompt sistem sering digunakan bersama dengan kunci (variabel), yang berfungsi sebagai berbagai input data untuk LLM. Gunakan garis miring `/` atau tombol (x) untuk menampilkan kunci yang digunakan.',
@@ -396,7 +396,7 @@ export default {
       topN: 'Top N',
       topNTip: `Tidak semua potongan yang skor kesamaannya di atas 'ambang kesamaan' akan diberikan ke LLM. LLM hanya dapat melihat potongan 'Top N' ini.`,
       variable: 'Variabel',
-      variableTip: `Digunakan bersama dengan API manajemen asisten obrolan zsre, variabel dapat membantu mengembangkan strategi prompt sistem yang lebih fleksibel. Variabel yang didefinisikan akan digunakan oleh 'Prompt Sistem' sebagai bagian dari prompt untuk LLM. {knowledge} adalah variabel khusus yang dicadangkan, mewakili bagian-bagian yang diperoleh dari basis pengetahuan yang ditentukan, dan semua variabel harus dikelilingi oleh kurung kurawal {} dalam 'Prompt Sistem'. Lihat https://zsre.io/docs/dev/set_chat_variables untuk detail lebih lanjut.`,
+      variableTip: `Digunakan bersama dengan API manajemen asisten obrolan RAGFlow, variabel dapat membantu mengembangkan strategi prompt sistem yang lebih fleksibel. Variabel yang didefinisikan akan digunakan oleh 'Prompt Sistem' sebagai bagian dari prompt untuk LLM. {knowledge} adalah variabel khusus yang dicadangkan, mewakili bagian-bagian yang diperoleh dari basis pengetahuan yang ditentukan, dan semua variabel harus dikelilingi oleh kurung kurawal {} dalam 'Prompt Sistem'. Lihat https://ragflow.io/docs/dev/set_chat_variables untuk detail lebih lanjut.`,
       add: 'Tambah',
       key: 'Kunci',
       optional: 'Opsional',
@@ -539,9 +539,9 @@ export default {
         'Kunci API dapat diperoleh dengan mendaftar ke penyedia LLM yang sesuai.',
       showMoreModels: 'Tampilkan lebih banyak model',
       hideModels: 'Sembunyikan model',
-      baseUrl: 'Base-Url',
+      baseUrl: 'Base URL',
       baseUrlTip:
-        'Jika kunci API Anda berasal dari OpenAI, abaikan saja. Penyedia perantara lainnya akan memberikan base url ini dengan kunci API.',
+        'Jika kunci API Anda berasal dari OpenAI, abaikan saja. Penyedia perantara lainnya akan memberikan Base URL ini dengan kunci API.',
       tongyiBaseUrlTip:
         'Untuk pengguna Tiongkok, tidak perlu diisi atau gunakan https://dashscope.aliyuncs.com/compatible-mode/v1. Untuk pengguna internasional, gunakan https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
       siliconBaseUrlTip:
@@ -559,18 +559,18 @@ export default {
         'Model LLM obrolan default yang akan digunakan semua basis pengetahuan baru yang dibuat.',
       embeddingModel: 'Model Embedding',
       embeddingModelTip:
-        'Model embedding default untuk setiap basis pengetahuan baru yang dibuat. Jika Anda tidak dapat menemukan model embedding dari dropdown, periksa apakah Anda menggunakan zsre slim edition (yang tidak menyertakan model embedding) atau periksa https://zsre.io/docs/dev/supported_models untuk melihat apakah penyedia model Anda mendukung model ini.',
+        'Model embedding default untuk setiap basis pengetahuan baru yang dibuat. Jika Anda tidak dapat menemukan model embedding dari dropdown, periksa apakah Anda menggunakan RAGFlow slim edition (yang tidak menyertakan model embedding) atau periksa https://ragflow.io/docs/dev/supported_models untuk melihat apakah penyedia model Anda mendukung model ini.',
       img2txtModel: 'Model Img2txt',
       img2txtModelTip:
-        'Model img2txt default untuk setiap basis pengetahuan yang baru dibuat. Model ini menggambarkan gambar atau video. Jika Anda tidak dapat menemukan model dari menu dropdown, periksa https://zsre.io/docs/dev/supported_models untuk melihat apakah penyedia model Anda mendukung model ini.',
+        'Model img2txt default untuk setiap basis pengetahuan yang baru dibuat. Model ini menggambarkan gambar atau video. Jika Anda tidak dapat menemukan model dari menu dropdown, periksa https://ragflow.io/docs/dev/supported_models untuk melihat apakah penyedia model Anda mendukung model ini.',
       sequence2txtModel: 'Model Speech2txt',
       sequence2txtModelTip:
-        'Model ASR default yang akan digunakan semua basis pengetahuan baru yang dibuat. Gunakan model ini untuk menerjemahkan suara ke teks yang sesuai. Jika Anda tidak dapat menemukan model dari menu dropdown, periksa https://zsre.io/docs/dev/supported_models untuk melihat apakah penyedia model Anda mendukung model ini.',
+        'Model ASR default yang akan digunakan semua basis pengetahuan baru yang dibuat. Gunakan model ini untuk menerjemahkan suara ke teks yang sesuai. Jika Anda tidak dapat menemukan model dari menu dropdown, periksa https://ragflow.io/docs/dev/supported_models untuk melihat apakah penyedia model Anda mendukung model ini.',
       rerankModel: 'Model Rerank',
-      rerankModelTip: `Model rerank default untuk reranking potongan teks. Jika Anda tidak dapat menemukan model dari dropdown, periksa https://zsre.io/docs/dev/supported_models untuk melihat apakah penyedia model Anda mendukung model ini.`,
+      rerankModelTip: `Model rerank default untuk reranking potongan teks. Jika Anda tidak dapat menemukan model dari dropdown, periksa https://ragflow.io/docs/dev/supported_models untuk melihat apakah penyedia model Anda mendukung model ini.`,
       ttsModel: 'Model TTS',
       ttsModelTip:
-        'Model text-to-speech default. Jika Anda tidak dapat menemukan model dari dropdown, periksa https://zsre.io/docs/dev/supported_models untuk melihat apakah penyedia model Anda mendukung model ini.',
+        'Model text-to-speech default. Jika Anda tidak dapat menemukan model dari dropdown, periksa https://ragflow.io/docs/dev/supported_models untuk melihat apakah penyedia model Anda mendukung model ini.',
       workspace: 'Ruang Kerja',
       upgrade: 'Tingkatkan',
       addLlmTitle: 'Tambahkan LLM',
@@ -580,8 +580,8 @@ export default {
       modelNameMessage: 'Silakan masukkan nama model Anda!',
       modelType: 'Jenis Model',
       modelTypeMessage: 'Silakan masukkan jenis model Anda!',
-      addLlmBaseUrl: 'Base url',
-      baseUrlNameMessage: 'Silakan masukkan base url Anda!',
+      addLlmBaseUrl: 'Base URL',
+      baseUrlNameMessage: 'Silakan masukkan Base URL Anda',
       paddleocr: {
         apiUrl: 'URL API PaddleOCR',
         apiUrlPlaceholder:
@@ -603,13 +603,13 @@ export default {
       endpointIDMessage: 'Silakan masukkan Model ID dari model',
       addArkApiKey: 'VOLC ARK_API_KEY',
       ArkApiKeyMessage: 'Silakan masukkan ARK_API_KEY Anda',
-      bedrockModelNameMessage: 'Silakan masukkan nama model Anda!',
+      bedrockModelNameMessage: 'Silakan masukkan nama model Anda',
       addBedrockEngineAK: 'ACCESS KEY',
       bedrockAKMessage: 'Silakan masukkan ACCESS KEY Anda',
       addBedrockSK: 'SECRET KEY',
       bedrockSKMessage: 'Silakan masukkan SECRET KEY Anda',
       bedrockRegion: 'Wilayah AWS',
-      bedrockRegionMessage: 'Silakan pilih!',
+      bedrockRegionMessage: 'Silakan pilih',
       'us-east-2': 'US East (Ohio)',
       'us-east-1': 'US East (N. Virginia)',
       'us-west-1': 'US West (N. California)',
@@ -647,25 +647,25 @@ export default {
       'us-gov-west-1': 'AWS GovCloud (US-West)',
       addTencentCloudSID: 'TencentCloud Secret ID',
       TencentCloudSIDMessage: 'Silakan masukkan Secret ID Anda',
-      addTencentCloudSK: 'TencentCloud Secret Key',
-      TencentCloudSKMessage: 'Silakan masukkan Secret Key Anda',
+      addTencentCloudSK: 'TencentCloud SECRET KEY',
+      TencentCloudSKMessage: 'Silakan masukkan SECRET KEY Anda',
       SparkModelNameMessage: 'Silakan pilih model Spark',
       addSparkAPIPassword: 'Spark APIPassword',
       SparkAPIPasswordMessage: 'silakan masukkan APIPassword Anda',
       addSparkAPPID: 'Spark APPID',
       SparkAPPIDMessage: 'silakan masukkan APPID Anda',
-      addSparkAPISecret: 'Spark APISecret',
-      SparkAPISecretMessage: 'silakan masukkan APISecret Anda',
+      addSparkAPISecret: 'Spark API SECRET',
+      SparkAPISecretMessage: 'silakan masukkan API SECRET Anda',
       addSparkAPIKey: 'Spark APIKey',
       SparkAPIKeyMessage: 'silakan masukkan APIKey Anda',
       yiyanModelNameMessage: 'Silakan masukkan nama model',
-      addyiyanAK: 'yiyan API KEY',
-      yiyanAKMessage: 'Silakan masukkan API KEY Anda',
-      addyiyanSK: 'yiyan Secret KEY',
-      yiyanSKMessage: 'Silakan masukkan Secret KEY Anda',
+      addyiyanAK: 'yiyan API Key',
+      yiyanAKMessage: 'Silakan masukkan API Key Anda',
+      addyiyanSK: 'yiyan SECRET KEY',
+      yiyanSKMessage: 'Silakan masukkan SECRET KEY Anda',
       FishAudioModelNameMessage: 'Silakan beri nama model sintesis ucapan Anda',
-      addFishAudioAK: 'Fish Audio API KEY',
-      addFishAudioAKMessage: 'Silakan masukkan API KEY Anda',
+      addFishAudioAK: 'Fish Audio API Key',
+      addFishAudioAKMessage: 'Silakan masukkan API Key Anda',
       addFishAudioRefID: 'FishAudio Reference ID',
       addFishAudioRefIDMessage:
         'Silakan masukkan Reference ID (biarkan kosong untuk menggunakan model default).',
@@ -747,7 +747,7 @@ export default {
       directory: 'Direktori',
       uploadTitle: 'Klik atau seret file ke area ini untuk mengunggah',
       uploadDescription:
-        'zsre mendukung pengunggahan file secara tunggal atau batch. Untuk zsre yang dideploy secara lokal: batas ukuran total file per unggahan adalah 1GB, dengan batas unggahan batch sebanyak 32 file. Tidak ada batasan jumlah total file per akun. Untuk cloud.zsre.io: batas ukuran total file per unggahan adalah 10MB, dengan setiap file tidak melebihi 10MB dan maksimum 128 file per akun.',
+        'RAGFlow mendukung pengunggahan file secara tunggal atau batch. Untuk RAGFlow yang dideploy secara lokal: batas ukuran total file per unggahan adalah 1GB, dengan batas unggahan batch sebanyak 32 file. Tidak ada batasan jumlah total file per akun. Untuk cloud.ragflow.io: batas ukuran total file per unggahan adalah 10MB, dengan setiap file tidak melebihi 10MB dan maksimum 128 file per akun.',
       local: 'Unggahan lokal',
       s3: 'Unggahan S3',
       preview: 'Pratinjau',

@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -168,12 +169,14 @@ type Model struct {
 	MaxDimension *int           `json:"max_dimension"` // used by embedding models
 	Dimensions   []int          `json:"dimensions"`
 	Alias        []string       `json:"alias"`
+	Rank         *int           `json:"rank"`
 	ModelTypeMap map[string]bool
 }
 
 // Provider represents an LLM provider
 type Provider struct {
 	Name        string            `json:"name"`
+	Rank        int               `json:"rank"`
 	URL         map[string]string `json:"url"`
 	URLSuffix   URLSuffix         `json:"url_suffix"`
 	Models      []*Model          `json:"models"`
@@ -372,12 +375,18 @@ func (pm *ProviderManager) ListProviders() ([]map[string]interface{}, error) {
 
 		providerData := map[string]interface{}{
 			"name":        provider.Name,
+			"rank":        provider.Rank,
 			"url":         provider.URL,
 			"model_types": modelTypes,
 			"url_suffix":  provider.URLSuffix,
 		}
 		providers = append(providers, providerData)
 	}
+
+	// Sort providers by rank
+	sort.Slice(providers, func(i, j int) bool {
+		return providers[i]["rank"].(int) > providers[j]["rank"].(int)
+	})
 
 	if len(providers) == 0 {
 		return nil, fmt.Errorf("no providers found")
@@ -480,7 +489,7 @@ func (pm *ProviderManager) ListModels(providerName string) ([]map[string]interfa
 		modelData := map[string]interface{}{
 			"name":          model.Name,
 			"max_tokens":    model.MaxTokens,
-			"model_type":    model.ModelTypes,
+			"model_types":   model.ModelTypes,
 			"max_dimension": model.MaxDimension,
 			"dimensions":    model.Dimensions,
 		}
@@ -505,7 +514,7 @@ func (pm *ProviderManager) GetModelByName(providerName, modelName string) (*Mode
 	if provider == nil {
 		return nil, fmt.Errorf("provider '%s' not found", providerName)
 	}
-	model := pm.findModel(provider, modelName)
+	model := pm.FindModel(provider, modelName)
 	if model == nil {
 		return nil, fmt.Errorf("model '%s' not found", modelName)
 	}
@@ -517,7 +526,7 @@ func (pm *ProviderManager) GetModelUrl(providerName, modelName, modelType string
 	if provider == nil {
 		return nil, nil, fmt.Errorf("provider '%s' not found", providerName)
 	}
-	model := pm.findModel(provider, modelName)
+	model := pm.FindModel(provider, modelName)
 	if model == nil {
 		return nil, nil, fmt.Errorf("model '%s' not found", modelName)
 	}
@@ -560,7 +569,7 @@ func (pm *ProviderManager) SearchModelInfo(providerName, modelName string, filte
 		return resp
 	}
 
-	model := pm.findModel(provider, modelName)
+	model := pm.FindModel(provider, modelName)
 	if model == nil {
 		resp.Code = 404
 		resp.Message = fmt.Sprintf("Model '%s' not found in provider '%s'", modelName, providerName)
@@ -786,7 +795,7 @@ func (pm *ProviderManager) FindProvider(name string) *Provider {
 }
 
 // Helper: Find model by name
-func (pm *ProviderManager) findModel(provider *Provider, modelName string) *Model {
+func (pm *ProviderManager) FindModel(provider *Provider, modelName string) *Model {
 	for i := range provider.Models {
 		if strings.EqualFold(provider.Models[i].Name, modelName) {
 			return provider.Models[i]

@@ -37,7 +37,7 @@ export default {
       pleaseInput: 'Por favor, insira',
       submit: 'Enviar',
       embedIntoSite: 'Incorporar no site',
-      openInNewTab: 'Chat em nova aba',
+      openInNewTab: 'Abrir em nova aba',
       previousPage: 'Anterior',
       nextPage: 'Próxima',
       owner: 'Proprietário',
@@ -108,15 +108,15 @@ export default {
       action: 'Ação',
       parsingStatus: 'Status da análise',
       parsingStatusTip:
-        'O tempo de processamento do documento varia conforme vários fatores. Ativar recursos como Knowledge Graph, RAPTOR, Extração Automática de Perguntas ou Extração Automática de Palavras-chave aumentará significativamente o tempo de processamento. Se a barra de progresso travar, consulte estas duas FAQs: https://zsre.io/docs/dev/faq#why-does-my-document-parsing-stall-at-under-one-percent.',
+        'O tempo de processamento do documento varia conforme vários fatores. Ativar recursos como Knowledge Graph, RAPTOR, Extração Automática de Perguntas ou Extração Automática de Palavras-chave aumentará significativamente o tempo de processamento. Se a barra de progresso travar, consulte estas duas FAQs: https://ragflow.io/docs/dev/faq#why-does-my-document-parsing-stall-at-under-one-percent.',
       processBeginAt: 'Início em',
       processDuration: 'Duração',
       progressMsg: 'Progresso',
       testingDescription:
-        'Realize um teste de recuperação para verificar se o zsre pode recuperar o conteúdo pretendido para o LLM. Por favor, note que as alterações feitas aqui não são salvas automaticamente. Se você ajustar as configurações padrão aqui, como o peso de similaridade de palavras-chave, certifique-se de atualizar as configurações relacionadas de forma sincronizada nas configurações do assistente de chat ou nas configurações do operador de recuperação.',
+        'Realize um teste de recuperação para verificar se o RAGFlow pode recuperar o conteúdo pretendido para o LLM. Por favor, note que as alterações feitas aqui não são salvas automaticamente. Se você ajustar as configurações padrão aqui, como o peso de similaridade de palavras-chave, certifique-se de atualizar as configurações relacionadas de forma sincronizada nas configurações do assistente de chat ou nas configurações do operador de recuperação.',
       similarityThreshold: 'Limite de similaridade',
       similarityThresholdTip:
-        'O zsre emprega uma combinação de similaridade de palavras-chave ponderada e similaridade de cosseno vetorial ponderada, ou uma combinação de similaridade de palavras-chave ponderada e pontuação de reranking ponderada durante a recuperação. Este parâmetro define o limite para similaridades entre a consulta do usuário e os fragmentos. Qualquer fragmento com uma pontuação de similaridade abaixo deste limite será excluído dos resultados. Por padrão, o limite é definido como 0,2. Isso significa que apenas os trechos com uma pontuação de similaridade híbrida de 20 ou mais serão recuperados.',
+        'O RAGFlow emprega uma combinação de similaridade de palavras-chave ponderada e similaridade de cosseno vetorial ponderada, ou uma combinação de similaridade de palavras-chave ponderada e pontuação de reranking ponderada durante a recuperação. Este parâmetro define o limite para similaridades entre a consulta do usuário e os fragmentos. Qualquer fragmento com uma pontuação de similaridade abaixo deste limite será excluído dos resultados. Por padrão, o limite é definido como 0,2. Isso significa que apenas os trechos com uma pontuação de similaridade híbrida de 20 ou mais serão recuperados.',
       vectorSimilarityWeight: 'Peso da similaridade de palavras-chave',
       vectorSimilarityWeightTip:
         'Define o peso da similaridade de palavras-chave na pontuação de similaridade combinada, usada com a similaridade de cosseno vetorial ou com a pontuação de reranking. O total dos dois pesos deve ser igual a 1.0.',
@@ -145,7 +145,7 @@ export default {
       toMessage: 'Página final ausente (excluída)',
       layoutRecognize: 'Reconhecimento de layout',
       layoutRecognizeTip:
-        'Use modelos visuais para análise de layout para entender melhor a estrutura do documento e localizar efetivamente títulos, blocos de texto, imagens e tabelas. Se desativado, apenas o texto simples no PDF será recuperado. Para mais informações, acesse https://zsre.io/docs/dev/select_pdf_parser.',
+        'Use modelos visuais para análise de layout para entender melhor a estrutura do documento e localizar efetivamente títulos, blocos de texto, imagens e tabelas. Se desativado, apenas o texto simples no PDF será recuperado. Para mais informações, acesse https://ragflow.io/docs/dev/select_pdf_parser.',
       taskPageSize: 'Tamanho da página da tarefa',
       taskPageSizeMessage: 'Por favor, insira o tamanho da página da tarefa!',
       taskPageSizeTip:
@@ -165,7 +165,7 @@ export default {
       rerankModel: 'Modelo de reranking',
       rerankPlaceholder: 'Por favor, selecione',
       rerankTip:
-        'Opcional. Se deixar em branco, o zsre usará uma combinação de similaridade ponderada por palavra-chave e similaridade ponderada do cosseno vetorial; se um modelo de rerank for selecionado, uma pontuação ponderada de reranking substituirá a similaridade ponderada do cosseno vetorial. Esteja ciente de que usar um modelo de rerank aumentará significativamente o tempo de resposta do sistema. Se desejar usar um modelo de rerank, certifique-se de usar um reranker SaaS; se preferir um modelo de rerank implantado localmente, certifique-se de iniciar o zsre com docker-compose-gpu.yml.',
+        'Opcional. Se deixar em branco, o RAGFlow usará uma combinação de similaridade ponderada por palavra-chave e similaridade ponderada do cosseno vetorial; se um modelo de rerank for selecionado, uma pontuação ponderada de reranking substituirá a similaridade ponderada do cosseno vetorial. Esteja ciente de que usar um modelo de rerank aumentará significativamente o tempo de resposta do sistema. Se desejar usar um modelo de rerank, certifique-se de usar um reranker SaaS; se preferir um modelo de rerank implantado localmente, certifique-se de iniciar o RAGFlow com docker-compose-gpu.yml.',
       topK: 'Top-K',
       topKTip:
         'Usado em conjunto com o Rerank model, essa configuração define o número de trechos de texto a serem enviados ao modelo reranking especificado.',
@@ -174,12 +174,12 @@ export default {
         'Um delimitador ou separador pode consistir em um ou vários caracteres especiais. Se for múltiplos caracteres, certifique-se de que estejam entre crases (``). Por exemplo, se você configurar seus delimitadores assim: \\n`##`;, seus textos serão separados em quebras de linha, símbolos de hash duplo (##) ou ponto e vírgula. Defina os delimitadores apenas após entender o mecanismo de segmentação e particionamento de texto.',
       html4excel: 'Excel para HTML',
       html4excelTip:
-        'Use em conjunto com o método de fragmentação General. Quando desativado, arquivos de planilhas (XLSX, XLS (Excel 97-2003)) serão analisados linha por linha como pares chave-valor. Quando ativado, os arquivos de planilhas serão convertidos em tabelas HTML. Se a tabela original tiver mais de 12 linhas, o sistema dividirá automaticamente em várias tabelas HTML a cada 12 linhas. Para mais informações, consulte https://zsre.io/docs/dev/enable_excel2html.',
+        'Use em conjunto com o método de fragmentação General. Quando desativado, arquivos de planilhas (XLSX, XLS (Excel 97-2003)) serão analisados linha por linha como pares chave-valor. Quando ativado, os arquivos de planilhas serão convertidos em tabelas HTML. Se a tabela original tiver mais de 12 linhas, o sistema dividirá automaticamente em várias tabelas HTML a cada 12 linhas. Para mais informações, consulte https://ragflow.io/docs/dev/enable_excel2html.',
       autoKeywords: 'Palavras-chave automáticas',
       autoKeywordsTip:
-        'Extraia automaticamente N palavras-chave de cada bloco para aumentar sua classificação em consultas que contenham essas palavras-chave. Esteja ciente de que o modelo de chat especificado nas "Configurações do modelo do sistema" consumirá tokens adicionais. Você pode verificar ou atualizar as palavras-chave adicionadas a um bloco na lista de blocos. Para mais detalhes, consulte https://zsre.io/docs/dev/autokeyword_autoquestion.',
+        'Extraia automaticamente N palavras-chave de cada bloco para aumentar sua classificação em consultas que contenham essas palavras-chave. Esteja ciente de que o modelo de chat especificado nas "Configurações do modelo do sistema" consumirá tokens adicionais. Você pode verificar ou atualizar as palavras-chave adicionadas a um bloco na lista de blocos. Para mais detalhes, consulte https://ragflow.io/docs/dev/autokeyword_autoquestion.',
       autoQuestions: 'Perguntas automáticas',
-      autoQuestionsTip: `Para aumentar as pontuações de classificação, extraia N perguntas para cada bloco da base de conhecimento usando o modelo de bate-papo definido em "Configurações do Modelo do Sistema". Observe que isso consome tokens extras. Os resultados podem ser visualizados e editados na lista de blocos. Erros na extração de perguntas não bloquearão o processo de fragmentação; resultados vazios serão adicionados ao bloco original. Para mais detalhes, consulte https://zsre.io/docs/dev/autokeyword_autoquestion.`,
+      autoQuestionsTip: `Para aumentar as pontuações de classificação, extraia N perguntas para cada bloco da base de conhecimento usando o modelo de bate-papo definido em "Configurações do Modelo do Sistema". Observe que isso consome tokens extras. Os resultados podem ser visualizados e editados na lista de blocos. Erros na extração de perguntas não bloquearão o processo de fragmentação; resultados vazios serão adicionados ao bloco original. Para mais detalhes, consulte https://ragflow.io/docs/dev/autokeyword_autoquestion.`,
       redo: 'Deseja limpar os {{chunkNum}} fragmentos existentes?',
       setMetaData: 'Definir Metadados',
       pleaseInputJson: 'Por favor, insira um JSON',
@@ -270,7 +270,7 @@ export default {
       <p><i>Linhas de texto que não seguirem essas regras serão ignoradas, e cada par de Pergunta & Resposta será tratado como um fragmento distinto.</i></p>`,
       useRaptor: 'Usar RAPTOR para melhorar a recuperação',
       useRaptorTip:
-        'Ative o RAPTOR para tarefas de perguntas e respostas multi-hop. Veja https://zsre.io/docs/dev/enable_raptor para mais detalhes.',
+        'Ative o RAPTOR para tarefas de perguntas e respostas multi-hop. Veja https://ragflow.io/docs/dev/enable_raptor para mais detalhes.',
       prompt: 'Prompt',
       promptTip:
         'Use o prompt do sistema para descrever a tarefa para o LLM, especificar como ele deve responder e esboçar outros requisitos diversos. O prompt do sistema é frequentemente usado em conjunto com chaves (variáveis), que servem como várias entradas de dados para o LLM. Use uma barra `/` ou o botão (x) para mostrar as chaves a serem usadas.',
@@ -293,7 +293,7 @@ export default {
       entityTypes: 'Tipos de entidades',
       vietnamese: 'Vietnamita',
       pageRank: 'Ranking de páginas',
-      pageRankTip: `Você pode atribuir uma pontuação PageRank mais alta a bases de conhecimento específicas durante a recuperação. A pontuação correspondente é adicionada às pontuações de similaridade híbrida dos fragmentos recuperados dessas bases de conhecimento, aumentando sua classificação. Veja https://zsre.io/docs/dev/set_page_rank para mais detalhes.`,
+      pageRankTip: `Você pode atribuir uma pontuação PageRank mais alta a bases de conhecimento específicas durante a recuperação. A pontuação correspondente é adicionada às pontuações de similaridade híbrida dos fragmentos recuperados dessas bases de conhecimento, aumentando sua classificação. Veja https://ragflow.io/docs/dev/set_page_rank para mais detalhes.`,
       tagName: 'Etiqueta',
       frequency: 'Frequência',
       searchTags: 'Pesquisar etiquetas',
@@ -310,7 +310,7 @@ export default {
         <li>É necessário enviar conjuntos de etiquetas com exemplos antes de usá-los.</li>
         <li>Palavras-chave são geradas pelo LLM, o que é caro e demorado.</li>
       </ul>
-      <p>Consulte https://zsre.io/docs/dev/use_tag_sets para obter detalhes.</p>`,
+      <p>Consulte https://ragflow.io/docs/dev/use_tag_sets para obter detalhes.</p>`,
       topnTags: 'Top-N Etiquetas',
       tags: 'Etiquetas',
       addTag: 'Adicionar etiqueta',
@@ -392,7 +392,7 @@ export default {
       topN: 'Top N',
       topNTip: `Nem todos os fragmentos com pontuação de similaridade acima do 'limiar de similaridade' serão enviados ao LLM. Isso seleciona os 'Top N' fragmentos recuperados.`,
       variable: 'Variável',
-      variableTip: `Usados em conjunto com as APIs de gerenciamento de assistente de bate-papo do zsre, as variáveis podem ajudar a desenvolver estratégias de prompt do sistema mais flexíveis. As variáveis definidas serão usadas pelo 'Prompt do sistema' como parte dos prompts para o LLM. {knowledge} é uma variável especial reservada que representa partes recuperadas de base(s) de conhecimento especificada(s), e todas as variáveis devem ser cercadas por chaves {} no 'Prompt do sistema'. Veja https://zsre.io/docs/dev/set_chat_variables para mais detalhes.`,
+      variableTip: `Usados em conjunto com as APIs de gerenciamento de assistente de bate-papo do RAGFlow, as variáveis podem ajudar a desenvolver estratégias de prompt do sistema mais flexíveis. As variáveis definidas serão usadas pelo 'Prompt do sistema' como parte dos prompts para o LLM. {knowledge} é uma variável especial reservada que representa partes recuperadas de base(s) de conhecimento especificada(s), e todas as variáveis devem ser cercadas por chaves {} no 'Prompt do sistema'. Veja https://ragflow.io/docs/dev/set_chat_variables para mais detalhes.`,
       add: 'Adicionar',
       key: 'Chave',
       optional: 'Opcional',
@@ -456,7 +456,7 @@ export default {
       extensionTitle: 'Extensão do Chrome',
       tokenError: 'Por favor, crie uma chave API primeiro.',
       betaError:
-        'Por favor, adquira uma chave API do zsre na página Configurações do Sistema primeiro.',
+        'Por favor, adquira uma chave API do RAGFlow na página Configurações do Sistema primeiro.',
       searching: 'Pesquisando...',
       parsing: 'Analisando',
       uploading: 'Carregando',
@@ -532,7 +532,7 @@ export default {
         'A chave da API pode ser obtida registrando-se no fornecedor correspondente do LLM.',
       showMoreModels: 'Mostrar mais modelos',
       hideModels: 'Ocultar modelos',
-      baseUrl: 'URL Base',
+      baseUrl: 'URL BASE',
       baseUrlTip:
         'Se sua chave da API for do OpenAI, ignore isso. Outros provedores intermediários fornecerão essa URL base com a chave da API.',
       tongyiBaseUrlTip:
@@ -552,19 +552,19 @@ export default {
         'O modelo LLM padrão que todos os novos bancos de conhecimento usarão.',
       embeddingModel: 'Modelo de incorporação',
       embeddingModelTip:
-        'O modelo de incorporação padrão para cada nova base de conhecimento criada. Se você não encontrar um modelo de incorporação na lista suspensa, verifique se está usando a edição slim do zsre (que não inclui modelos de incorporação) ou consulte https://zsre.io/docs/dev/supported_models para verificar se o provedor do modelo suporta este modelo.',
+        'O modelo de incorporação padrão para cada nova base de conhecimento criada. Se você não encontrar um modelo de incorporação na lista suspensa, verifique se está usando a edição slim do RAGFlow (que não inclui modelos de incorporação) ou consulte https://ragflow.io/docs/dev/supported_models para verificar se o provedor do modelo suporta este modelo.',
       img2txtModel: 'Modelo Img2Txt',
       img2txtModelTip:
-        'O modelo padrão img2txt para cada base de conhecimento recém-criada. Ele descreve uma imagem ou vídeo. Se você não conseguir encontrar um modelo no menu suspenso, verifique https://zsre.io/docs/dev/supported_models para ver se seu provedor de modelo suporta este modelo.',
+        'O modelo padrão img2txt para cada base de conhecimento recém-criada. Ele descreve uma imagem ou vídeo. Se você não conseguir encontrar um modelo no menu suspenso, verifique https://ragflow.io/docs/dev/supported_models para ver se seu provedor de modelo suporta este modelo.',
       sequence2txtModel: 'Modelo Speech2Txt',
       sequence2txtModelTip:
-        'O modelo ASR padrão que todos os novos bancos de conhecimento usarão. Use este modelo para converter vozes em texto correspondente. Se você não conseguir encontrar um modelo no menu suspenso, verifique https://zsre.io/docs/dev/supported_models para ver se seu provedor de modelo suporta este modelo.',
+        'O modelo ASR padrão que todos os novos bancos de conhecimento usarão. Use este modelo para converter vozes em texto correspondente. Se você não conseguir encontrar um modelo no menu suspenso, verifique https://ragflow.io/docs/dev/supported_models para ver se seu provedor de modelo suporta este modelo.',
       rerankModel: 'Modelo de Reordenação',
       rerankModelTip:
-        'O modelo de rerank padrão para reranking de trechos. Se você não encontrar um modelo no menu suspenso, verifique https://zsre.io/docs/dev/supported_models para ver se o seu provedor de modelo oferece suporte a este modelo.',
+        'O modelo de rerank padrão para reranking de trechos. Se você não encontrar um modelo no menu suspenso, verifique https://ragflow.io/docs/dev/supported_models para ver se o seu provedor de modelo oferece suporte a este modelo.',
       ttsModel: 'Modelo TTS',
       ttsModelTip:
-        'O modelo padrão de text-to-speech. Se você não encontrar um modelo no menu suspenso, verifique https://zsre.io/docs/dev/supported_models para ver se o seu provedor de modelo oferece suporte a este modelo.',
+        'O modelo padrão de text-to-speech. Se você não encontrar um modelo no menu suspenso, verifique https://ragflow.io/docs/dev/supported_models para ver se o seu provedor de modelo oferece suporte a este modelo.',
       workspace: 'Área de trabalho',
       upgrade: 'Atualizar',
       addLlmTitle: 'Adicionar LLM',
@@ -575,7 +575,7 @@ export default {
       modelType: 'Tipo de modelo',
       modelTypeMessage: 'Por favor, insira o tipo do seu modelo!',
       addLlmBaseUrl: 'URL base',
-      baseUrlNameMessage: 'Por favor, insira sua URL base!',
+      baseUrlNameMessage: 'Por favor, insira sua URL base',
       paddleocr: {
         apiUrl: 'URL da API do PaddleOCR',
         apiUrlPlaceholder:
@@ -597,13 +597,13 @@ export default {
       endpointIDMessage: 'Por favor, insira o Model ID do modelo',
       addArkApiKey: 'VOLC ARK_API_KEY',
       ArkApiKeyMessage: 'Por favor, insira sua ARK_API_KEY',
-      bedrockModelNameMessage: 'Por favor, insira o nome do seu modelo!',
+      bedrockModelNameMessage: 'Por favor, insira o nome do seu modelo',
       addBedrockEngineAK: 'CHAVE DE ACESSO',
       bedrockAKMessage: 'Por favor, insira sua CHAVE DE ACESSO',
       addBedrockSK: 'CHAVE SECRETA',
       bedrockSKMessage: 'Por favor, insira sua CHAVE SECRETA',
       bedrockRegion: 'Região AWS',
-      bedrockRegionMessage: 'Por favor, selecione!',
+      bedrockRegionMessage: 'Por favor, selecione',
       'us-east-1': 'Leste dos EUA (N. Virgínia)',
       'us-west-2': 'Oeste dos EUA (Oregon)',
       'ap-southeast-1': 'Ásia-Pacífico (Singapura)',
@@ -613,8 +613,8 @@ export default {
       'ap-southeast-2': 'Ásia-Pacífico (Sydney)',
       addTencentCloudSID: 'TencentCloud Secret ID',
       TencentCloudSIDMessage: 'Por favor, insira seu Secret ID',
-      addTencentCloudSK: 'TencentCloud Secret Key',
-      TencentCloudSKMessage: 'Por favor, insira sua Secret Key',
+      addTencentCloudSK: 'TencentCloud SECRET KEY',
+      TencentCloudSKMessage: 'Por favor, insira sua SECRET KEY',
       SparkModelNameMessage: 'Por favor, selecione o modelo Spark',
       addSparkAPIPassword: 'Senha da API Spark',
       SparkAPIPasswordMessage: 'Por favor, insira sua senha da API',
@@ -705,13 +705,13 @@ export default {
       uploadTitle:
         'Clique ou arraste o arquivo para esta área para fazer o upload',
       uploadDescription:
-        'O zsre suporta o upload de arquivos de forma individual ou em lote. Para o zsre implantado localmente: o limite total de tamanho de arquivo por upload é de 1GB, com um limite de upload em lote de 32 arquivos. Não há limite para o número total de arquivos por conta. Para o cloud.zsre.io: o limite total de tamanho de arquivo por upload é de 10MB, com cada arquivo não excedendo 10MB e um máximo de 128 arquivos por conta.',
+        'O RAGFlow suporta o upload de arquivos de forma individual ou em lote. Para o RAGFlow implantado localmente: o limite total de tamanho de arquivo por upload é de 1GB, com um limite de upload em lote de 32 arquivos. Não há limite para o número total de arquivos por conta. Para o cloud.ragflow.io: o limite total de tamanho de arquivo por upload é de 10MB, com cada arquivo não excedendo 10MB e um máximo de 128 arquivos por conta.',
       local: 'Uploads locais',
       s3: 'Uploads S3',
       preview: 'Pré-visualização',
       fileError: 'Erro no arquivo',
       uploadLimit:
-        'O zsre suporta o upload de arquivos de forma individual ou em lote. Para o zsre implantado localmente: o limite total de tamanho de arquivo por upload é de 1GB, com um limite de upload em lote de 32 arquivos. Não há limite para o número total de arquivos por conta. Para o cloud.zsre.io: o limite total de tamanho de arquivo por upload é de 10MB, com cada arquivo não excedendo 10MB e um máximo de 128 arquivos por conta.',
+        'O RAGFlow suporta o upload de arquivos de forma individual ou em lote. Para o RAGFlow implantado localmente: o limite total de tamanho de arquivo por upload é de 1GB, com um limite de upload em lote de 32 arquivos. Não há limite para o número total de arquivos por conta. Para o cloud.ragflow.io: o limite total de tamanho de arquivo por upload é de 10MB, com cada arquivo não excedendo 10MB e um máximo de 128 arquivos por conta.',
       destinationFolder: 'Pasta de destino',
     },
     flow: {

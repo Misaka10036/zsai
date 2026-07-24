@@ -32,6 +32,7 @@ export function LayoutRecognizeFormField({
   showMineruOptions = true,
   showPaddleocrOptions = true,
   testId,
+  ownerTenantId,
 }: {
   name?: string;
   horizontal?: boolean;
@@ -40,11 +41,15 @@ export function LayoutRecognizeFormField({
   showMineruOptions?: boolean;
   showPaddleocrOptions?: boolean;
   testId?: string;
+  ownerTenantId?: string;
 }) {
   const form = useFormContext();
 
   const { t } = useTranslate('knowledgeDetails');
-  const { data: allAddedModels } = useFetchAllAddedModels();
+  const { data: allAddedModels } = useFetchAllAddedModels(
+    undefined,
+    ownerTenantId,
+  );
 
   const treeData = useMemo(() => {
     const list = optionsWithoutLLM
@@ -65,8 +70,10 @@ export function LayoutRecognizeFormField({
       title: x.label,
     }));
 
-    const modelTree = buildModelTree(allAddedModels, ['image2text', 'ocr'], {
-      renderLeafLabel: (node) => (
+    const modelTree = buildModelTree(
+      allAddedModels,
+      ['image2text', 'ocr'],
+      (node) => (
         <div className="flex justify-between items-center gap-2 w-full">
           <span className="flex items-center gap-1.5 truncate">
             {node.label}
@@ -76,7 +83,7 @@ export function LayoutRecognizeFormField({
           </span>
         </div>
       ),
-    });
+    );
 
     return [...prependNodes, ...modelTree];
   }, [allAddedModels, optionsWithoutLLM, t]);
