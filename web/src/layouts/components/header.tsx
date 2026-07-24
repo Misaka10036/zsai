@@ -132,7 +132,9 @@ export function Header({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {!isCompact && hasNotification && (`r`n            <BellButton className="!size-8" />`r`n          )}
+          {!isCompact && hasNotification && (
+            <BellButton className="!size-8" />
+          )}
 
           <ThemeButton className={cn(!isCompact && '!size-8')} />
 
