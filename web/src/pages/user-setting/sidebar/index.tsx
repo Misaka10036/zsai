@@ -12,10 +12,12 @@ import { Routes } from '@/routes';
 import { TFunction } from 'i18next';
 import {
   Columns3Cog,
+  Database,
   LucideBox,
   LucideLogOut,
   LucideUser,
   LucideUsers,
+  Plug,
 } from 'lucide-react';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -32,6 +34,16 @@ const menuItems = (t: TFunction) => [
     icon: <Columns3Cog className="size-[1em]" />,
     label: t('setting.compilationTemplates'),
     key: Routes.CompilationTemplates,
+  },
+  {
+    icon: <Database className="size-[1em]" />,
+    label: t('setting.dataSources'),
+    key: Routes.DataSource,
+  },
+  {
+    icon: <Plug className="size-[1em]" />,
+    label: t('setting.mcp'),
+    key: Routes.Mcp,
   },
   {
     icon: <LucideUsers className="size-[1em]" />,

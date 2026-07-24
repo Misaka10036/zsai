@@ -1145,9 +1145,26 @@ export function useFetchAgentSchedule(agentId: string) {
     queryKey: [AgentApiAction.FetchAgentSchedule, agentId],
     queryFn: async () => {
       const { data } = await getAgentSchedule(agentId);
-      return data.code === 0 ? data.data : null;
+      if (data.code !== 0 || !data.data) {
+        return null;
+      }
+      const schedule = data.data;
+      // Normalize MySQL 0/1 and string flags so Switch always gets a real boolean.
+      return {
+        ...schedule,
+        auto_run: Boolean(schedule.auto_run),
+        schedule_input: schedule.schedule_input ?? '',
+        schedule_config:
+          schedule.schedule_config &&
+          typeof schedule.schedule_config === 'object' &&
+          Object.keys(schedule.schedule_config).length > 0
+            ? schedule.schedule_config
+            : null,
+      };
     },
     enabled: !!agentId,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 }
 

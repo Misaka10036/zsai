@@ -251,7 +251,8 @@ export function updateAgentSchedule(
     schedule_input?: string;
   },
 ) {
-  return request.put(api.updateAgentSchedule(agentId), params);
+  // umi-request expects body under `data` (same as other PUT APIs)
+  return request.put(api.updateAgentSchedule(agentId), { data: params });
 }
 
 export default agentService;
