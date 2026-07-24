@@ -316,19 +316,28 @@ class UserCanvasService(CommonService):
         canvas = cls.model.get_or_none(cls.model.id == canvas_id)
         if not canvas:
             return None
+        # MySQL TINYINT may surface as 0/1; always expose a real bool to the UI.
+        auto_run = bool(canvas.auto_run)
+        schedule_config = canvas.schedule_config
+        if isinstance(schedule_config, dict) and not schedule_config:
+            schedule_config = None
         return {
-            "auto_run": canvas.auto_run,
-            "schedule_config": canvas.schedule_config,
-            "schedule_input": canvas.schedule_input,
+            "auto_run": auto_run,
+            "schedule_config": schedule_config,
+            "schedule_input": canvas.schedule_input or "",
             "next_run_time": canvas.next_run_time,
             "last_run_time": canvas.last_run_time,
-            "run_status": canvas.run_status,
+            "run_status": canvas.run_status or ("scheduled" if auto_run else "idle"),
         }
 
     @classmethod
     @DB.connection_context()
     def update_schedule(cls, canvas_id, auto_run, schedule_config=None, schedule_input=None):
         """Update schedule configuration and compute next_run_time."""
+        auto_run = bool(auto_run)
+        if isinstance(schedule_config, dict) and not schedule_config:
+            schedule_config = None
+
         update_fields = {
             cls.model.auto_run: auto_run,
             cls.model.schedule_config: schedule_config,
@@ -338,6 +347,7 @@ class UserCanvasService(CommonService):
             update_fields[cls.model.next_run_time] = calc_next_run_time(schedule_config)
             update_fields[cls.model.run_status] = "scheduled"
         else:
+            # Keep schedule_config for re-enable UX; only clear runtime fields.
             update_fields[cls.model.next_run_time] = None
             update_fields[cls.model.run_status] = "idle"
 

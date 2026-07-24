@@ -23,7 +23,7 @@ import {
 } from '@/hooks/use-agent-request';
 import { cn } from '@/lib/utils';
 import dayjs from 'dayjs';
-import { Clock } from 'lucide-react';
+import { Clock, Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -45,11 +45,26 @@ const INTERVAL_OPTIONS = [
 const getBrowserTimeZone = () =>
   Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 
+function buildScheduleConfig(
+  scheduleType: 'interval' | 'cron',
+  intervalSeconds: number,
+  cronExpr: string,
+  timeZone: string,
+) {
+  return scheduleType === 'cron'
+    ? { type: 'cron' as const, expr: cronExpr, tz: timeZone || 'UTC' }
+    : { type: 'interval' as const, seconds: intervalSeconds };
+}
+
 export function ScheduleSheet({ hideModal }: IScheduleSheetProps) {
   const { t } = useTranslation();
   const { data: agent } = useFetchAgent();
   const agentId = agent?.id ?? '';
-  const { data: schedule } = useFetchAgentSchedule(agentId);
+  const {
+    data: schedule,
+    isLoading: scheduleLoading,
+    isFetching: scheduleFetching,
+  } = useFetchAgentSchedule(agentId);
   const { updateAgentSchedule, loading } = useUpdateAgentSchedule();
 
   const [autoRun, setAutoRun] = useState(false);
@@ -60,33 +75,60 @@ export function ScheduleSheet({ hideModal }: IScheduleSheetProps) {
   const [cronExpr, setCronExpr] = useState('0 9 * * *');
   const [timeZone, setTimeZone] = useState(getBrowserTimeZone);
   const [scheduleInput, setScheduleInput] = useState('');
+  const [hydrated, setHydrated] = useState(false);
 
-  // Sync form state when schedule data loads
+  // Sync form state whenever schedule data arrives/refetches from server.
   useEffect(() => {
-    if (schedule) {
-      setAutoRun(schedule.auto_run ?? false);
-      setScheduleType(schedule.schedule_config?.type ?? 'interval');
-      setIntervalSeconds(schedule.schedule_config?.seconds ?? 3600);
-      setCronExpr(schedule.schedule_config?.expr ?? '0 9 * * *');
-      setTimeZone(schedule.schedule_config?.tz ?? getBrowserTimeZone());
-      setScheduleInput(schedule.schedule_input ?? '');
+    if (!schedule) {
+      return;
     }
+    setAutoRun(Boolean(schedule.auto_run));
+    setScheduleType(schedule.schedule_config?.type ?? 'interval');
+    setIntervalSeconds(schedule.schedule_config?.seconds ?? 3600);
+    setCronExpr(schedule.schedule_config?.expr ?? '0 9 * * *');
+    setTimeZone(schedule.schedule_config?.tz ?? getBrowserTimeZone());
+    setScheduleInput(schedule.schedule_input ?? '');
+    setHydrated(true);
   }, [schedule]);
 
   const handleSave = async () => {
-    const config = autoRun
-      ? scheduleType === 'cron'
-        ? { type: 'cron' as const, expr: cronExpr, tz: timeZone || 'UTC' }
-        : { type: 'interval' as const, seconds: intervalSeconds }
-      : null;
+    // Always persist config so reopening / re-enabling keeps previous settings.
+    const config = buildScheduleConfig(
+      scheduleType,
+      intervalSeconds,
+      cronExpr,
+      timeZone,
+    );
 
-    await updateAgentSchedule({
+    if (autoRun) {
+      if (scheduleType === 'cron' && !cronExpr.trim()) {
+        return;
+      }
+    }
+
+    const result = await updateAgentSchedule({
       agentId,
       auto_run: autoRun,
       schedule_config: config,
-      schedule_input: scheduleInput || undefined,
+      schedule_input: scheduleInput || '',
     });
+
+    if (result?.code === 0) {
+      hideModal(false);
+    }
   };
+
+  const displayStatus = (() => {
+    if (!hydrated && (scheduleLoading || scheduleFetching)) {
+      return undefined;
+    }
+    if (autoRun) {
+      return schedule?.run_status && schedule.run_status !== 'idle'
+        ? schedule.run_status
+        : 'scheduled';
+    }
+    return schedule?.run_status === 'running' ? 'running' : 'idle';
+  })();
 
   const statusLabel = (status?: string) => {
     switch (status) {
@@ -96,10 +138,14 @@ export function ScheduleSheet({ hideModal }: IScheduleSheetProps) {
         return t('flow.schedule.statusRunning');
       case 'error':
         return t('flow.schedule.statusError');
-      default:
+      case 'idle':
         return t('flow.schedule.statusIdle');
+      default:
+        return t('flow.schedule.loading');
     }
   };
+
+  const showLoading = !hydrated && (scheduleLoading || scheduleFetching);
 
   return (
     <Sheet open onOpenChange={hideModal} modal={false}>
@@ -115,68 +161,91 @@ export function ScheduleSheet({ hideModal }: IScheduleSheetProps) {
         </SheetHeader>
 
         <div className="flex flex-col gap-5 px-5 pb-5 overflow-y-auto">
-          {/* Status indicator */}
-          {schedule && (
-            <div className="flex items-center justify-between p-3 rounded-lg border border-border-default bg-bg-card text-sm">
-              <span className="text-text-secondary">
-                {t('flow.schedule.runStatus')}
-              </span>
-              <span
-                className={cn('font-medium', {
-                  'text-green-600': schedule.run_status === 'scheduled',
-                  'text-blue-600': schedule.run_status === 'running',
-                  'text-red-600': schedule.run_status === 'error',
-                  'text-text-secondary': schedule.run_status === 'idle',
-                })}
-              >
-                {statusLabel(schedule.run_status)}
-              </span>
+          {showLoading ? (
+            <div className="flex items-center justify-center gap-2 py-10 text-sm text-text-secondary">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              {t('flow.schedule.loading')}
             </div>
-          )}
-
-          {/* Next/Last run time */}
-          {schedule?.auto_run && (
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              {schedule.next_run_time && (
-                <div className="flex flex-col gap-1">
-                  <span className="text-text-secondary">
-                    {t('flow.schedule.nextRunTime')}
-                  </span>
-                  <span className="font-medium">
-                    {dayjs
-                      .unix(schedule.next_run_time)
-                      .format('YYYY-MM-DD HH:mm')}
-                  </span>
-                </div>
-              )}
-              {schedule.last_run_time && (
-                <div className="flex flex-col gap-1">
-                  <span className="text-text-secondary">
-                    {t('flow.schedule.lastRunTime')}
-                  </span>
-                  <span className="font-medium">
-                    {dayjs
-                      .unix(schedule.last_run_time)
-                      .format('YYYY-MM-DD HH:mm')}
-                  </span>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Enable toggle */}
-          <div className="flex items-center justify-between">
-            <Label htmlFor="schedule-enable">{t('flow.schedule.enable')}</Label>
-            <Switch
-              id="schedule-enable"
-              checked={autoRun}
-              onCheckedChange={setAutoRun}
-            />
-          </div>
-
-          {autoRun && (
+          ) : (
             <>
-              {/* Schedule type selector */}
+              {/* Current status */}
+              <div className="flex flex-col gap-3 p-3 rounded-lg border border-border-default bg-bg-card text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-text-secondary">
+                    {t('flow.schedule.runStatus')}
+                  </span>
+                  <span
+                    className={cn('font-medium', {
+                      'text-green-600': displayStatus === 'scheduled',
+                      'text-blue-600': displayStatus === 'running',
+                      'text-red-600': displayStatus === 'error',
+                      'text-text-secondary':
+                        !displayStatus || displayStatus === 'idle',
+                    })}
+                  >
+                    {statusLabel(displayStatus)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-text-secondary">
+                    {t('flow.schedule.enable')}
+                  </span>
+                  <span
+                    className={cn('font-medium', {
+                      'text-green-600': autoRun,
+                      'text-text-secondary': !autoRun,
+                    })}
+                  >
+                    {autoRun
+                      ? t('flow.schedule.enabled')
+                      : t('flow.schedule.disabled')}
+                  </span>
+                </div>
+                {(autoRun ||
+                  schedule?.next_run_time ||
+                  schedule?.last_run_time) && (
+                  <div className="grid grid-cols-2 gap-3 pt-1 border-t border-border-default">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-text-secondary">
+                        {t('flow.schedule.nextRunTime')}
+                      </span>
+                      <span className="font-medium">
+                        {schedule?.next_run_time
+                          ? dayjs
+                              .unix(schedule.next_run_time)
+                              .format('YYYY-MM-DD HH:mm')
+                          : '—'}
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-text-secondary">
+                        {t('flow.schedule.lastRunTime')}
+                      </span>
+                      <span className="font-medium">
+                        {schedule?.last_run_time
+                          ? dayjs
+                              .unix(schedule.last_run_time)
+                              .format('YYYY-MM-DD HH:mm')
+                          : '—'}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Enable toggle */}
+              <div className="flex items-center justify-between">
+                <Label htmlFor="schedule-enable">
+                  {t('flow.schedule.enable')}
+                </Label>
+                <Switch
+                  id="schedule-enable"
+                  checked={autoRun}
+                  onCheckedChange={(checked) => setAutoRun(Boolean(checked))}
+                />
+              </div>
+
+              {/* Keep config editable whether on or off so users can prepare settings */}
               <div className="flex flex-col gap-2">
                 <Label>{t('flow.schedule.scheduleType')}</Label>
                 <Select
@@ -199,7 +268,6 @@ export function ScheduleSheet({ hideModal }: IScheduleSheetProps) {
                 </Select>
               </div>
 
-              {/* Interval config */}
               {scheduleType === 'interval' && (
                 <div className="flex flex-col gap-2">
                   <Label>{t('flow.schedule.intervalValue')}</Label>
@@ -221,7 +289,6 @@ export function ScheduleSheet({ hideModal }: IScheduleSheetProps) {
                 </div>
               )}
 
-              {/* Cron config */}
               {scheduleType === 'cron' && (
                 <div className="flex flex-col gap-2">
                   <Label>{t('flow.schedule.cronExpression')}</Label>
@@ -245,7 +312,6 @@ export function ScheduleSheet({ hideModal }: IScheduleSheetProps) {
                 </div>
               )}
 
-              {/* Schedule input */}
               <div className="flex flex-col gap-2">
                 <Label>{t('flow.schedule.scheduleInput')}</Label>
                 <Textarea
@@ -255,13 +321,16 @@ export function ScheduleSheet({ hideModal }: IScheduleSheetProps) {
                   rows={3}
                 />
               </div>
+
+              <ButtonLoading
+                onClick={handleSave}
+                loading={loading}
+                disabled={!agentId}
+              >
+                {t('common.save')}
+              </ButtonLoading>
             </>
           )}
-
-          {/* Save button */}
-          <ButtonLoading onClick={handleSave} loading={loading}>
-            {t('common.save')}
-          </ButtonLoading>
         </div>
       </SheetContent>
     </Sheet>

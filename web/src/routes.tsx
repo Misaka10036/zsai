@@ -290,16 +290,12 @@ const routeConfigOptions = [
           },
           {
             path: `${Routes.UserSetting}${Routes.Mcp}`,
-            element: (
-              <Navigate to={`${Routes.UserSetting}${Routes.Model}`} replace />
-            ),
+            Component: () => import('@/pages/user-setting/mcp'),
           },
 
           {
             path: `${Routes.UserSetting}${Routes.DataSource}`,
-            element: (
-              <Navigate to={`${Routes.UserSetting}${Routes.Model}`} replace />
-            ),
+            Component: () => import('@/pages/user-setting/data-source'),
           },
           {
             path: `${Routes.UserSetting}${Routes.ChatChannel}`,

@@ -10,7 +10,14 @@ import {
 import { cn } from '@/lib/utils';
 import { Routes } from '@/routes';
 import { TFunction } from 'i18next';
-import { LucideBox, LucideLogOut, LucideUser, LucideUsers } from 'lucide-react';
+import {
+  Database,
+  LucideBox,
+  LucideLogOut,
+  LucideUser,
+  LucideUsers,
+  Plug,
+} from 'lucide-react';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useHandleMenuClick } from './hooks';
@@ -21,6 +28,16 @@ const menuItems = (t: TFunction) => [
     label: t('setting.model'),
     key: Routes.Model,
     'data-testid': 'settings-nav-model-providers',
+  },
+  {
+    icon: <Database className="size-[1em]" />,
+    label: t('setting.dataSources'),
+    key: Routes.DataSource,
+  },
+  {
+    icon: <Plug className="size-[1em]" />,
+    label: t('setting.mcp'),
+    key: Routes.Mcp,
   },
   {
     icon: <LucideUsers className="size-[1em]" />,
