@@ -11,7 +11,6 @@ import { cn } from '@/lib/utils';
 import { Routes } from '@/routes';
 import { TFunction } from 'i18next';
 import {
-  Columns3Cog,
   Database,
   LucideBox,
   LucideLogOut,
@@ -29,11 +28,6 @@ const menuItems = (t: TFunction) => [
     label: t('setting.model'),
     key: Routes.Model,
     'data-testid': 'settings-nav-model-providers',
-  },
-  {
-    icon: <Columns3Cog className="size-[1em]" />,
-    label: t('setting.compilationTemplates'),
-    key: Routes.CompilationTemplates,
   },
   {
     icon: <Database className="size-[1em]" />,
