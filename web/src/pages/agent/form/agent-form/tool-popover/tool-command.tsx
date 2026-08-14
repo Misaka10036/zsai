@@ -47,7 +47,14 @@ const Menus = [
   // },
   {
     label: t('flow.developer'),
-    list: [Operator.GitHub, Operator.ExeSQL, Operator.Code, Operator.Retrieval],
+    list: [
+      Operator.GitHub,
+      Operator.ExeSQL,
+      Operator.Code,
+      Operator.Retrieval,
+      Operator.Seafile,
+      Operator.DatasetWrite,
+    ],
   },
 ];
 

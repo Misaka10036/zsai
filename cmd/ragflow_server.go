@@ -716,6 +716,26 @@ func startServer(ctx context.Context, config *server.Config) {
 	documentDAO := dao.NewDocumentDAO()
 	agenttool.SetRetrievalService(agenttool.NewNLPRetrievalAdapterFromDeps(docEngine, documentDAO))
 	common.Info("agent: retrieval service adapter installed")
+	agenttool.SetConnectorLookup(func(ctx context.Context, connectorID, userID string) (*agenttool.ConnectorSnapshot, error) {
+		conn, _, err := connectorService.GetConnector(ctx, connectorID, userID)
+		if err != nil {
+			return nil, err
+		}
+		if conn == nil {
+			return nil, fmt.Errorf("connector %s not found", connectorID)
+		}
+		cfg := map[string]any{}
+		for key, value := range conn.Config {
+			cfg[key] = value
+		}
+		return &agenttool.ConnectorSnapshot{
+			ID:       conn.ID,
+			TenantID: conn.TenantID,
+			Source:   conn.Source,
+			Config:   cfg,
+		}, nil
+	})
+	common.Info("agent: connector lookup installed")
 
 	// Initialize handler layer
 	authHandler := handler.NewAuthHandler()

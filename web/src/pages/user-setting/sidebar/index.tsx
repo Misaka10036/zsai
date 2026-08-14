@@ -14,6 +14,7 @@ import {
   Database,
   LucideBox,
   LucideLogOut,
+  LucideUnplug,
   LucideUser,
   LucideUsers,
   Plug,
@@ -48,6 +49,12 @@ const menuItems = (t: TFunction) => [
     icon: <LucideUser className="size-[1em]" />,
     label: t('setting.profile'),
     key: Routes.Profile,
+  },
+  {
+    icon: <LucideUnplug className="size-[1em]" />,
+    label: t('setting.api'),
+    key: Routes.Api,
+    'data-testid': 'settings-nav-api',
   },
 ];
 

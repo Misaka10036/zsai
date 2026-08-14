@@ -32,7 +32,9 @@ type IToolIcon =
   | Operator.Wikipedia
   | Operator.YahooFinance
   | Operator.WenCai
-  | Operator.Crawler;
+  | Operator.Crawler
+  | Operator.Seafile
+  | Operator.DatasetWrite;
 
 const capitalizeWords = (str: string, separator: string = '_'): string[] => {
   if (!str) return [''];

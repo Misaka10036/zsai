@@ -36,6 +36,7 @@ import jwt
 from quart import Response, jsonify, request, make_response
 
 from api.apps import AUTH_JWT, AUTH_API, AUTH_BETA, current_user, login_required
+from agent.dsl_preserve import merge_preserved_agent_fields
 from api.apps.services.canvas_replica_service import CanvasReplicaService
 from api.db import CanvasCategory
 from api.db.db_models import Task
@@ -1059,6 +1060,15 @@ async def update_agent(agent_id, tenant_id):
             )
 
     _, current_agent = UserCanvasService.get_by_id(agent_id)
+    if req.get("dsl") is not None and current_agent is not None:
+        old_dsl = current_agent.dsl
+        if isinstance(old_dsl, str):
+            try:
+                old_dsl = json.loads(old_dsl)
+            except Exception:
+                old_dsl = None
+        if isinstance(old_dsl, dict):
+            req["dsl"] = merge_preserved_agent_fields(req["dsl"], old_dsl)
     if req.get("title") is not None:
         req["title"] = req["title"].strip()
         canvas_category_for_duplicate_check = req.get("canvas_category") or (current_agent.canvas_category if current_agent else CanvasCategory.Agent)

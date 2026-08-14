@@ -119,6 +119,8 @@ var toolComponentRegistrations = []struct {
 	{componentName: "WenCai", toolName: "wencai"},
 	{componentName: "Wikipedia", toolName: "wikipedia"},
 	{componentName: "YahooFinance", toolName: "yahoo_finance"},
+	{componentName: "Seafile", toolName: "seafile"},
+	{componentName: "DatasetWrite", toolName: "datasetwrite"},
 }
 
 func init() {

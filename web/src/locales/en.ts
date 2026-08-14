@@ -2863,6 +2863,63 @@ Best for: Documents with flowing, contextually connected content — such as boo
       yahooFinance: 'YahooFinance',
       yahooFinanceDescription:
         'A component that queries information about a publicly traded company using its ticker symbol.',
+      seafile: 'Fetch daily reports',
+      seafileDescription:
+        'Fetch this week daily reports from a configured Seafile data source.',
+      seafileConnector: 'Seafile data source',
+      seafileConnectorTip:
+        'Pick a Seafile connector created in Settings → Data source. Tokens stay on the connector.',
+      seafileConnectorLoading: 'Loading data sources…',
+      seafileConnectorPlaceholder: 'Select a Seafile data source',
+      seafilePath: 'Daily-report folder',
+      seafilePathTip:
+        'Directory to start listing from. Use / for the library root. If 日报 is a library name rather than a folder, use / and set the library ID, or put the library name as the path (for example /日报). Missing folders fall back to the library root.',
+      seafilePathPlaceholder: '/ or a library name',
+      seafileWeekMode: 'Week window',
+      seafileWeekModeTip:
+        'This week = Monday through today. Last complete week = last Monday–Sunday. You can also put 2026-W33 in the run query.',
+      seafileWeekModeThisWeek: 'This week (Monday–today)',
+      seafileWeekModeLastWeek: 'Last complete ISO week',
+      seafileTimezone: 'Timezone',
+      seafileTimezoneTip:
+        'Used for week bounds and file mtimes. Use Asia/Shanghai for China. UTC will shift Friday evening runs.',
+      seafileTimezonePlaceholder: 'Asia/Shanghai',
+      seafileFilenameRegex: 'Filename pattern',
+      seafileFilenameRegexTip:
+        'Regex to extract author and date from the path or filename. Default matches 张三-2026-08-11.md and 张三-2026-8-14.md. If the author group is missing, the parent folder name is used.',
+      seafileFilenameRegexPlaceholder:
+        '(?:(?P<author>[^/]+)-)?(?P<date>\\d{4}[-./]\\d{1,2}[-./]\\d{1,2}).*\\.(md|docx|txt)$',
+      seafileDefaultRepo: 'Library ID (optional)',
+      seafileDefaultRepoTip:
+        'Leave empty on an account-scoped source to scan all libraries. Fill a Seafile library UUID to restrict to one library.',
+      seafileDefaultRepoPlaceholder: 'Empty = all libraries',
+      seafileRequireComplete: 'Block publish if anyone is missing',
+      seafileRequireCompleteTip:
+        'When on, a missing expected author blocks writing the weekly dataset. Off (default): missing people are only listed in the report.',
+      datasetWrite: 'Write weekly report',
+      datasetWriteDescription:
+        'Write the generated weekly report into a knowledge base dataset.',
+      datasetWriteKb: 'Weekly-report dataset',
+      datasetWriteKbTip:
+        'Destination dataset. Empty datasets are allowed. Choose exactly one.',
+      datasetWriteKbLoading: 'Loading datasets…',
+      datasetWriteKbPlaceholder: 'Select a weekly-report dataset',
+      datasetWriteWeekId: 'Week id',
+      datasetWriteWeekIdTip:
+        'Used to name weekly-report-{week}.md. Usually bind {Seafile:DailyFetch@json.week_id}. Re-running the same week overwrites that file.',
+      datasetWriteContent: 'Report body',
+      datasetWriteContentTip:
+        'Markdown to store. Usually bind {Agent:WeeklySynthesizer@content}.',
+      datasetWritePolicy: 'Publish policy',
+      datasetWritePolicyTip:
+        'Auto publish writes the dataset. Draft skips the write. Use auto for scheduled runs.',
+      datasetWritePolicyAuto: 'Auto publish',
+      datasetWritePolicyDraft: 'Draft only (do not write)',
+      datasetWriteLanguage: 'Report language',
+      datasetWriteLanguageTip:
+        'Metadata language tag for later retrieval. The body language follows the synthesizer prompt.',
+      datasetWriteLanguageZh: 'Chinese',
+      datasetWriteLanguageEn: 'English',
       crawler: 'Web crawler',
       crawlerDescription:
         'A component that crawls HTML source code from a specified URL.',

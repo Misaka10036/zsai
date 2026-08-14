@@ -292,9 +292,7 @@ const routeConfigOptions = [
           },
           {
             path: `${Routes.UserSetting}${Routes.Api}`,
-            element: (
-              <Navigate to={`${Routes.UserSetting}${Routes.Model}`} replace />
-            ),
+            Component: () => import('@/pages/user-setting/setting-api'),
           },
           {
             path: `${Routes.UserSetting}${Routes.Mcp}`,

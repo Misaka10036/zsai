@@ -2519,6 +2519,61 @@ NER：使用 spaCy NER 和基于规则的关键词提取来抽取实体和关系
       akShare: 'AkShare',
       akShareDescription: '该组件可用于从东方财富网站获取相应股票的新闻信息。',
       yahooFinance: '雅虎财经',
+      seafile: '拉取日报',
+      seafileDescription: '从已配置的 Seafile 数据源拉取本周日报。',
+      seafileConnector: 'Seafile 数据源',
+      seafileConnectorTip:
+        '选择已在「设置 → 数据源」中创建的 Seafile 连接。凭证（地址、令牌）都存在数据源里，这里只选哪一个连接。',
+      seafileConnectorLoading: '正在加载数据源…',
+      seafileConnectorPlaceholder: '请选择 Seafile 数据源',
+      seafilePath: '日报目录',
+      seafilePathTip:
+        '资料库内的起始目录。填 / 从根目录往下扫。若「日报」本身是一个资料库而不是文件夹，请填 /，并在「指定资料库 ID」里填该库；也可以直接填资料库名称（例如 /日报），系统会按库名匹配并从该库根目录扫描。账号范围且未指定资料库时，会对每个资料库都从该路径开始找；路径不存在时会回退到根目录。',
+      seafilePathPlaceholder: '/ 或资料库名',
+      seafileWeekMode: '统计周期',
+      seafileWeekModeTip:
+        '「本周」= 本周一到今天（含周五当天日报，适合周五定时）。「上一完整周」= 上周一到上周日。也可在运行输入里写 2026-W33 指定某一周。',
+      seafileWeekModeThisWeek: '本周（周一到今天）',
+      seafileWeekModeLastWeek: '上一完整周（上周一到周日）',
+      seafileTimezone: '时区',
+      seafileTimezoneTip:
+        '计算「本周」和文件修改时间时使用的时区。中国团队一般填 Asia/Shanghai。不要用 UTC，否则周五晚上可能算错日期。',
+      seafileTimezonePlaceholder: 'Asia/Shanghai',
+      seafileFilenameRegex: '文件名规则',
+      seafileFilenameRegexTip:
+        '用正则从路径或文件名里取出作者和日期。默认匹配「作者-年-月-日.md/docx/txt」，例如 张三-2026-08-11.md 或 张三-2026-8-14.md；没有作者前缀时用上一级文件夹名。作者会写进周报「按人进展」。',
+      seafileFilenameRegexPlaceholder:
+        '(?:(?P<author>[^/]+)-)?(?P<date>\\d{4}[-./]\\d{1,2}[-./]\\d{1,2}).*\\.(md|docx|txt)$',
+      seafileDefaultRepo: '指定资料库 ID（可选）',
+      seafileDefaultRepoTip:
+        '账号范围的数据源可以留空：将扫描该账号下全部资料库。如果只想扫某一个库，填 Seafile 资料库 UUID（打开资料库时浏览器地址栏里的那一串）。目录/单库范围的数据源会忽略此项，以数据源里的库为准。',
+      seafileDefaultRepoPlaceholder: '留空=扫描全部资料库',
+      seafileRequireComplete: '缺人则不发布',
+      seafileRequireCompleteTip:
+        '打开后，如果配置了应到人员且有人缺交日报，本周不会写入周报资料库。默认关闭：缺人只写在周报「覆盖与缺交」里，仍会发布。',
+      datasetWrite: '写入周报资料库',
+      datasetWriteDescription: '把生成的周报写入周报资料库。',
+      datasetWriteKb: '周报资料库',
+      datasetWriteKbTip:
+        '周报要写入的目标资料库。空库也可以选（写入后会自动解析入库）。请先在「资料库」里建好周报库再选。只选一个。',
+      datasetWriteKbLoading: '正在加载资料库…',
+      datasetWriteKbPlaceholder: '请选择周报资料库',
+      datasetWriteWeekId: '周次编号',
+      datasetWriteWeekIdTip:
+        '用来生成固定文件名 weekly-report-{周次}.md。一般引用 DailyFetch 的输出，例如 {Seafile:DailyFetch@json.week_id}。同一周再次运行会覆盖同名文档，不会另存一份。',
+      datasetWriteContent: '周报正文',
+      datasetWriteContentTip:
+        '要写入资料库的 Markdown 内容。一般引用主编节点输出，例如 {Agent:WeeklySynthesizer@content}。',
+      datasetWritePolicy: '发布策略',
+      datasetWritePolicyTip:
+        '「自动发布」：质量门通过后立刻写入资料库。「仅草稿」：只生成周报，不写入资料库。定时任务请用自动发布。',
+      datasetWritePolicyAuto: '自动发布',
+      datasetWritePolicyDraft: '仅草稿（不入库）',
+      datasetWriteLanguage: '周报语言',
+      datasetWriteLanguageTip:
+        '写入资料库时附带的语言标记，方便以后检索。正文语言由主编提示词决定，一般保持中文。',
+      datasetWriteLanguageZh: '中文',
+      datasetWriteLanguageEn: '英文',
       yahooFinanceDescription: '该组件根据提供的股票代码查询有关公司的信息。',
       crawler: '网页爬虫',
       crawlerDescription: '该组件可用于从指定url爬取html源码。',

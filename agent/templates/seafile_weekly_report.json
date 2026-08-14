@@ -1,0 +1,953 @@
+{
+    "id": 49,
+    "title": {
+        "en": "Seafile weekly report",
+        "de": "Seafile-Wochenbericht",
+        "zh": "Seafile 日报汇总周报"
+    },
+    "description": {
+        "en": "Fetch this week daily reports from Seafile, synthesize a structured weekly report, and write it into the weekly-report dataset. Use the existing agent scheduler.",
+        "de": "Holt die Tagesberichte der Woche aus Seafile, erstellt einen strukturierten Wochenbericht und schreibt ihn in den Wochenbericht-Datensatz.",
+        "zh": "从 Seafile 拉取本周日报，综合成周报并写入周报资料库。用已有的智能体定时任务按周运行。"
+    },
+    "canvas_type": "Recommended",
+    "canvas_types": [
+        "Recommended",
+        "Agent"
+    ],
+    "dsl": {
+        "components": {
+            "begin": {
+                "downstream": [
+                    "Seafile:DailyFetch"
+                ],
+                "obj": {
+                    "component_name": "Begin",
+                    "params": {
+                        "mode": "task",
+                        "prologue": "绑定 Seafile 数据源和周报资料库后运行或定时。例如：生成本周周报",
+                        "inputs": {},
+                        "enablePrologue": true
+                    }
+                },
+                "upstream": []
+            },
+            "Seafile:DailyFetch": {
+                "downstream": [
+                    "Agent:WeeklySynthesizer"
+                ],
+                "obj": {
+                    "component_name": "Seafile",
+                    "params": {
+                        "connector_id": "ad4a93a0971611f1ac14e4c7672f77b2",
+                        "path": "/",
+                        "filename_regex": "(?:(?P<author>[^/\\\\]+)-)?(?P<date>\\\\d{4}[-./]\\\\d{1,2}[-./]\\\\d{1,2}).*\\\\.(md|docx|txt)$",
+                        "week_mode": "this_week",
+                        "timezone": "Asia/Shanghai",
+                        "expected_authors": [],
+                        "require_complete": false,
+                        "default_repo_id": "",
+                        "action": "search",
+                        "outputs": {
+                            "json": {
+                                "type": "object",
+                                "value": {}
+                            },
+                            "formalized_content": {
+                                "type": "string",
+                                "value": ""
+                            }
+                        }
+                    }
+                },
+                "upstream": [
+                    "begin"
+                ]
+            },
+            "Agent:WeeklySynthesizer": {
+                "downstream": [
+                    "DatasetWrite:WeeklyPublish"
+                ],
+                "obj": {
+                    "component_name": "Agent",
+                    "params": {
+                        "delay_after_error": 1,
+                        "description": "把本周日报综合成结构化周报。",
+                        "exception_comment": "",
+                        "exception_default_value": "",
+                        "exception_goto": [],
+                        "exception_method": null,
+                        "frequencyPenaltyEnabled": false,
+                        "frequency_penalty": 0.7,
+                        "llm_id": "",
+                        "maxTokensEnabled": false,
+                        "max_retries": 3,
+                        "max_rounds": 4,
+                        "max_tokens": 4096,
+                        "mcp": [],
+                        "message_history_window_size": 12,
+                        "outputs": {
+                            "content": {
+                                "type": "string",
+                                "value": ""
+                            }
+                        },
+                        "presencePenaltyEnabled": false,
+                        "presence_penalty": 0.4,
+                        "prompts": [
+                            {
+                                "role": "user",
+                                "content": "用户请求：{sys.query}\\n\\n本周标识：{Seafile:DailyFetch@json.week_id}\\n覆盖状态：{Seafile:DailyFetch@json.coverage_status}\\n缺交：{Seafile:DailyFetch@json.missing_authors}\\n\\n日报原文：\\n{Seafile:DailyFetch@formalized_content}"
+                            }
+                        ],
+                        "sys_prompt": "你是周报主编。只根据 Seafile 拉到的日报写中文周报，不要编造未出现的事实。\\n\\n先调用 ThemeAnalyst、RiskAnalyst、MetricsAnalyst 三个子智能体，再调用 ContinuityAnalyst 对照上周周报（如有）。然后输出一份完整 Markdown 周报，结构必须是：\\n## 1. 本周摘要\\n## 2. 覆盖与缺交\\n## 3. 按人进展\\n## 4. 跨团队主题与计划对照\\n## 5. 风险、阻塞与依赖\\n## 6. 指标与交付物\\n## 7. 与上周对照\\n## 8. 下周关注\\n## 附录. 源文件清单\\n\\n缺日报时在第 2 节写明。",
+                        "temperature": 0.2,
+                        "temperatureEnabled": true,
+                        "tools": [
+                            {
+                                "component_name": "Agent",
+                                "id": "Agent:ThemeAnalyst",
+                                "name": "ThemeAnalyst",
+                                "params": {
+                                    "delay_after_error": 1,
+                                    "description": "归纳跨人主题、进展与计划对照。",
+                                    "exception_comment": "",
+                                    "exception_default_value": "",
+                                    "exception_goto": [],
+                                    "exception_method": null,
+                                    "frequencyPenaltyEnabled": false,
+                                    "frequency_penalty": 0.7,
+                                    "llm_id": "",
+                                    "maxTokensEnabled": false,
+                                    "max_retries": 3,
+                                    "max_rounds": 1,
+                                    "max_tokens": 256,
+                                    "mcp": [],
+                                    "message_history_window_size": 12,
+                                    "outputs": {
+                                        "content": {
+                                            "type": "string",
+                                            "value": ""
+                                        }
+                                    },
+                                    "presencePenaltyEnabled": false,
+                                    "presence_penalty": 0.4,
+                                    "prompts": [
+                                        {
+                                            "role": "user",
+                                            "content": "根据日报归纳本周主题与计划对照。\\n{Seafile:DailyFetch@formalized_content}"
+                                        }
+                                    ],
+                                    "sys_prompt": "你是主题分析员。只依据日报列出 3-6 个主题，每条注明涉及的人。不要写周报全文。",
+                                    "temperature": 0.2,
+                                    "temperatureEnabled": true,
+                                    "tools": [],
+                                    "topPEnabled": false,
+                                    "top_p": 0.3,
+                                    "user_prompt": "",
+                                    "visual_files_var": "",
+                                    "cite": true
+                                }
+                            },
+                            {
+                                "component_name": "Agent",
+                                "id": "Agent:RiskAnalyst",
+                                "name": "RiskAnalyst",
+                                "params": {
+                                    "delay_after_error": 1,
+                                    "description": "提取风险、阻塞和依赖。",
+                                    "exception_comment": "",
+                                    "exception_default_value": "",
+                                    "exception_goto": [],
+                                    "exception_method": null,
+                                    "frequencyPenaltyEnabled": false,
+                                    "frequency_penalty": 0.7,
+                                    "llm_id": "",
+                                    "maxTokensEnabled": false,
+                                    "max_retries": 3,
+                                    "max_rounds": 1,
+                                    "max_tokens": 256,
+                                    "mcp": [],
+                                    "message_history_window_size": 12,
+                                    "outputs": {
+                                        "content": {
+                                            "type": "string",
+                                            "value": ""
+                                        }
+                                    },
+                                    "presencePenaltyEnabled": false,
+                                    "presence_penalty": 0.4,
+                                    "prompts": [
+                                        {
+                                            "role": "user",
+                                            "content": "提取风险、阻塞、依赖。\\n{Seafile:DailyFetch@formalized_content}"
+                                        }
+                                    ],
+                                    "sys_prompt": "你是风险分析员。列出风险/阻塞/依赖，没有就写「未见明确风险」。不要编造。",
+                                    "temperature": 0.2,
+                                    "temperatureEnabled": true,
+                                    "tools": [],
+                                    "topPEnabled": false,
+                                    "top_p": 0.3,
+                                    "user_prompt": "",
+                                    "visual_files_var": "",
+                                    "cite": true
+                                }
+                            },
+                            {
+                                "component_name": "Agent",
+                                "id": "Agent:MetricsAnalyst",
+                                "name": "MetricsAnalyst",
+                                "params": {
+                                    "delay_after_error": 1,
+                                    "description": "提取指标与交付物。",
+                                    "exception_comment": "",
+                                    "exception_default_value": "",
+                                    "exception_goto": [],
+                                    "exception_method": null,
+                                    "frequencyPenaltyEnabled": false,
+                                    "frequency_penalty": 0.7,
+                                    "llm_id": "",
+                                    "maxTokensEnabled": false,
+                                    "max_retries": 3,
+                                    "max_rounds": 1,
+                                    "max_tokens": 256,
+                                    "mcp": [],
+                                    "message_history_window_size": 12,
+                                    "outputs": {
+                                        "content": {
+                                            "type": "string",
+                                            "value": ""
+                                        }
+                                    },
+                                    "presencePenaltyEnabled": false,
+                                    "presence_penalty": 0.4,
+                                    "prompts": [
+                                        {
+                                            "role": "user",
+                                            "content": "提取指标与交付物。\\n{Seafile:DailyFetch@formalized_content}"
+                                        }
+                                    ],
+                                    "sys_prompt": "你是指标分析员。只摘录日报里出现的数字、里程碑、交付物。没有就写「未见量化指标」。",
+                                    "temperature": 0.2,
+                                    "temperatureEnabled": true,
+                                    "tools": [],
+                                    "topPEnabled": false,
+                                    "top_p": 0.3,
+                                    "user_prompt": "",
+                                    "visual_files_var": "",
+                                    "cite": true
+                                }
+                            },
+                            {
+                                "component_name": "Agent",
+                                "id": "Agent:ContinuityAnalyst",
+                                "name": "ContinuityAnalyst",
+                                "params": {
+                                    "delay_after_error": 1,
+                                    "description": "对照上周周报看延续与变化。",
+                                    "exception_comment": "",
+                                    "exception_default_value": "",
+                                    "exception_goto": [],
+                                    "exception_method": null,
+                                    "frequencyPenaltyEnabled": false,
+                                    "frequency_penalty": 0.7,
+                                    "llm_id": "",
+                                    "maxTokensEnabled": false,
+                                    "max_retries": 3,
+                                    "max_rounds": 2,
+                                    "max_tokens": 256,
+                                    "mcp": [],
+                                    "message_history_window_size": 12,
+                                    "outputs": {
+                                        "content": {
+                                            "type": "string",
+                                            "value": ""
+                                        }
+                                    },
+                                    "presencePenaltyEnabled": false,
+                                    "presence_penalty": 0.4,
+                                    "prompts": [
+                                        {
+                                            "role": "user",
+                                            "content": "对照上周周报（week_id={Seafile:DailyFetch@json.previous_week_id}）与本周日报，写延续、变化、未闭环事项。"
+                                        }
+                                    ],
+                                    "sys_prompt": "你是对照分析员。先用 Retrieval 按上周 week_id 检索周报资料库。没有上周周报就说明是首周。",
+                                    "temperature": 0.2,
+                                    "temperatureEnabled": true,
+                                    "tools": [
+                                        {
+                                            "component_name": "Retrieval",
+                                            "name": "Retrieval",
+                                            "params": {
+                                                "cross_languages": [],
+                                                "description": "Search last week weekly report.",
+                                                "empty_response": "",
+                                                "kb_ids": [],
+                                                "keywords_similarity_weight": 0.7,
+                                                "outputs": {
+                                                    "formalized_content": {
+                                                        "type": "string",
+                                                        "value": ""
+                                                    }
+                                                },
+                                                "rerank_id": "",
+                                                "similarity_threshold": 0.1,
+                                                "top_k": 1024,
+                                                "top_n": 6,
+                                                "use_kg": false,
+                                                "query": "week_id:{Seafile:DailyFetch@json.previous_week_id} 周报"
+                                            }
+                                        }
+                                    ],
+                                    "topPEnabled": false,
+                                    "top_p": 0.3,
+                                    "user_prompt": "",
+                                    "visual_files_var": "",
+                                    "cite": true
+                                }
+                            }
+                        ],
+                        "topPEnabled": false,
+                        "top_p": 0.3,
+                        "user_prompt": "",
+                        "visual_files_var": "",
+                        "cite": true
+                    }
+                },
+                "upstream": [
+                    "Seafile:DailyFetch"
+                ]
+            },
+            "DatasetWrite:WeeklyPublish": {
+                "downstream": [
+                    "Message:Summary"
+                ],
+                "obj": {
+                    "component_name": "DatasetWrite",
+                    "params": {
+                        "dataset_ids": [],
+                        "publish_policy": "auto",
+                        "language": "zh",
+                        "content": "{Agent:WeeklySynthesizer@content}",
+                        "week_id": "{Seafile:DailyFetch@json.week_id}",
+                        "outputs": {
+                            "json": {
+                                "type": "object",
+                                "value": {}
+                            },
+                            "formalized_content": {
+                                "type": "string",
+                                "value": ""
+                            }
+                        }
+                    }
+                },
+                "upstream": [
+                    "Agent:WeeklySynthesizer"
+                ]
+            },
+            "Message:Summary": {
+                "downstream": [],
+                "obj": {
+                    "component_name": "Message",
+                    "params": {
+                        "content": [
+                            "周报已生成。\\n\\n{DatasetWrite:WeeklyPublish@formalized_content}\\n\\n---\\n\\n{Agent:WeeklySynthesizer@content}"
+                        ]
+                    }
+                },
+                "upstream": [
+                    "DatasetWrite:WeeklyPublish"
+                ]
+            }
+        },
+        "globals": {
+            "sys.conversation_turns": 0,
+            "sys.files": [],
+            "sys.query": "",
+            "sys.user_id": "",
+            "sys.history": [],
+            "sys.date": ""
+        },
+        "graph": {
+            "edges": [
+                {
+                    "data": {
+                        "isHovered": false
+                    },
+                    "id": "e-begin-sf",
+                    "source": "begin",
+                    "sourceHandle": "start",
+                    "target": "Seafile:DailyFetch",
+                    "targetHandle": "end"
+                },
+                {
+                    "data": {
+                        "isHovered": false
+                    },
+                    "id": "e-sf-agent",
+                    "source": "Seafile:DailyFetch",
+                    "sourceHandle": "start",
+                    "target": "Agent:WeeklySynthesizer",
+                    "targetHandle": "end"
+                },
+                {
+                    "data": {
+                        "isHovered": false
+                    },
+                    "id": "e-agent-dw",
+                    "source": "Agent:WeeklySynthesizer",
+                    "sourceHandle": "start",
+                    "target": "DatasetWrite:WeeklyPublish",
+                    "targetHandle": "end"
+                },
+                {
+                    "data": {
+                        "isHovered": false
+                    },
+                    "id": "e-dw-msg",
+                    "source": "DatasetWrite:WeeklyPublish",
+                    "sourceHandle": "start",
+                    "target": "Message:Summary",
+                    "targetHandle": "end"
+                },
+                {
+                    "data": {
+                        "isHovered": false
+                    },
+                    "id": "e-agent-theme",
+                    "source": "Agent:WeeklySynthesizer",
+                    "sourceHandle": "agentBottom",
+                    "target": "Agent:ThemeAnalyst",
+                    "targetHandle": "agentTop"
+                },
+                {
+                    "data": {
+                        "isHovered": false
+                    },
+                    "id": "e-agent-risk",
+                    "source": "Agent:WeeklySynthesizer",
+                    "sourceHandle": "agentBottom",
+                    "target": "Agent:RiskAnalyst",
+                    "targetHandle": "agentTop"
+                },
+                {
+                    "data": {
+                        "isHovered": false
+                    },
+                    "id": "e-agent-metrics",
+                    "source": "Agent:WeeklySynthesizer",
+                    "sourceHandle": "agentBottom",
+                    "target": "Agent:MetricsAnalyst",
+                    "targetHandle": "agentTop"
+                },
+                {
+                    "data": {
+                        "isHovered": false
+                    },
+                    "id": "e-agent-cont",
+                    "source": "Agent:WeeklySynthesizer",
+                    "sourceHandle": "agentBottom",
+                    "target": "Agent:ContinuityAnalyst",
+                    "targetHandle": "agentTop"
+                },
+                {
+                    "data": {
+                        "isHovered": false
+                    },
+                    "id": "e-cont-tool",
+                    "source": "Agent:ContinuityAnalyst",
+                    "sourceHandle": "tool",
+                    "target": "Tool:ContinuityRetrieval",
+                    "targetHandle": "end"
+                }
+            ],
+            "nodes": [
+                {
+                    "data": {
+                        "form": {
+                            "mode": "task",
+                            "prologue": "绑定 Seafile 数据源和周报资料库后运行或定时。例如：生成本周周报",
+                            "inputs": {},
+                            "enablePrologue": true
+                        },
+                        "label": "Begin",
+                        "name": "begin"
+                    },
+                    "dragging": false,
+                    "id": "begin",
+                    "measured": {
+                        "height": 80,
+                        "width": 200
+                    },
+                    "position": {
+                        "x": 80,
+                        "y": 220
+                    },
+                    "selected": false,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "type": "beginNode"
+                },
+                {
+                    "data": {
+                        "form": {
+                            "connector_id": "ad4a93a0971611f1ac14e4c7672f77b2",
+                            "path": "/",
+                            "filename_regex": "(?:(?P<author>[^/\\\\]+)-)?(?P<date>\\\\d{4}[-./]\\\\d{1,2}[-./]\\\\d{1,2}).*\\\\.(md|docx|txt)$",
+                            "week_mode": "this_week",
+                            "timezone": "Asia/Shanghai",
+                            "expected_authors": [],
+                            "require_complete": false,
+                            "default_repo_id": "",
+                            "action": "search",
+                            "outputs": {
+                                "json": {
+                                    "type": "object",
+                                    "value": {}
+                                },
+                                "formalized_content": {
+                                    "type": "string",
+                                    "value": ""
+                                }
+                            }
+                        },
+                        "label": "Seafile",
+                        "name": "DailyFetch"
+                    },
+                    "dragging": false,
+                    "id": "Seafile:DailyFetch",
+                    "measured": {
+                        "height": 80,
+                        "width": 200
+                    },
+                    "position": {
+                        "x": 360,
+                        "y": 220
+                    },
+                    "selected": false,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "type": "ragNode"
+                },
+                {
+                    "data": {
+                        "form": {
+                            "delay_after_error": 1,
+                            "description": "把本周日报综合成结构化周报。",
+                            "exception_comment": "",
+                            "exception_default_value": "",
+                            "exception_goto": [],
+                            "exception_method": null,
+                            "frequencyPenaltyEnabled": false,
+                            "frequency_penalty": 0.7,
+                            "llm_id": "",
+                            "maxTokensEnabled": false,
+                            "max_retries": 3,
+                            "max_rounds": 4,
+                            "max_tokens": 4096,
+                            "mcp": [],
+                            "message_history_window_size": 12,
+                            "outputs": {
+                                "content": {
+                                    "type": "string",
+                                    "value": ""
+                                }
+                            },
+                            "presencePenaltyEnabled": false,
+                            "presence_penalty": 0.4,
+                            "prompts": [
+                                {
+                                    "role": "user",
+                                    "content": "用户请求：{sys.query}\\n\\n本周标识：{Seafile:DailyFetch@json.week_id}\\n覆盖状态：{Seafile:DailyFetch@json.coverage_status}\\n缺交：{Seafile:DailyFetch@json.missing_authors}\\n\\n日报原文：\\n{Seafile:DailyFetch@formalized_content}"
+                                }
+                            ],
+                            "sys_prompt": "你是周报主编。只根据 Seafile 拉到的日报写中文周报，不要编造未出现的事实。\\n\\n先调用 ThemeAnalyst、RiskAnalyst、MetricsAnalyst 三个子智能体，再调用 ContinuityAnalyst 对照上周周报（如有）。然后输出一份完整 Markdown 周报，结构必须是：\\n## 1. 本周摘要\\n## 2. 覆盖与缺交\\n## 3. 按人进展\\n## 4. 跨团队主题与计划对照\\n## 5. 风险、阻塞与依赖\\n## 6. 指标与交付物\\n## 7. 与上周对照\\n## 8. 下周关注\\n## 附录. 源文件清单\\n\\n缺日报时在第 2 节写明。",
+                            "temperature": 0.2,
+                            "temperatureEnabled": true,
+                            "tools": [],
+                            "topPEnabled": false,
+                            "top_p": 0.3,
+                            "user_prompt": "",
+                            "visual_files_var": "",
+                            "cite": true
+                        },
+                        "label": "Agent",
+                        "name": "WeeklySynthesizer"
+                    },
+                    "dragging": false,
+                    "id": "Agent:WeeklySynthesizer",
+                    "measured": {
+                        "height": 80,
+                        "width": 200
+                    },
+                    "position": {
+                        "x": 640,
+                        "y": 220
+                    },
+                    "selected": false,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "type": "agentNode"
+                },
+                {
+                    "data": {
+                        "form": {
+                            "dataset_ids": [],
+                            "publish_policy": "auto",
+                            "language": "zh",
+                            "content": "{Agent:WeeklySynthesizer@content}",
+                            "week_id": "{Seafile:DailyFetch@json.week_id}",
+                            "outputs": {
+                                "json": {
+                                    "type": "object",
+                                    "value": {}
+                                },
+                                "formalized_content": {
+                                    "type": "string",
+                                    "value": ""
+                                }
+                            }
+                        },
+                        "label": "DatasetWrite",
+                        "name": "WeeklyPublish"
+                    },
+                    "dragging": false,
+                    "id": "DatasetWrite:WeeklyPublish",
+                    "measured": {
+                        "height": 80,
+                        "width": 200
+                    },
+                    "position": {
+                        "x": 920,
+                        "y": 220
+                    },
+                    "selected": false,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "type": "ragNode"
+                },
+                {
+                    "data": {
+                        "form": {
+                            "content": [
+                                "周报已生成。\\n\\n{DatasetWrite:WeeklyPublish@formalized_content}\\n\\n---\\n\\n{Agent:WeeklySynthesizer@content}"
+                            ]
+                        },
+                        "label": "Message",
+                        "name": "Summary"
+                    },
+                    "dragging": false,
+                    "id": "Message:Summary",
+                    "measured": {
+                        "height": 80,
+                        "width": 200
+                    },
+                    "position": {
+                        "x": 1200,
+                        "y": 220
+                    },
+                    "selected": false,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "type": "messageNode"
+                },
+                {
+                    "data": {
+                        "form": {
+                            "delay_after_error": 1,
+                            "description": "归纳跨人主题、进展与计划对照。",
+                            "exception_comment": "",
+                            "exception_default_value": "",
+                            "exception_goto": [],
+                            "exception_method": null,
+                            "frequencyPenaltyEnabled": false,
+                            "frequency_penalty": 0.7,
+                            "llm_id": "",
+                            "maxTokensEnabled": false,
+                            "max_retries": 3,
+                            "max_rounds": 1,
+                            "max_tokens": 256,
+                            "mcp": [],
+                            "message_history_window_size": 12,
+                            "outputs": {
+                                "content": {
+                                    "type": "string",
+                                    "value": ""
+                                }
+                            },
+                            "presencePenaltyEnabled": false,
+                            "presence_penalty": 0.4,
+                            "prompts": [
+                                {
+                                    "role": "user",
+                                    "content": "根据日报归纳本周主题与计划对照。\\n{Seafile:DailyFetch@formalized_content}"
+                                }
+                            ],
+                            "sys_prompt": "你是主题分析员。只依据日报列出 3-6 个主题，每条注明涉及的人。不要写周报全文。",
+                            "temperature": 0.2,
+                            "temperatureEnabled": true,
+                            "tools": [],
+                            "topPEnabled": false,
+                            "top_p": 0.3,
+                            "user_prompt": "",
+                            "visual_files_var": "",
+                            "cite": true
+                        },
+                        "label": "Agent",
+                        "name": "ThemeAnalyst"
+                    },
+                    "dragging": false,
+                    "id": "Agent:ThemeAnalyst",
+                    "measured": {
+                        "height": 80,
+                        "width": 200
+                    },
+                    "position": {
+                        "x": 520,
+                        "y": 420
+                    },
+                    "selected": false,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "type": "agentNode"
+                },
+                {
+                    "data": {
+                        "form": {
+                            "delay_after_error": 1,
+                            "description": "提取风险、阻塞和依赖。",
+                            "exception_comment": "",
+                            "exception_default_value": "",
+                            "exception_goto": [],
+                            "exception_method": null,
+                            "frequencyPenaltyEnabled": false,
+                            "frequency_penalty": 0.7,
+                            "llm_id": "",
+                            "maxTokensEnabled": false,
+                            "max_retries": 3,
+                            "max_rounds": 1,
+                            "max_tokens": 256,
+                            "mcp": [],
+                            "message_history_window_size": 12,
+                            "outputs": {
+                                "content": {
+                                    "type": "string",
+                                    "value": ""
+                                }
+                            },
+                            "presencePenaltyEnabled": false,
+                            "presence_penalty": 0.4,
+                            "prompts": [
+                                {
+                                    "role": "user",
+                                    "content": "提取风险、阻塞、依赖。\\n{Seafile:DailyFetch@formalized_content}"
+                                }
+                            ],
+                            "sys_prompt": "你是风险分析员。列出风险/阻塞/依赖，没有就写「未见明确风险」。不要编造。",
+                            "temperature": 0.2,
+                            "temperatureEnabled": true,
+                            "tools": [],
+                            "topPEnabled": false,
+                            "top_p": 0.3,
+                            "user_prompt": "",
+                            "visual_files_var": "",
+                            "cite": true
+                        },
+                        "label": "Agent",
+                        "name": "RiskAnalyst"
+                    },
+                    "dragging": false,
+                    "id": "Agent:RiskAnalyst",
+                    "measured": {
+                        "height": 80,
+                        "width": 200
+                    },
+                    "position": {
+                        "x": 740,
+                        "y": 420
+                    },
+                    "selected": false,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "type": "agentNode"
+                },
+                {
+                    "data": {
+                        "form": {
+                            "delay_after_error": 1,
+                            "description": "提取指标与交付物。",
+                            "exception_comment": "",
+                            "exception_default_value": "",
+                            "exception_goto": [],
+                            "exception_method": null,
+                            "frequencyPenaltyEnabled": false,
+                            "frequency_penalty": 0.7,
+                            "llm_id": "",
+                            "maxTokensEnabled": false,
+                            "max_retries": 3,
+                            "max_rounds": 1,
+                            "max_tokens": 256,
+                            "mcp": [],
+                            "message_history_window_size": 12,
+                            "outputs": {
+                                "content": {
+                                    "type": "string",
+                                    "value": ""
+                                }
+                            },
+                            "presencePenaltyEnabled": false,
+                            "presence_penalty": 0.4,
+                            "prompts": [
+                                {
+                                    "role": "user",
+                                    "content": "提取指标与交付物。\\n{Seafile:DailyFetch@formalized_content}"
+                                }
+                            ],
+                            "sys_prompt": "你是指标分析员。只摘录日报里出现的数字、里程碑、交付物。没有就写「未见量化指标」。",
+                            "temperature": 0.2,
+                            "temperatureEnabled": true,
+                            "tools": [],
+                            "topPEnabled": false,
+                            "top_p": 0.3,
+                            "user_prompt": "",
+                            "visual_files_var": "",
+                            "cite": true
+                        },
+                        "label": "Agent",
+                        "name": "MetricsAnalyst"
+                    },
+                    "dragging": false,
+                    "id": "Agent:MetricsAnalyst",
+                    "measured": {
+                        "height": 80,
+                        "width": 200
+                    },
+                    "position": {
+                        "x": 960,
+                        "y": 420
+                    },
+                    "selected": false,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "type": "agentNode"
+                },
+                {
+                    "data": {
+                        "form": {
+                            "delay_after_error": 1,
+                            "description": "对照上周周报看延续与变化。",
+                            "exception_comment": "",
+                            "exception_default_value": "",
+                            "exception_goto": [],
+                            "exception_method": null,
+                            "frequencyPenaltyEnabled": false,
+                            "frequency_penalty": 0.7,
+                            "llm_id": "",
+                            "maxTokensEnabled": false,
+                            "max_retries": 3,
+                            "max_rounds": 2,
+                            "max_tokens": 256,
+                            "mcp": [],
+                            "message_history_window_size": 12,
+                            "outputs": {
+                                "content": {
+                                    "type": "string",
+                                    "value": ""
+                                }
+                            },
+                            "presencePenaltyEnabled": false,
+                            "presence_penalty": 0.4,
+                            "prompts": [
+                                {
+                                    "role": "user",
+                                    "content": "对照上周周报（week_id={Seafile:DailyFetch@json.previous_week_id}）与本周日报，写延续、变化、未闭环事项。"
+                                }
+                            ],
+                            "sys_prompt": "你是对照分析员。先用 Retrieval 按上周 week_id 检索周报资料库。没有上周周报就说明是首周。",
+                            "temperature": 0.2,
+                            "temperatureEnabled": true,
+                            "tools": [
+                                {
+                                    "component_name": "Retrieval",
+                                    "name": "Retrieval",
+                                    "params": {
+                                        "cross_languages": [],
+                                        "description": "Search last week weekly report.",
+                                        "empty_response": "",
+                                        "kb_ids": [],
+                                        "keywords_similarity_weight": 0.7,
+                                        "outputs": {
+                                            "formalized_content": {
+                                                "type": "string",
+                                                "value": ""
+                                            }
+                                        },
+                                        "rerank_id": "",
+                                        "similarity_threshold": 0.1,
+                                        "top_k": 1024,
+                                        "top_n": 6,
+                                        "use_kg": false,
+                                        "query": "week_id:{Seafile:DailyFetch@json.previous_week_id} 周报"
+                                    }
+                                }
+                            ],
+                            "topPEnabled": false,
+                            "top_p": 0.3,
+                            "user_prompt": "",
+                            "visual_files_var": "",
+                            "cite": true
+                        },
+                        "label": "Agent",
+                        "name": "ContinuityAnalyst"
+                    },
+                    "dragging": false,
+                    "id": "Agent:ContinuityAnalyst",
+                    "measured": {
+                        "height": 80,
+                        "width": 200
+                    },
+                    "position": {
+                        "x": 1180,
+                        "y": 420
+                    },
+                    "selected": false,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "type": "agentNode"
+                },
+                {
+                    "data": {
+                        "form": {
+                            "description": "Search last week weekly report.",
+                            "user_prompt": ""
+                        },
+                        "label": "Tool",
+                        "name": "Retrieval"
+                    },
+                    "dragging": false,
+                    "id": "Tool:ContinuityRetrieval",
+                    "measured": {
+                        "height": 80,
+                        "width": 200
+                    },
+                    "position": {
+                        "x": 1180,
+                        "y": 580
+                    },
+                    "selected": false,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "type": "toolNode"
+                }
+            ]
+        },
+        "history": [],
+        "messages": [],
+        "path": [],
+        "retrieval": [],
+        "variables": {}
+    }
+}

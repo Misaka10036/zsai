@@ -12,7 +12,7 @@ export function useWatchFormChange(
 
   useEffect(() => {
     // Manually triggered form updates are synchronized to the canvas
-    if (id) {
+    if (id && form?.formState.isDirty) {
       values = form?.getValues() || {};
       const nextValues: any = values;
 

@@ -33,7 +33,7 @@ export function useWatchFormChange(id?: string, form?: UseFormReturn) {
   const updateNodeForm = useGraphStore((state) => state.updateNodeForm);
 
   useEffect(() => {
-    if (id) {
+    if (id && form?.formState.isDirty) {
       values = form?.getValues() || {};
 
       let outputs: Record<string, any> = {};

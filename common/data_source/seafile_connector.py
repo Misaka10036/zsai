@@ -6,6 +6,7 @@ from typing import Any, Optional
 
 from retry import retry
 
+from common.data_source.seafile_client import SeafileClient, normalise_path, parse_mtime
 from common.data_source.utils import (
     get_file_ext,
     rl_requests,
@@ -65,56 +66,30 @@ class SeaFileConnector(LoadConnector, PollConnector, SlimConnectorWithPermSync):
         self.include_shared = include_shared
         self.sync_scope = SeafileSyncScope(sync_scope)
         self.repo_id = repo_id
-        self.sync_path = self._normalise_path(sync_path)
+        self.sync_path = normalise_path(sync_path)
 
         self.token: Optional[str] = None  # account-level
         self.repo_token: Optional[str] = None  # library-scoped
         self.current_user_email: Optional[str] = None
         self.size_threshold: int = BLOB_STORAGE_SIZE_THRESHOLD
+        self._client = SeafileClient(self.seafile_url)
 
         self._validate_scope_params()
 
     @staticmethod
     def _normalise_path(path: Optional[str]) -> str:
-        if not path:
-            return "/"
-        path = path.strip()
-        if not path.startswith("/"):
-            path = f"/{path}"
-        return path.rstrip("/") or "/"
+        return normalise_path(path)
 
     @staticmethod
     def _parse_mtime(raw_mtime) -> datetime:
-        """Parse mtime from SeaFile API response.
+        return parse_mtime(raw_mtime)
 
-        Handles:
-            - Unix timestamp as int:  1575514722
-            - Unix timestamp as str:  "1575514722"
-            - ISO 8601 datetime str:  "2026-02-15T17:26:53+01:00"
-            - None / missing
-        """
-        if not raw_mtime:
-            return datetime.now(timezone.utc)
-
-        # Try as unix timestamp (int or numeric string)
-        if isinstance(raw_mtime, (int, float)):
-            return datetime.fromtimestamp(raw_mtime, tz=timezone.utc)
-
-        if isinstance(raw_mtime, str):
-            # Try numeric string first
-            try:
-                return datetime.fromtimestamp(int(raw_mtime), tz=timezone.utc)
-            except ValueError:
-                pass
-
-            # Try ISO 8601
-            try:
-                return datetime.fromisoformat(raw_mtime)
-            except ValueError:
-                pass
-
-        logger.warning("Unparseable mtime %r, using current time", raw_mtime)
-        return datetime.now(timezone.utc)
+    def _bind_client(self) -> None:
+        self._client = SeafileClient(
+            self.seafile_url,
+            token=self.token,
+            repo_token=self.repo_token,
+        )
 
     def _validate_scope_params(self) -> None:
         if self.sync_scope in (SeafileSyncScope.LIBRARY, SeafileSyncScope.DIRECTORY):
@@ -130,42 +105,18 @@ class SeaFileConnector(LoadConnector, PollConnector, SlimConnectorWithPermSync):
         return self.repo_token is not None
 
     def _account_headers(self) -> dict[str, str]:
-        if not self.token:
-            raise ConnectorMissingCredentialError("Account token not set")
-        return {
-            "Authorization": f"Token {self.token}",
-            "Accept": "application/json",
-        }
+        return self._client.account_headers()
 
     def _repo_token_headers(self) -> dict[str, str]:
-        if not self.repo_token:
-            raise ConnectorMissingCredentialError("Repo token not set")
-        return {
-            "Authorization": f"Bearer {self.repo_token}",  # <-- Bearer, not Token
-            "Accept": "application/json",
-        }
+        return self._client.repo_token_headers()
 
     def _account_get(self, endpoint: str, params: Optional[dict] = None):
         """GET against /api2/... using the account token."""
-        url = f"{self.seafile_url}/api2/{endpoint.lstrip('/')}"
-        resp = rl_requests.get(
-            url,
-            headers=self._account_headers(),
-            params=params,
-            timeout=60,
-        )
-        return resp
+        return self._client.account_get(endpoint, params)
 
     def _repo_token_get(self, endpoint: str, params: Optional[dict] = None):
         """GET against /api/v2.1/via-repo-token/... using the repo token."""
-        url = f"{self.seafile_url}/api/v2.1/via-repo-token/{endpoint.lstrip('/')}"
-        resp = rl_requests.get(
-            url,
-            headers=self._repo_token_headers(),
-            params=params,
-            timeout=60,
-        )
-        return resp
+        return self._client.repo_token_get(endpoint, params)
 
     def load_credentials(self, credentials: dict[str, Any]) -> dict[str, Any] | None:
         logger.debug("Loading credentials for SeaFile server %s", self.seafile_url)
@@ -190,6 +141,8 @@ class SeaFileConnector(LoadConnector, PollConnector, SlimConnectorWithPermSync):
 
         if not self.token and not self.repo_token:
             raise ConnectorMissingCredentialError("SeaFile requires 'seafile_token', 'repo_token', or 'username'/'password'.")
+
+        self._bind_client()
 
         try:
             self._validate_credentials()
@@ -527,9 +480,7 @@ class SeaFileConnector(LoadConnector, PollConnector, SlimConnectorWithPermSync):
                 if not download_link:
                     continue
 
-                resp = rl_requests.get(download_link, timeout=120)
-                resp.raise_for_status()
-                blob = resp.content
+                blob = self._client.download(download_link)
                 if not blob:
                     continue
 

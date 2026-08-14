@@ -44,6 +44,8 @@ import VariableAssignerForm from '../form/variable-assigner-form';
 import WenCaiForm from '../form/wencai-form';
 import WikipediaForm from '../form/wikipedia-form';
 import YahooFinanceForm from '../form/yahoo-finance-form';
+import SeafileForm from '../form/seafile-form';
+import DatasetWriteForm from '../form/dataset-write-form';
 
 export const FormConfigMap = {
   [Operator.Begin]: {
@@ -111,6 +113,12 @@ export const FormConfigMap = {
   },
   [Operator.YahooFinance]: {
     component: YahooFinanceForm,
+  },
+  [Operator.Seafile]: {
+    component: SeafileForm,
+  },
+  [Operator.DatasetWrite]: {
+    component: DatasetWriteForm,
   },
   [Operator.Crawler]: {
     component: CrawlerForm,

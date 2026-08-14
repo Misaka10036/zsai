@@ -430,6 +430,35 @@ export const initialTemplateValues = {
   parameters: [],
 };
 
+export const initialSeafileValues = {
+  connector_id: '',
+  path: '/',
+  filename_regex:
+    '(?:(?P<author>[^/\\\\]+)-)?(?P<date>\\d{4}[-./]\\d{1,2}[-./]\\d{1,2}).*\\.(md|docx|txt)$',
+  week_mode: 'this_week',
+  timezone: 'Asia/Shanghai',
+  expected_authors: [],
+  require_complete: false,
+  default_repo_id: '',
+  action: 'search',
+  outputs: {
+    json: { type: 'object', value: {} },
+    formalized_content: { type: 'string', value: '' },
+  },
+};
+
+export const initialDatasetWriteValues = {
+  dataset_ids: [],
+  publish_policy: 'auto',
+  language: 'zh',
+  content: '',
+  week_id: '',
+  outputs: {
+    json: { type: 'object', value: {} },
+    formalized_content: { type: 'string', value: '' },
+  },
+};
+
 export const initialEmailValues = {
   smtp_server: '',
   smtp_port: 465,
@@ -712,6 +741,8 @@ export const RestrictedUpstreamMap = {
   [Operator.Switch]: [Operator.Begin],
   [Operator.WenCai]: [Operator.Begin],
   [Operator.YahooFinance]: [Operator.Begin],
+  [Operator.Seafile]: [Operator.Begin],
+  [Operator.DatasetWrite]: [Operator.Begin],
   [Operator.Crawler]: [Operator.Begin],
   [Operator.Note]: [],
   [Operator.Invoke]: [Operator.Begin],
@@ -766,6 +797,8 @@ export const NodeMap = {
   [Operator.Switch]: 'switchNode',
   [Operator.WenCai]: 'ragNode',
   [Operator.YahooFinance]: 'ragNode',
+  [Operator.Seafile]: 'ragNode',
+  [Operator.DatasetWrite]: 'ragNode',
   [Operator.Note]: 'noteNode',
   [Operator.Crawler]: 'ragNode',
   [Operator.Invoke]: 'ragNode',

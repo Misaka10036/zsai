@@ -63,6 +63,24 @@ export function useAgentToolInitialValues() {
           return pick(initialValues, 'searxng_url', 'top_n');
         case Operator.KeenableSearch:
           return pick(initialValues, 'api_key', 'mode', 'site', 'top_n');
+        case Operator.Seafile:
+          return pick(
+            initialValues,
+            'connector_id',
+            'path',
+            'filename_regex',
+            'week_mode',
+            'timezone',
+            'default_repo_id',
+            'require_complete',
+          );
+        case Operator.DatasetWrite:
+          return pick(
+            initialValues,
+            'dataset_ids',
+            'publish_policy',
+            'language',
+          );
 
         default:
           return initialValues;

@@ -17,6 +17,8 @@ import TavilyForm from './tavily-form';
 import WenCaiForm from './wencai-form';
 import WikipediaForm from './wikipedia-form';
 import YahooFinanceForm from './yahoo-finance-form';
+import SeafileForm from '../seafile-form';
+import DatasetWriteForm from '../dataset-write-form';
 
 export const ToolFormConfigMap = {
   [Operator.Retrieval]: RetrievalForm,
@@ -32,6 +34,8 @@ export const ToolFormConfigMap = {
   [Operator.GitHub]: GithubForm,
   [Operator.ExeSQL]: ExeSQLForm,
   [Operator.YahooFinance]: YahooFinanceForm,
+  [Operator.Seafile]: SeafileForm,
+  [Operator.DatasetWrite]: DatasetWriteForm,
   [Operator.Crawler]: CrawlerForm,
   [Operator.Email]: EmailForm,
   [Operator.TavilySearch]: TavilyForm,

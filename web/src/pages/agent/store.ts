@@ -666,7 +666,8 @@ const useGraphStore = create<RFState>()(
       getAllAgentTools: () => {
         return get()
           .nodes.filter((n) => n?.data?.label === Operator.Agent)
-          .flatMap((n) => n?.data?.form?.tools);
+          .flatMap((n) => n?.data?.form?.tools ?? [])
+          .filter(Boolean);
       },
       getAgentToolById: (
         id: string,
@@ -683,7 +684,7 @@ const useGraphStore = create<RFState>()(
             : get().getAllAgentTools();
 
         // For backward compatibility
-        return tools.find((t) => (t.id || t.component_name) === id);
+        return tools.find((t) => t && (t.id || t.component_name) === id);
       },
       updateAgentToolById: (
         nodeOrNodeId: RAGFlowNodeType | string,

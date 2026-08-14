@@ -52,6 +52,10 @@ var registry = map[string]Factory{
 	"retrieval":             buildRetrievalTool,
 	"search_my_dataset":     buildRetrievalTool,
 	"search_my_dateset":     buildRetrievalTool,
+	"seafile":               buildSeafileTool,
+	"seafile_browse":        buildSeafileTool,
+	"datasetwrite":          buildDatasetWriteTool,
+	"write_my_dataset":      buildDatasetWriteTool,
 	"searxng":               buildSearXNGTool,
 	"tavily":                buildTavilyTool,
 	// Agent DSL tool lists carry the Python Canvas component_name verbatim.
@@ -731,4 +735,55 @@ func boolParam(params map[string]any, key string) (bool, bool) {
 	}
 	b, ok := v.(bool)
 	return b, ok
+}
+
+func buildSeafileTool(params map[string]any) (einotool.BaseTool, error) {
+	defaults := seafileParams{WeekMode: "this_week", Timezone: "Asia/Shanghai"}
+	if v, ok := stringParam(params, "connector_id"); ok {
+		defaults.ConnectorID = v
+	}
+	if v, ok := stringParam(params, "default_repo_id"); ok {
+		defaults.DefaultRepoID = v
+	}
+	if v, ok := stringParam(params, "path"); ok {
+		defaults.Path = v
+	}
+	if v, ok := stringParam(params, "week_mode"); ok {
+		defaults.WeekMode = v
+	}
+	if v, ok := stringParam(params, "timezone"); ok {
+		defaults.Timezone = v
+	}
+	if v, ok := stringParam(params, "filename_regex"); ok {
+		defaults.FilenameRegex = v
+	}
+	if hosts, present, err := stringSliceParam(params, "download_hosts"); err != nil {
+		return nil, err
+	} else if present {
+		defaults.DownloadHosts = hosts
+	}
+	if v, ok := boolParam(params, "require_complete"); ok {
+		defaults.RequireComplete = v
+	}
+	return NewSeafileToolWithDefaults(defaults), nil
+}
+
+func buildDatasetWriteTool(params map[string]any) (einotool.BaseTool, error) {
+	defaults := datasetWriteParams{PublishPolicy: "auto", Language: "zh"}
+	if ids, present, err := stringSliceParam(params, "dataset_ids"); err != nil {
+		return nil, err
+	} else if present {
+		defaults.DatasetIDs = ids
+	} else if ids, present, err := stringSliceParam(params, "kb_ids"); err != nil {
+		return nil, err
+	} else if present {
+		defaults.DatasetIDs = ids
+	}
+	if v, ok := stringParam(params, "publish_policy"); ok {
+		defaults.PublishPolicy = v
+	}
+	if v, ok := stringParam(params, "language"); ok {
+		defaults.Language = v
+	}
+	return NewDatasetWriteToolWithDefaults(defaults), nil
 }

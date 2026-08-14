@@ -126,6 +126,8 @@ export function AccordionOperators({
               Operator.KeenableSearch,
               Operator.DocGenerator,
               Operator.Browser,
+              Operator.Seafile,
+              Operator.DatasetWrite,
             ]}
             isCustomDropdown={isCustomDropdown}
             mousePosition={mousePosition}

@@ -5,7 +5,9 @@ import {
   Columns3Cog,
   FileCode,
   FileText,
+  FolderSync,
   Globe,
+  CloudUpload,
   HousePlus,
   Infinity as InfinityIcon,
   LogOut,
@@ -63,6 +65,8 @@ export const LucideIconMap = {
   [Operator.DocGenerator]: FileText,
   [Operator.Browser]: Globe,
   [Operator.Compilation]: Columns3Cog,
+  [Operator.Seafile]: FolderSync,
+  [Operator.DatasetWrite]: CloudUpload,
 };
 
 const Empty = () => {

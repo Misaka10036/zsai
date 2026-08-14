@@ -119,6 +119,8 @@ export enum Operator {
   LoopStart = 'LoopItem',
   ExitLoop = 'ExitLoop',
   ExcelProcessor = 'ExcelProcessor',
+  Seafile = 'Seafile',
+  DatasetWrite = 'DatasetWrite',
 }
 
 export enum ComparisonOperator {

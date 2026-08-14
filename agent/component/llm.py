@@ -120,6 +120,40 @@ class LLM(ComponentBase):
     def add2system_prompt(self, txt):
         self._param.sys_prompt += txt
 
+    def _fallback_user_message(self, args) -> str:
+        parts = []
+        query = ""
+        if isinstance(args, dict):
+            query = str(args.get("sys.query") or "").strip()
+        if not query:
+            try:
+                query = str(self._canvas.get_variable_value("sys.query") or "").strip()
+            except Exception:
+                query = ""
+        if query:
+            parts.append(f"用户请求：{query}")
+        try:
+            component = self._canvas.get_component(self._id) or {}
+            for cid in component.get("upstream") or []:
+                try:
+                    obj = self._canvas.get_component_obj(cid)
+                except Exception:
+                    obj = None
+                if obj is None:
+                    continue
+                for key in ("formalized_content", "content"):
+                    try:
+                        value = obj.output(key)
+                    except Exception:
+                        value = None
+                    text = value if isinstance(value, str) else ""
+                    if text.strip():
+                        parts.append(f"来自 {cid} 的内容：\n{text}")
+                        break
+        except Exception:
+            logging.exception("Failed to build fallback LLM user message")
+        return "\n\n".join(parts)
+
     def _sys_prompt_and_msg(self, msg, args):
         if isinstance(self._param.prompts, str):
             self._param.prompts = [{"role": "user", "content": self._param.prompts}]
@@ -127,6 +161,8 @@ class LLM(ComponentBase):
         for p in self._param.prompts:
             formatted = deepcopy(p)
             formatted["content"] = self.string_format(formatted["content"], args)
+            if not str(formatted.get("content") or "").strip():
+                formatted["content"] = self._fallback_user_message(args)
             if len(msg) == history_size and msg and msg[-1]["role"] == formatted["role"]:
                 msg[-1] = formatted
             else:
@@ -152,10 +188,17 @@ class LLM(ComponentBase):
 
     @classmethod
     def fit_messages(cls, system_prompt: str, msg: list[dict], max_length) -> tuple[list[dict], str | None]:
+        original_user = ""
+        if msg:
+            last = msg[-1]
+            if last.get("role") == "user":
+                original_user = str(last.get("content") or "").strip()
         _, msg_fit = message_fit_in(
             [{"role": "system", "content": system_prompt}, *deepcopy(msg)],
             cls.context_fit_budget(max_length),
         )
+        if not original_user:
+            return msg_fit, "**ERROR**: LLM user message is empty; the Agent user prompt is blank or rendered empty"
         return msg_fit, cls.validate_fitted_messages(msg_fit)
 
     @staticmethod

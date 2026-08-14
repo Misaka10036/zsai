@@ -110,7 +110,9 @@ function buildAgentTools(edges: Edge[], nodes: Node[], nodeId: string) {
       (x) => x.source === nodeId && x.sourceHandle === NodeHandleId.AgentBottom,
     );
 
-    (params as IAgentForm).tools = (params as IAgentForm).tools.concat(
+    (params as IAgentForm).tools = (
+      (params as IAgentForm).tools || []
+    ).concat(
       bottomSubAgentEdges.map((x) => {
         const {
           params: formData,

@@ -275,7 +275,7 @@ func TestToolBackedComponentWenCaiInvoke(t *testing.T) {
 }
 
 func TestToolBackedComponentRegisteredBuildWorkflow(t *testing.T) {
-	for _, componentName := range []string{"ArXiv", "BGPT", "DuckDuckGo", "Email", "Google", "GoogleScholar", "KeenableSearch", "PubMed", "SearXNG", "WenCai", "TavilyExtract", "TavilySearch", "Wikipedia", "YahooFinance"} {
+	for _, componentName := range []string{"ArXiv", "BGPT", "DuckDuckGo", "Email", "Google", "GoogleScholar", "KeenableSearch", "PubMed", "SearXNG", "WenCai", "TavilyExtract", "TavilySearch", "Wikipedia", "YahooFinance", "Seafile", "DatasetWrite"} {
 		t.Run(componentName, func(t *testing.T) {
 			c := &canvas.Canvas{
 				Components: map[string]canvas.CanvasComponent{

@@ -87,7 +87,7 @@ function AgentForm({ node }: INextOperatorForm) {
     (state) => state,
   );
 
-  const outputList = buildOutputList(node?.data.form.outputs);
+  const outputList = buildOutputList(node?.data?.form?.outputs);
 
   const defaultValues = useValues(node);
 

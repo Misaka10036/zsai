@@ -5,22 +5,32 @@ import { useFetchAgentTemplates, useSetAgent } from '@/hooks/use-agent-request';
 import { CardContainer } from '@/components/card-container';
 import { AgentCategory } from '@/constants/agent';
 import { IFlowTemplate } from '@/interfaces/database/agent';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { CreateAgentDialog } from './create-agent-dialog';
 import { TemplateCard } from './template-card';
-import { MenuItemKey, SideBar } from './template-sidebar';
+
+const SEAFILE_WEEKLY_TEMPLATE_ID = '49';
+
+function isSeafileWeeklyReportTemplate(item: IFlowTemplate): boolean {
+  if (item.id === SEAFILE_WEEKLY_TEMPLATE_ID) {
+    return true;
+  }
+  const titles = Object.values(item.title || {}).join(' ');
+  if (/seafile/i.test(titles)) {
+    return true;
+  }
+  return Object.values(item.dsl?.components || {}).some(
+    (component) => component?.obj?.component_name === 'Seafile',
+  );
+}
 
 export default function AgentTemplates() {
   const list = useFetchAgentTemplates();
   const { loading, setAgent } = useSetAgent();
-  const [templateList, setTemplateList] = useState<IFlowTemplate[]>([]);
-  const [selectMenuItem, setSelectMenuItem] = useState<string>(
-    MenuItemKey.Recommended,
+  const templateList = useMemo(
+    () => (list || []).filter(isSeafileWeeklyReportTemplate),
+    [list],
   );
-
-  useEffect(() => {
-    setTemplateList(list);
-  }, [list]);
 
   const {
     visible: creatingVisible,
@@ -70,38 +80,12 @@ export default function AgentTemplates() {
       template?.dsl,
     ],
   );
-  const handleSiderBarChange = (keyword: string) => {
-    setSelectMenuItem(keyword);
-  };
-
-  const tempListFilter = useMemo(() => {
-    if (!selectMenuItem) {
-      return templateList;
-    }
-    const selectedCanvasType = selectMenuItem.toLocaleLowerCase();
-    return templateList.filter((item) => {
-      if (Array.isArray(item.canvas_types) && item.canvas_types.length > 0) {
-        return item.canvas_types.some(
-          (canvasType) =>
-            typeof canvasType === 'string' &&
-            canvasType.toLocaleLowerCase() === selectedCanvasType,
-        );
-      }
-      return item.canvas_type?.toLocaleLowerCase() === selectedCanvasType;
-    });
-  }, [selectMenuItem, templateList]);
-
   return (
     <section>
       <div className="flex flex-1 h-dvh">
-        <SideBar
-          change={handleSiderBarChange}
-          selected={selectMenuItem}
-        ></SideBar>
-
         <main className="flex-1 bg-text-title-invert/50 h-dvh">
           <CardContainer className="max-h-[94vh] overflow-auto px-8 pt-8">
-            {tempListFilter?.map((x) => {
+            {templateList.map((x) => {
               return (
                 <TemplateCard
                   key={x.id}
