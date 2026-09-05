@@ -1,12 +1,15 @@
 package seafile
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"strings"
 	"time"
 )
@@ -196,4 +199,165 @@ func (c *Client) Download(link string) ([]byte, error) {
 		return nil, fmt.Errorf("seafile: download %s", resp.Status)
 	}
 	return io.ReadAll(io.LimitReader(resp.Body, 2<<20))
+}
+
+func parseSeafileLink(body []byte) string {
+	var asString string
+	if err := json.Unmarshal(body, &asString); err == nil && strings.TrimSpace(asString) != "" {
+		return strings.TrimSpace(asString)
+	}
+	var asObj map[string]any
+	if err := json.Unmarshal(body, &asObj); err == nil {
+		for _, key := range []string{"url", "upload_link", "link"} {
+			if v, ok := asObj[key].(string); ok && strings.TrimSpace(v) != "" {
+				return strings.TrimSpace(v)
+			}
+		}
+	}
+	return strings.Trim(strings.TrimSpace(string(body)), `"`)
+}
+
+func (c *Client) parseLink(resp *http.Response) (string, error) {
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	if resp.StatusCode >= 300 {
+		return "", fmt.Errorf("seafile: link %s: %s", resp.Status, body)
+	}
+	link := parseSeafileLink(body)
+	if link == "" {
+		return "", fmt.Errorf("seafile: empty upload/update link")
+	}
+	rewritten, extra := rewriteBaseURL(link)
+	c.Allowed = append(c.Allowed, extra...)
+	return rewritten, nil
+}
+
+func (c *Client) UploadLink(repoID, parentDir string) (string, error) {
+	if parentDir == "" {
+		parentDir = "/"
+	}
+	var resp *http.Response
+	var err error
+	if c.RepoToken != "" {
+		resp, err = c.repoGet("upload-link/", url.Values{"path": {parentDir}})
+	} else {
+		resp, err = c.accountGet("repos/"+repoID+"/upload-link/", url.Values{"p": {parentDir}})
+	}
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	return c.parseLink(resp)
+}
+
+func (c *Client) UpdateLink(repoID, parentDir string) (string, error) {
+	if parentDir == "" {
+		parentDir = "/"
+	}
+	var resp *http.Response
+	var err error
+	if c.RepoToken != "" {
+		resp, err = c.repoGet("update-link/", url.Values{"path": {parentDir}})
+	} else {
+		resp, err = c.accountGet("repos/"+repoID+"/update-link/", url.Values{"p": {parentDir}})
+	}
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	return c.parseLink(resp)
+}
+
+func (c *Client) fileExists(repoID, dest string) bool {
+	parent := path.Dir(dest)
+	if parent == "." || parent == "" {
+		parent = "/"
+	}
+	name := path.Base(dest)
+	entries, err := c.ListDir(repoID, parent)
+	if err != nil {
+		return false
+	}
+	for _, entry := range entries {
+		if entry.Name == name && entry.Type == "file" {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *Client) postMultipart(link string, fields map[string]string, filename string, content []byte) error {
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+	for key, value := range fields {
+		if err := writer.WriteField(key, value); err != nil {
+			return err
+		}
+	}
+	part, err := writer.CreateFormFile("file", filename)
+	if err != nil {
+		return err
+	}
+	if _, err := part.Write(content); err != nil {
+		return err
+	}
+	if err := writer.Close(); err != nil {
+		return err
+	}
+	req, err := http.NewRequest(http.MethodPost, link, &buf)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
+		return fmt.Errorf("seafile: upload %s: %s", resp.Status, body)
+	}
+	return nil
+}
+
+func (c *Client) UpsertFile(repoID, parentDir, filename string, content []byte) (map[string]any, error) {
+	if parentDir == "" {
+		parentDir = "/"
+	}
+	filename = strings.TrimSpace(filename)
+	if filename == "" || strings.ContainsAny(filename, `/\`) {
+		return nil, fmt.Errorf("seafile: invalid filename %q", filename)
+	}
+	dest := "/" + filename
+	if parentDir != "/" {
+		dest = strings.TrimRight(parentDir, "/") + "/" + filename
+	}
+	if c.fileExists(repoID, dest) {
+		link, err := c.UpdateLink(repoID, parentDir)
+		if err != nil {
+			return nil, err
+		}
+		if err := c.postMultipart(link, map[string]string{"filename": filename, "target_file": dest}, filename, content); err != nil {
+			return nil, err
+		}
+		return map[string]any{"action": "replaced", "path": dest}, nil
+	}
+	link, err := c.UploadLink(repoID, parentDir)
+	if err != nil {
+		return nil, err
+	}
+	if !strings.Contains(link, "ret-json") {
+		if strings.Contains(link, "?") {
+			link += "&ret-json=1"
+		} else {
+			link += "?ret-json=1"
+		}
+	}
+	if err := c.postMultipart(link, map[string]string{"parent_dir": parentDir, "replace": "1"}, filename, content); err != nil {
+		return nil, err
+	}
+	return map[string]any{"action": "created", "path": dest}, nil
 }

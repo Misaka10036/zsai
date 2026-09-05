@@ -67,8 +67,40 @@ def test_resolve_week_from_query():
 
 def test_weekly_report_filename():
     assert week.weekly_report_filename("2026-W33") == "weekly-report-2026-W33.md"
+    assert week.weekly_report_filename("2026-W33", "docx") == "weekly-report-2026-W33.docx"
+    assert week.weekly_report_filename("2026-W33", "pdf") == "weekly-report-2026-W33.pdf"
+    assert week.weekly_report_filename("2026-W33", "markdown") == "weekly-report-2026-W33.md"
     with pytest.raises(ValueError):
         week.weekly_report_filename("notes.md")
+    with pytest.raises(ValueError):
+        week.weekly_report_filename("2026-W33", "xlsx")
+
+
+def test_render_weekly_report_md_and_office():
+    import zipfile
+    from io import BytesIO
+
+    probe = "WEEKLY-REPORT-PROBE"
+    markdown = f"## 摘要\n{probe}\n- 完成登录"
+    md_blob = week.render_weekly_report(markdown, "md")
+    assert md_blob.decode("utf-8") == markdown
+
+    docx_blob = week.render_weekly_report(markdown, "docx")
+    assert docx_blob[:2] == b"PK"
+    with zipfile.ZipFile(BytesIO(docx_blob)) as archive:
+        xml = archive.read("word/document.xml").decode("utf-8")
+    assert probe in xml
+    assert "摘要" in xml
+
+    pdf_blob = week.render_weekly_report(markdown, "pdf")
+    assert pdf_blob.startswith(b"%PDF")
+    assert probe.encode("utf-8") in pdf_blob or probe.encode("utf-16-be") in pdf_blob
+
+
+def test_normalize_weekly_output_format():
+    assert week.normalize_weekly_output_format(None) == "md"
+    assert week.normalize_weekly_output_format(".DOCX") == "docx"
+    assert week.weekly_report_content_type("pdf") == "application/pdf"
 
 
 def test_parse_report_date_accepts_unpadded_and_dotted():
@@ -84,6 +116,24 @@ def test_file_in_week_prefers_filename_date_over_mtime():
     old_mtime = datetime(2025, 1, 1, tzinfo=timezone.utc).timestamp()
     assert week.file_in_week(window, "2026-8-14", old_mtime)
     assert not week.file_in_week(window, "2026-8-01", old_mtime)
+
+
+def test_seafile_publish_requires_repo_and_path():
+    assert not week.seafile_publish_configured("", "/")
+    assert not week.seafile_publish_configured("周报", "")
+    assert not week.seafile_publish_configured(None, None)
+    assert week.seafile_publish_configured("周报", "/")
+
+
+def test_resolve_library_id_accepts_name_or_uuid():
+    libraries = [
+        {"id": "daily-id", "name": "日报"},
+        {"id": "week-id", "name": "周报"},
+    ]
+    assert week.resolve_library_id(libraries, "week-id") == "week-id"
+    assert week.resolve_library_id(libraries, "周报") == "week-id"
+    with pytest.raises(ValueError):
+        week.resolve_library_id(libraries, "不存在")
 
 
 def test_search_roots_treats_matching_library_name_as_root():

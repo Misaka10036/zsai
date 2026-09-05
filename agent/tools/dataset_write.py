@@ -24,11 +24,20 @@ from typing import Any
 from agent.tools.base import ToolBase, ToolMeta, ToolParamBase
 from common.connection_utils import timeout
 from common.constants import TaskStatus
-from common.data_source.seafile_week import WEEK_ID_RE, weekly_report_filename
+from common.data_source.seafile_client import SeafileClient
+from common.data_source.seafile_week import (
+    WEEK_ID_RE,
+    normalize_weekly_output_format,
+    render_weekly_report,
+    resolve_library_id,
+    seafile_publish_configured,
+    weekly_report_content_type,
+    weekly_report_filename,
+)
 
 logger = logging.getLogger(__name__)
 
-FILENAME_RE = re.compile(r"^weekly-report-\d{4}-W\d{2}\.md$")
+FILENAME_RE = re.compile(r"^weekly-report-\d{4}-W\d{2}\.(md|docx|pdf)$")
 
 
 class _MemoryUpload:
@@ -67,11 +76,16 @@ class DatasetWriteParam(ToolParamBase):
         self.kb_ids: list[str] = []
         self.publish_policy = "auto"
         self.language = "zh"
+        self.seafile_connector_id = ""
+        self.seafile_repo_id = ""
+        self.seafile_path = ""
+        self.output_format = "md"
 
     def check(self):
         policy = (self.publish_policy or "auto").lower()
         if policy not in {"auto", "draft"}:
             raise ValueError("publish_policy must be auto or draft")
+        self.output_format = normalize_weekly_output_format(getattr(self, "output_format", "md"))
 
     def get_input_form(self) -> dict[str, dict]:
         return {
@@ -101,6 +115,70 @@ class DatasetWrite(ToolBase, ABC):
             raise PermissionError("Weekly-report dataset is not accessible to this canvas owner.")
         return dataset_id
 
+    def _resolve_text(self, value: Any) -> str:
+        text = "" if value is None else str(value).strip()
+        if text.startswith("{") or "@" in text:
+            text = str(self._canvas.get_variable_value(text) or "").strip()
+        return text
+
+    def _write_seafile(self, filename: str, content: bytes) -> dict[str, Any] | None:
+        repo = self._resolve_text(getattr(self._param, "seafile_repo_id", ""))
+        path = self._resolve_text(getattr(self._param, "seafile_path", ""))
+        if not seafile_publish_configured(repo, path):
+            return None
+        connector_id = self._resolve_text(getattr(self._param, "seafile_connector_id", ""))
+        from api.db.services.connector_service import ConnectorService
+
+        tenant_id = self._canvas.get_tenant_id()
+        connector = None
+        if connector_id:
+            if not ConnectorService.accessible(connector_id, tenant_id):
+                raise PermissionError("Seafile connector is not accessible to this canvas owner.")
+            ok, connector = ConnectorService.get_by_id(connector_id)
+            if not ok:
+                raise ValueError(f"Seafile connector {connector_id} was not found.")
+        else:
+            for row in ConnectorService.query(tenant_id=tenant_id, source="seafile") or []:
+                connector = row
+                break
+        if connector is None:
+            raise ValueError("已填写 Seafile 资料库和路径，但没有可用的 Seafile 数据源。")
+        source = (getattr(connector, "source", "") or "").lower()
+        if source != "seafile":
+            raise ValueError(f"Connector {getattr(connector, 'id', '')} is source={source!r}, expected seafile.")
+        config = connector.config or {}
+        credentials = config.get("credentials") or {}
+        client = SeafileClient(
+            config.get("seafile_url") or "",
+            token=credentials.get("seafile_token") or config.get("seafile_token"),
+            repo_token=credentials.get("repo_token") or config.get("repo_token"),
+            download_hosts=list(config.get("download_hosts") or []),
+        )
+        repo_id = resolve_library_id(client.list_libraries(), repo)
+        uploaded = client.upsert_file(
+            repo_id,
+            path,
+            filename,
+            content,
+            content_type=weekly_report_content_type(self._output_format()),
+        )
+        uploaded["repo_id"] = repo_id
+        return uploaded
+
+    def _output_format(self) -> str:
+        return normalize_weekly_output_format(getattr(self._param, "output_format", "md"))
+
+    def _report_file(self, week_id: str, content: Any) -> tuple[str, bytes]:
+        if content is None:
+            content = ""
+        if not isinstance(content, str):
+            content = str(content)
+        fmt = self._output_format()
+        filename = weekly_report_filename(week_id, fmt)
+        if not FILENAME_RE.fullmatch(filename):
+            raise ValueError(f"computed filename rejected: {filename}")
+        return filename, render_weekly_report(content, fmt)
+
     def _resolve_week_id(self, kwargs: dict[str, Any]) -> str:
         week_id = (kwargs.get("week_id") or getattr(self._param, "week_id", "") or "").strip()
         if "@" in week_id or week_id.startswith("{"):
@@ -129,13 +207,8 @@ class DatasetWrite(ToolBase, ABC):
 
             dataset_id = self._resolve_dataset_id()
             week_id = self._resolve_week_id(kwargs)
-            filename = weekly_report_filename(week_id)
-            content = kwargs.get("content")
-            if content is None:
-                content = ""
-            if not isinstance(content, str):
-                content = str(content)
-            blob = content.encode("utf-8")
+            filename, blob = self._report_file(week_id, kwargs.get("content"))
+            fmt = self._output_format()
 
             ok, kb = KnowledgebaseService.get_by_id(dataset_id)
             if not ok:
@@ -165,6 +238,7 @@ class DatasetWrite(ToolBase, ABC):
                     "week_id": week_id,
                     "language": self._param.language or "zh",
                     "kind": "weekly_report",
+                    "output_format": fmt,
                 },
             )
             ok, fresh = DocumentService.get_by_id(doc_id)
@@ -186,10 +260,18 @@ class DatasetWrite(ToolBase, ABC):
                 "filename": filename,
                 "week_id": week_id,
                 "dataset_id": dataset_id,
+                "output_format": fmt,
                 "ingest": "queued",
             }
+            seafile = self._write_seafile(filename, blob)
+            if seafile:
+                result["seafile"] = seafile
+                summary = f"Wrote {filename} ({result['action']}). Seafile {seafile.get('path')} ({seafile.get('action')})."
+            else:
+                result["seafile"] = {"action": "skipped"}
+                summary = f"Wrote {filename} ({result['action']})."
             self.set_output("json", result)
-            self.set_output("formalized_content", f"Wrote {filename} ({result['action']}).")
+            self.set_output("formalized_content", summary)
             return result
         except Exception as exc:
             logger.exception("DatasetWrite failed")

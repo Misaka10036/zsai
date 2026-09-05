@@ -6,6 +6,7 @@ import {
   FileCode,
   FileText,
   FolderSync,
+  DatabaseBackup,
   Globe,
   CloudUpload,
   HousePlus,
@@ -66,6 +67,7 @@ export const LucideIconMap = {
   [Operator.Browser]: Globe,
   [Operator.Compilation]: Columns3Cog,
   [Operator.Seafile]: FolderSync,
+  [Operator.ProductionData]: DatabaseBackup,
   [Operator.DatasetWrite]: CloudUpload,
 };
 

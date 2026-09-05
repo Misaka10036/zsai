@@ -120,6 +120,7 @@ export enum Operator {
   ExitLoop = 'ExitLoop',
   ExcelProcessor = 'ExcelProcessor',
   Seafile = 'Seafile',
+  ProductionData = 'ProductionData',
   DatasetWrite = 'DatasetWrite',
 }
 

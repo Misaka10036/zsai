@@ -8,8 +8,11 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
 import { FormTooltip } from '@/components/ui/tooltip';
 import { useFetchKnowledgeList } from '@/hooks/use-knowledge-request';
+import { DataSourceKey } from '@/pages/user-setting/data-source/constant';
+import { useListDataSource } from '@/pages/user-setting/data-source/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { memo, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
@@ -28,6 +31,10 @@ const FormSchema = z.object({
   language: z.string().optional(),
   content: z.string().optional(),
   week_id: z.string().optional(),
+  output_format: z.string().optional(),
+  seafile_connector_id: z.string().optional(),
+  seafile_repo_id: z.string().optional(),
+  seafile_path: z.string().optional(),
 });
 
 function FieldTip({ label, tip }: { label: string; tip: string }) {
@@ -42,6 +49,7 @@ function FieldTip({ label, tip }: { label: string; tip: string }) {
 function DatasetWriteForm({ node }: INextOperatorForm) {
   const { t } = useTranslation();
   const { list, loading } = useFetchKnowledgeList(false);
+  const { list: dataSources, isFetching } = useListDataSource();
   const defaultValues = useFormValues(initialDatasetWriteValues, node);
   const form = useForm<z.infer<typeof FormSchema>>({
     defaultValues,
@@ -57,6 +65,18 @@ function DatasetWriteForm({ node }: INextOperatorForm) {
         label: item.name,
       })),
     [list],
+  );
+  const seafileOptions = useMemo(
+    () =>
+      (dataSources || [])
+        .filter((item) => item.source === DataSourceKey.SEAFILE)
+        .map((item) => ({
+          value: item.id,
+          label: item.name
+            ? `${item.name}（${item.id.slice(0, 8)}…）`
+            : item.id,
+        })),
+    [dataSources],
   );
 
   return (
@@ -87,6 +107,102 @@ function DatasetWriteForm({ node }: INextOperatorForm) {
                         : t('flow.datasetWriteKbPlaceholder')
                     }
                     allowClear
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="output_format"
+            render={({ field }) => (
+              <FormItem>
+                <FieldTip
+                  label={t('flow.datasetWriteOutputFormat')}
+                  tip={t('flow.datasetWriteOutputFormatTip')}
+                />
+                <FormControl>
+                  <SelectWithSearch
+                    {...field}
+                    options={[
+                      {
+                        value: 'md',
+                        label: t('flow.datasetWriteOutputFormatMd'),
+                      },
+                      {
+                        value: 'docx',
+                        label: t('flow.datasetWriteOutputFormatDocx'),
+                      },
+                      {
+                        value: 'pdf',
+                        label: t('flow.datasetWriteOutputFormatPdf'),
+                      },
+                    ]}
+                    allowClear={false}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="seafile_connector_id"
+            render={({ field }) => (
+              <FormItem>
+                <FieldTip
+                  label={t('flow.datasetWriteSeafileConnector')}
+                  tip={t('flow.datasetWriteSeafileConnectorTip')}
+                />
+                <FormControl>
+                  <SelectWithSearch
+                    {...field}
+                    options={seafileOptions}
+                    placeholder={
+                      isFetching
+                        ? t('flow.seafileConnectorLoading')
+                        : t('flow.datasetWriteSeafileConnectorPlaceholder')
+                    }
+                    allowClear
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="seafile_repo_id"
+            render={({ field }) => (
+              <FormItem>
+                <FieldTip
+                  label={t('flow.datasetWriteSeafileRepo')}
+                  tip={t('flow.datasetWriteSeafileRepoTip')}
+                />
+                <FormControl>
+                  <Input
+                    {...field}
+                    placeholder={t('flow.datasetWriteSeafileRepoPlaceholder')}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="seafile_path"
+            render={({ field }) => (
+              <FormItem>
+                <FieldTip
+                  label={t('flow.datasetWriteSeafilePath')}
+                  tip={t('flow.datasetWriteSeafilePathTip')}
+                />
+                <FormControl>
+                  <Input
+                    {...field}
+                    placeholder={t('flow.datasetWriteSeafilePathPlaceholder')}
                   />
                 </FormControl>
                 <FormMessage />

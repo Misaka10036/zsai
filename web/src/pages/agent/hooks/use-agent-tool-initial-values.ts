@@ -74,12 +74,27 @@ export function useAgentToolInitialValues() {
             'default_repo_id',
             'require_complete',
           );
+        case Operator.ProductionData:
+          return pick(
+            initialValues,
+            'connector_id',
+            'path',
+            'default_repo_id',
+            'filename_regex',
+            'week_mode',
+            'timezone',
+            'sample_limit',
+          );
         case Operator.DatasetWrite:
           return pick(
             initialValues,
             'dataset_ids',
             'publish_policy',
             'language',
+            'output_format',
+            'seafile_connector_id',
+            'seafile_repo_id',
+            'seafile_path',
           );
 
         default:

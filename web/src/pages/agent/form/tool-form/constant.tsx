@@ -18,6 +18,7 @@ import WenCaiForm from './wencai-form';
 import WikipediaForm from './wikipedia-form';
 import YahooFinanceForm from './yahoo-finance-form';
 import SeafileForm from '../seafile-form';
+import ProductionDataForm from '../production-data-form';
 import DatasetWriteForm from '../dataset-write-form';
 
 export const ToolFormConfigMap = {
@@ -35,6 +36,7 @@ export const ToolFormConfigMap = {
   [Operator.ExeSQL]: ExeSQLForm,
   [Operator.YahooFinance]: YahooFinanceForm,
   [Operator.Seafile]: SeafileForm,
+  [Operator.ProductionData]: ProductionDataForm,
   [Operator.DatasetWrite]: DatasetWriteForm,
   [Operator.Crawler]: CrawlerForm,
   [Operator.Email]: EmailForm,

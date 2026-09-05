@@ -127,6 +127,7 @@ export function AccordionOperators({
               Operator.DocGenerator,
               Operator.Browser,
               Operator.Seafile,
+              Operator.ProductionData,
               Operator.DatasetWrite,
             ]}
             isCustomDropdown={isCustomDropdown}

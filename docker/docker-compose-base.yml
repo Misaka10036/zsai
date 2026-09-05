@@ -372,6 +372,95 @@ services:
       - ragflow
     restart: unless-stopped
 
+  seafile-db:
+    profiles:
+      - seafile
+    image: ${SEAFILE_DB_IMAGE:-mariadb:10.11}
+    environment:
+      - MYSQL_ROOT_PASSWORD=${SEAFILE_DB_PASSWORD:-infini_rag_flow}
+      - MYSQL_LOG_CONSOLE=true
+      - MARIADB_AUTO_UPGRADE=1
+    volumes:
+      - seafile_db:/var/lib/mysql
+    networks:
+      - ragflow
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    restart: unless-stopped
+
+  seafile-redis:
+    profiles:
+      - seafile
+    image: ${SEAFILE_REDIS_IMAGE:-redis:7-alpine}
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    networks:
+      - ragflow
+    restart: unless-stopped
+
+  seafile:
+    profiles:
+      - seafile
+    image: ${SEAFILE_IMAGE:-seafileltd/seafile-mc:13.0-latest}
+    ports:
+      - ${SEAFILE_PORT:-8082}:80
+    volumes:
+      - seafile_data:/shared
+    environment:
+      - INIT_SEAFILE_MYSQL_ROOT_PASSWORD=${SEAFILE_DB_PASSWORD:-infini_rag_flow}
+      - SEAFILE_MYSQL_DB_HOST=seafile-db
+      - SEAFILE_MYSQL_DB_USER=seafile
+      - SEAFILE_MYSQL_DB_PASSWORD=${SEAFILE_DB_PASSWORD:-infini_rag_flow}
+      - TIME_ZONE=${SEAFILE_TIME_ZONE:-Asia/Shanghai}
+      - INIT_SEAFILE_ADMIN_EMAIL=${SEAFILE_ADMIN_EMAIL:-ragflow@localhost}
+      - INIT_SEAFILE_ADMIN_PASSWORD=${SEAFILE_ADMIN_PASSWORD:-infini_rag_flow}
+      - SEAFILE_SERVER_HOSTNAME=${SEAFILE_SERVER_HOSTNAME:-host.docker.internal:8082}
+      - SEAFILE_SERVER_PROTOCOL=http
+      - CACHE_PROVIDER=redis
+      - REDIS_HOST=seafile-redis
+      - REDIS_PORT=6379
+      - JWT_PRIVATE_KEY=${SEAFILE_JWT_PRIVATE_KEY:-ragflow-seafile-jwt-key-change-me}
+    depends_on:
+      seafile-db:
+        condition: service_healthy
+      seafile-redis:
+        condition: service_started
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - ragflow
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1/api2/ping/ | grep -q pong"]
+      interval: 15s
+      timeout: 10s
+      retries: 40
+      start_period: 180s
+    restart: unless-stopped
+
+  seafile-init:
+    profiles:
+      - seafile
+    image: ${SEAFILE_IMAGE:-seafileltd/seafile-mc:13.0-latest}
+    depends_on:
+      seafile:
+        condition: service_started
+    environment:
+      - SEAFILE_URL=http://seafile
+      - SEAFILE_ADMIN_EMAIL=${SEAFILE_ADMIN_EMAIL:-ragflow@localhost}
+      - SEAFILE_ADMIN_PASSWORD=${SEAFILE_ADMIN_PASSWORD:-infini_rag_flow}
+      - SEAFILE_DAILY_LIBRARY=${SEAFILE_DAILY_LIBRARY:-日报}
+      - SEAFILE_WEEKLY_LIBRARY=${SEAFILE_WEEKLY_LIBRARY:-周报}
+      - SEAFILE_DATABASE_LIBRARY=${SEAFILE_DATABASE_LIBRARY:-数据库镜像}
+    volumes:
+      - ./seafile/init-libraries.sh:/init-libraries.sh:ro
+    entrypoint: ["bash", "/init-libraries.sh"]
+    restart: "no"
+    networks:
+      - ragflow
+
 
 volumes:
   esdata01:
@@ -397,6 +486,10 @@ volumes:
   nats_data:
     driver: local
   clickhouse_data:
+    driver: local
+  seafile_db:
+    driver: local
+  seafile_data:
     driver: local
 
 networks:

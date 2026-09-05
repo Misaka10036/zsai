@@ -34,6 +34,7 @@ type IToolIcon =
   | Operator.WenCai
   | Operator.Crawler
   | Operator.Seafile
+  | Operator.ProductionData
   | Operator.DatasetWrite;
 
 const capitalizeWords = (str: string, separator: string = '_'): string[] => {

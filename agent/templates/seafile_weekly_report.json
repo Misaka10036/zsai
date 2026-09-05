@@ -6,9 +6,9 @@
         "zh": "Seafile 日报汇总周报"
     },
     "description": {
-        "en": "Fetch this week daily reports from Seafile, synthesize a structured weekly report, and write it into the weekly-report dataset. Use the existing agent scheduler.",
+        "en": "Fetch this week daily reports and MES production data from Seafile, synthesize a structured weekly report, and publish it.",
         "de": "Holt die Tagesberichte der Woche aus Seafile, erstellt einen strukturierten Wochenbericht und schreibt ihn in den Wochenbericht-Datensatz.",
-        "zh": "从 Seafile 拉取本周日报，综合成周报并写入周报资料库。用已有的智能体定时任务按周运行。"
+        "zh": "从 Seafile 拉取本周日报和 PostgreSQL MES 镜像中的生产数据，综合成周报并写入周报资料库。"
     },
     "canvas_type": "Recommended",
     "canvas_types": [
@@ -25,7 +25,7 @@
                     "component_name": "Begin",
                     "params": {
                         "mode": "task",
-                        "prologue": "绑定 Seafile 数据源和周报资料库后运行或定时。例如：生成本周周报",
+                        "prologue": "绑定日报、数据库镜像的 Seafile 数据源和周报资料库后运行或定时。例如：生成本周周报",
                         "inputs": {},
                         "enablePrologue": true
                     }
@@ -34,13 +34,13 @@
             },
             "Seafile:DailyFetch": {
                 "downstream": [
-                    "Agent:WeeklySynthesizer"
+                    "ProductionData:WeeklyFetch"
                 ],
                 "obj": {
                     "component_name": "Seafile",
                     "params": {
-                        "connector_id": "ad4a93a0971611f1ac14e4c7672f77b2",
-                        "path": "/",
+                        "connector_id": "",
+                        "path": "/日报",
                         "filename_regex": "(?:(?P<author>[^/\\\\]+)-)?(?P<date>\\\\d{4}[-./]\\\\d{1,2}[-./]\\\\d{1,2}).*\\\\.(md|docx|txt)$",
                         "week_mode": "this_week",
                         "timezone": "Asia/Shanghai",
@@ -62,6 +62,36 @@
                 },
                 "upstream": [
                     "begin"
+                ]
+            },
+            "ProductionData:WeeklyFetch": {
+                "downstream": [
+                    "Agent:WeeklySynthesizer"
+                ],
+                "obj": {
+                    "component_name": "ProductionData",
+                    "params": {
+                        "connector_id": "",
+                        "path": "/数据库镜像",
+                        "default_repo_id": "",
+                        "filename_regex": ".*\\.sql(?:\\.gz)?$",
+                        "week_mode": "this_week",
+                        "timezone": "Asia/Shanghai",
+                        "sample_limit": 8,
+                        "outputs": {
+                            "json": {
+                                "type": "object",
+                                "value": {}
+                            },
+                            "formalized_content": {
+                                "type": "string",
+                                "value": ""
+                            }
+                        }
+                    }
+                },
+                "upstream": [
+                    "Seafile:DailyFetch"
                 ]
             },
             "Agent:WeeklySynthesizer": {
@@ -97,10 +127,10 @@
                         "prompts": [
                             {
                                 "role": "user",
-                                "content": "用户请求：{sys.query}\\n\\n本周标识：{Seafile:DailyFetch@json.week_id}\\n覆盖状态：{Seafile:DailyFetch@json.coverage_status}\\n缺交：{Seafile:DailyFetch@json.missing_authors}\\n\\n日报原文：\\n{Seafile:DailyFetch@formalized_content}"
+                                "content": "用户请求：{sys.query}\\n\\n本周标识：{Seafile:DailyFetch@json.week_id}\\n覆盖状态：{Seafile:DailyFetch@json.coverage_status}\\n缺交：{Seafile:DailyFetch@json.missing_authors}\\n\\n日报原文：\\n{Seafile:DailyFetch@formalized_content}\\n\\n生产数据库摘要：\\n{ProductionData:WeeklyFetch@formalized_content}"
                             }
                         ],
-                        "sys_prompt": "你是周报主编。只根据 Seafile 拉到的日报写中文周报，不要编造未出现的事实。\\n\\n先调用 ThemeAnalyst、RiskAnalyst、MetricsAnalyst 三个子智能体，再调用 ContinuityAnalyst 对照上周周报（如有）。然后输出一份完整 Markdown 周报，结构必须是：\\n## 1. 本周摘要\\n## 2. 覆盖与缺交\\n## 3. 按人进展\\n## 4. 跨团队主题与计划对照\\n## 5. 风险、阻塞与依赖\\n## 6. 指标与交付物\\n## 7. 与上周对照\\n## 8. 下周关注\\n## 附录. 源文件清单\\n\\n缺日报时在第 2 节写明。",
+                        "sys_prompt": "你是周报主编。只根据 Seafile 拉到的日报和生产数据库摘要写中文周报，不要编造未出现的事实。数据库统计应参与本周摘要、指标与交付物、风险判断，并明确区分日报陈述和数据库事实。\\n\\n先调用 ThemeAnalyst、RiskAnalyst、MetricsAnalyst 三个子智能体，再调用 ContinuityAnalyst 对照上周周报（如有）。然后输出一份完整 Markdown 周报，结构必须是：\\n## 1. 本周摘要\\n## 2. 覆盖与缺交\\n## 3. 按人进展\\n## 4. 跨团队主题与计划对照\\n## 5. 生产数据\\n## 6. 风险、阻塞与依赖\\n## 7. 指标与交付物\\n## 8. 与上周对照\\n## 9. 下周关注\\n## 附录. 源文件清单\\n\\n缺日报时在第 2 节写明；数据库为空或读取失败时也要明确说明。",
                         "temperature": 0.2,
                         "temperatureEnabled": true,
                         "tools": [
@@ -135,10 +165,10 @@
                                     "prompts": [
                                         {
                                             "role": "user",
-                                            "content": "根据日报归纳本周主题与计划对照。\\n{Seafile:DailyFetch@formalized_content}"
+                                            "content": "根据日报和生产数据库摘要归纳本周主题与计划对照。\\n{Seafile:DailyFetch@formalized_content}\\n\\n{ProductionData:WeeklyFetch@formalized_content}"
                                         }
                                     ],
-                                    "sys_prompt": "你是主题分析员。只依据日报列出 3-6 个主题，每条注明涉及的人。不要写周报全文。",
+                                    "sys_prompt": "你是主题分析员。只依据日报和生产数据库摘要列出 3-6 个主题；人员归属只从日报提取。不要写周报全文。",
                                     "temperature": 0.2,
                                     "temperatureEnabled": true,
                                     "tools": [],
@@ -180,7 +210,7 @@
                                     "prompts": [
                                         {
                                             "role": "user",
-                                            "content": "提取风险、阻塞、依赖。\\n{Seafile:DailyFetch@formalized_content}"
+                                            "content": "从日报和生产数据库摘要提取风险、阻塞、依赖。\\n{Seafile:DailyFetch@formalized_content}\\n\\n{ProductionData:WeeklyFetch@formalized_content}"
                                         }
                                     ],
                                     "sys_prompt": "你是风险分析员。列出风险/阻塞/依赖，没有就写「未见明确风险」。不要编造。",
@@ -225,10 +255,10 @@
                                     "prompts": [
                                         {
                                             "role": "user",
-                                            "content": "提取指标与交付物。\\n{Seafile:DailyFetch@formalized_content}"
+                                            "content": "从日报和生产数据库摘要提取指标与交付物。\\n{Seafile:DailyFetch@formalized_content}\\n\\n{ProductionData:WeeklyFetch@formalized_content}"
                                         }
                                     ],
-                                    "sys_prompt": "你是指标分析员。只摘录日报里出现的数字、里程碑、交付物。没有就写「未见量化指标」。",
+                                    "sys_prompt": "你是指标分析员。只摘录日报或生产数据库摘要里出现的数字、里程碑、交付物，并标明来源。没有就写「未见量化指标」。",
                                     "temperature": 0.2,
                                     "temperatureEnabled": true,
                                     "tools": [],
@@ -317,7 +347,7 @@
                     }
                 },
                 "upstream": [
-                    "Seafile:DailyFetch"
+                    "ProductionData:WeeklyFetch"
                 ]
             },
             "DatasetWrite:WeeklyPublish": {
@@ -332,6 +362,10 @@
                         "language": "zh",
                         "content": "{Agent:WeeklySynthesizer@content}",
                         "week_id": "{Seafile:DailyFetch@json.week_id}",
+                        "output_format": "md",
+                        "seafile_connector_id": "",
+                        "seafile_repo_id": "周报",
+                        "seafile_path": "/",
                         "outputs": {
                             "json": {
                                 "type": "object",
@@ -387,8 +421,18 @@
                     "data": {
                         "isHovered": false
                     },
-                    "id": "e-sf-agent",
+                    "id": "e-sf-production",
                     "source": "Seafile:DailyFetch",
+                    "sourceHandle": "start",
+                    "target": "ProductionData:WeeklyFetch",
+                    "targetHandle": "end"
+                },
+                {
+                    "data": {
+                        "isHovered": false
+                    },
+                    "id": "e-production-agent",
+                    "source": "ProductionData:WeeklyFetch",
                     "sourceHandle": "start",
                     "target": "Agent:WeeklySynthesizer",
                     "targetHandle": "end"
@@ -469,7 +513,7 @@
                     "data": {
                         "form": {
                             "mode": "task",
-                            "prologue": "绑定 Seafile 数据源和周报资料库后运行或定时。例如：生成本周周报",
+                            "prologue": "绑定日报、数据库镜像的 Seafile 数据源和周报资料库后运行或定时。例如：生成本周周报",
                             "inputs": {},
                             "enablePrologue": true
                         },
@@ -494,8 +538,8 @@
                 {
                     "data": {
                         "form": {
-                            "connector_id": "ad4a93a0971611f1ac14e4c7672f77b2",
-                            "path": "/",
+                            "connector_id": "",
+                            "path": "/日报",
                             "filename_regex": "(?:(?P<author>[^/\\\\]+)-)?(?P<date>\\\\d{4}[-./]\\\\d{1,2}[-./]\\\\d{1,2}).*\\\\.(md|docx|txt)$",
                             "week_mode": "this_week",
                             "timezone": "Asia/Shanghai",
@@ -535,6 +579,45 @@
                 {
                     "data": {
                         "form": {
+                            "connector_id": "",
+                            "path": "/数据库镜像",
+                            "default_repo_id": "",
+                            "filename_regex": ".*\\.sql(?:\\.gz)?$",
+                            "week_mode": "this_week",
+                            "timezone": "Asia/Shanghai",
+                            "sample_limit": 8,
+                            "outputs": {
+                                "json": {
+                                    "type": "object",
+                                    "value": {}
+                                },
+                                "formalized_content": {
+                                    "type": "string",
+                                    "value": ""
+                                }
+                            }
+                        },
+                        "label": "ProductionData",
+                        "name": "WeeklyFetch"
+                    },
+                    "dragging": false,
+                    "id": "ProductionData:WeeklyFetch",
+                    "measured": {
+                        "height": 80,
+                        "width": 200
+                    },
+                    "position": {
+                        "x": 500,
+                        "y": 340
+                    },
+                    "selected": false,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "type": "ragNode"
+                },
+                {
+                    "data": {
+                        "form": {
                             "delay_after_error": 1,
                             "description": "把本周日报综合成结构化周报。",
                             "exception_comment": "",
@@ -561,10 +644,10 @@
                             "prompts": [
                                 {
                                     "role": "user",
-                                    "content": "用户请求：{sys.query}\\n\\n本周标识：{Seafile:DailyFetch@json.week_id}\\n覆盖状态：{Seafile:DailyFetch@json.coverage_status}\\n缺交：{Seafile:DailyFetch@json.missing_authors}\\n\\n日报原文：\\n{Seafile:DailyFetch@formalized_content}"
+                                    "content": "用户请求：{sys.query}\\n\\n本周标识：{Seafile:DailyFetch@json.week_id}\\n覆盖状态：{Seafile:DailyFetch@json.coverage_status}\\n缺交：{Seafile:DailyFetch@json.missing_authors}\\n\\n日报原文：\\n{Seafile:DailyFetch@formalized_content}\\n\\n生产数据库摘要：\\n{ProductionData:WeeklyFetch@formalized_content}"
                                 }
                             ],
-                            "sys_prompt": "你是周报主编。只根据 Seafile 拉到的日报写中文周报，不要编造未出现的事实。\\n\\n先调用 ThemeAnalyst、RiskAnalyst、MetricsAnalyst 三个子智能体，再调用 ContinuityAnalyst 对照上周周报（如有）。然后输出一份完整 Markdown 周报，结构必须是：\\n## 1. 本周摘要\\n## 2. 覆盖与缺交\\n## 3. 按人进展\\n## 4. 跨团队主题与计划对照\\n## 5. 风险、阻塞与依赖\\n## 6. 指标与交付物\\n## 7. 与上周对照\\n## 8. 下周关注\\n## 附录. 源文件清单\\n\\n缺日报时在第 2 节写明。",
+                            "sys_prompt": "你是周报主编。只根据 Seafile 拉到的日报和生产数据库摘要写中文周报，不要编造未出现的事实。数据库统计应参与本周摘要、指标与交付物、风险判断，并明确区分日报陈述和数据库事实。\\n\\n先调用 ThemeAnalyst、RiskAnalyst、MetricsAnalyst 三个子智能体，再调用 ContinuityAnalyst 对照上周周报（如有）。然后输出一份完整 Markdown 周报，结构必须是：\\n## 1. 本周摘要\\n## 2. 覆盖与缺交\\n## 3. 按人进展\\n## 4. 跨团队主题与计划对照\\n## 5. 生产数据\\n## 6. 风险、阻塞与依赖\\n## 7. 指标与交付物\\n## 8. 与上周对照\\n## 9. 下周关注\\n## 附录. 源文件清单\\n\\n缺日报时在第 2 节写明；数据库为空或读取失败时也要明确说明。",
                             "temperature": 0.2,
                             "temperatureEnabled": true,
                             "tools": [],
@@ -600,6 +683,10 @@
                             "language": "zh",
                             "content": "{Agent:WeeklySynthesizer@content}",
                             "week_id": "{Seafile:DailyFetch@json.week_id}",
+                            "output_format": "md",
+                            "seafile_connector_id": "",
+                            "seafile_repo_id": "周报",
+                            "seafile_path": "/",
                             "outputs": {
                                 "json": {
                                     "type": "object",
@@ -683,10 +770,10 @@
                             "prompts": [
                                 {
                                     "role": "user",
-                                    "content": "根据日报归纳本周主题与计划对照。\\n{Seafile:DailyFetch@formalized_content}"
+                                    "content": "根据日报和生产数据库摘要归纳本周主题与计划对照。\\n{Seafile:DailyFetch@formalized_content}\\n\\n{ProductionData:WeeklyFetch@formalized_content}"
                                 }
                             ],
-                            "sys_prompt": "你是主题分析员。只依据日报列出 3-6 个主题，每条注明涉及的人。不要写周报全文。",
+                            "sys_prompt": "你是主题分析员。只依据日报和生产数据库摘要列出 3-6 个主题；人员归属只从日报提取。不要写周报全文。",
                             "temperature": 0.2,
                             "temperatureEnabled": true,
                             "tools": [],
@@ -743,7 +830,7 @@
                             "prompts": [
                                 {
                                     "role": "user",
-                                    "content": "提取风险、阻塞、依赖。\\n{Seafile:DailyFetch@formalized_content}"
+                                    "content": "从日报和生产数据库摘要提取风险、阻塞、依赖。\\n{Seafile:DailyFetch@formalized_content}\\n\\n{ProductionData:WeeklyFetch@formalized_content}"
                                 }
                             ],
                             "sys_prompt": "你是风险分析员。列出风险/阻塞/依赖，没有就写「未见明确风险」。不要编造。",
@@ -803,10 +890,10 @@
                             "prompts": [
                                 {
                                     "role": "user",
-                                    "content": "提取指标与交付物。\\n{Seafile:DailyFetch@formalized_content}"
+                                    "content": "从日报和生产数据库摘要提取指标与交付物。\\n{Seafile:DailyFetch@formalized_content}\\n\\n{ProductionData:WeeklyFetch@formalized_content}"
                                 }
                             ],
-                            "sys_prompt": "你是指标分析员。只摘录日报里出现的数字、里程碑、交付物。没有就写「未见量化指标」。",
+                            "sys_prompt": "你是指标分析员。只摘录日报或生产数据库摘要里出现的数字、里程碑、交付物，并标明来源。没有就写「未见量化指标」。",
                             "temperature": 0.2,
                             "temperatureEnabled": true,
                             "tools": [],

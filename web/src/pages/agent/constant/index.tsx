@@ -432,7 +432,7 @@ export const initialTemplateValues = {
 
 export const initialSeafileValues = {
   connector_id: '',
-  path: '/',
+  path: '/日报',
   filename_regex:
     '(?:(?P<author>[^/\\\\]+)-)?(?P<date>\\d{4}[-./]\\d{1,2}[-./]\\d{1,2}).*\\.(md|docx|txt)$',
   week_mode: 'this_week',
@@ -447,12 +447,30 @@ export const initialSeafileValues = {
   },
 };
 
+export const initialProductionDataValues = {
+  connector_id: '',
+  path: '/数据库镜像',
+  default_repo_id: '',
+  filename_regex: '.*\\.sql(?:\\.gz)?$',
+  week_mode: 'this_week',
+  timezone: 'Asia/Shanghai',
+  sample_limit: 8,
+  outputs: {
+    json: { type: 'object', value: {} },
+    formalized_content: { type: 'string', value: '' },
+  },
+};
+
 export const initialDatasetWriteValues = {
   dataset_ids: [],
   publish_policy: 'auto',
   language: 'zh',
   content: '',
   week_id: '',
+  output_format: 'md',
+  seafile_connector_id: '',
+  seafile_repo_id: '周报',
+  seafile_path: '/',
   outputs: {
     json: { type: 'object', value: {} },
     formalized_content: { type: 'string', value: '' },
@@ -742,6 +760,7 @@ export const RestrictedUpstreamMap = {
   [Operator.WenCai]: [Operator.Begin],
   [Operator.YahooFinance]: [Operator.Begin],
   [Operator.Seafile]: [Operator.Begin],
+  [Operator.ProductionData]: [Operator.Begin],
   [Operator.DatasetWrite]: [Operator.Begin],
   [Operator.Crawler]: [Operator.Begin],
   [Operator.Note]: [],
@@ -798,6 +817,7 @@ export const NodeMap = {
   [Operator.WenCai]: 'ragNode',
   [Operator.YahooFinance]: 'ragNode',
   [Operator.Seafile]: 'ragNode',
+  [Operator.ProductionData]: 'ragNode',
   [Operator.DatasetWrite]: 'ragNode',
   [Operator.Note]: 'noteNode',
   [Operator.Crawler]: 'ragNode',

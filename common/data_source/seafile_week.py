@@ -175,10 +175,147 @@ def resolve_week(
     )
 
 
-def weekly_report_filename(week_id: str) -> str:
+WEEKLY_OUTPUT_FORMATS = ("md", "docx", "pdf")
+_OUTPUT_FORMAT_ALIASES = {
+    "md": "md",
+    "markdown": "md",
+    "docx": "docx",
+    "doc": "docx",
+    "pdf": "pdf",
+}
+_CONTENT_TYPES = {
+    "md": "text/markdown",
+    "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "pdf": "application/pdf",
+}
+
+
+def normalize_weekly_output_format(value: str | None) -> str:
+    key = (value or "md").strip().lower()
+    if key.startswith("."):
+        key = key[1:]
+    mapped = _OUTPUT_FORMAT_ALIASES.get(key)
+    if not mapped:
+        raise ValueError(f"output_format must be one of {', '.join(WEEKLY_OUTPUT_FORMATS)}, got {value!r}")
+    return mapped
+
+
+def weekly_report_content_type(output_format: str | None = "md") -> str:
+    return _CONTENT_TYPES[normalize_weekly_output_format(output_format)]
+
+
+def weekly_report_filename(week_id: str, output_format: str | None = "md") -> str:
     if not WEEK_ID_RE.fullmatch(week_id or ""):
         raise ValueError(f"week_id must look like YYYY-Www, got {week_id!r}")
-    return f"weekly-report-{week_id}.md"
+    fmt = normalize_weekly_output_format(output_format)
+    return f"weekly-report-{week_id}.{fmt}"
+
+
+def _markdown_blocks(content: str) -> list[tuple[str, str]]:
+    blocks: list[tuple[str, str]] = []
+    for raw in (content or "").splitlines():
+        line = raw.rstrip()
+        if not line.strip():
+            continue
+        if line.startswith("### "):
+            blocks.append(("h3", line[4:].strip()))
+        elif line.startswith("## "):
+            blocks.append(("h2", line[3:].strip()))
+        elif line.startswith("# "):
+            blocks.append(("h1", line[2:].strip()))
+        elif line.startswith(("- ", "* ")):
+            blocks.append(("li", line[2:].strip()))
+        else:
+            blocks.append(("p", line))
+    return blocks
+
+
+def _markdown_to_docx(content: str) -> bytes:
+    from io import BytesIO
+
+    from docx import Document
+    from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
+    from docx.shared import Pt
+
+    document = Document()
+    style = document.styles["Normal"]
+    style.font.name = "Calibri"
+    style.font.size = Pt(11)
+    for kind, text in _markdown_blocks(content):
+        if kind == "h1":
+            document.add_heading(text, level=1)
+        elif kind == "h2":
+            document.add_heading(text, level=2)
+        elif kind == "h3":
+            document.add_heading(text, level=3)
+        elif kind == "li":
+            document.add_paragraph(text, style="List Bullet")
+        else:
+            paragraph = document.add_paragraph(text)
+            paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
+    if not document.paragraphs:
+        document.add_paragraph("")
+    buffer = BytesIO()
+    document.save(buffer)
+    return buffer.getvalue()
+
+
+def _markdown_to_pdf(content: str) -> bytes:
+    from io import BytesIO
+
+    from reportlab.lib.pagesizes import A4
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.cidfonts import UnicodeCIDFont
+    from reportlab.pdfgen.canvas import Canvas
+
+    pdfmetrics.registerFont(UnicodeCIDFont("STSong-Light"))
+    buffer = BytesIO()
+    page = Canvas(buffer, pagesize=A4, pageCompression=0)
+    page.setTitle("weekly-report")
+    width, height = A4
+    y = height - 48
+    blocks = _markdown_blocks(content) or [("p", " ")]
+    for kind, text in blocks:
+        size = 16 if kind == "h1" else 14 if kind in {"h2", "h3"} else 11
+        font = "Helvetica" if text.isascii() else "STSong-Light"
+        page.setFont(font, size)
+        prefix = "• " if kind == "li" else ""
+        page.drawString(48, y, f"{prefix}{text}")
+        y -= size + 8
+        if y < 48:
+            page.showPage()
+            y = height - 48
+    page.save()
+    return buffer.getvalue()
+
+
+def render_weekly_report(content: str, output_format: str | None = "md") -> bytes:
+    """Turn synthesizer markdown into the bytes written to the dataset / Seafile."""
+    fmt = normalize_weekly_output_format(output_format)
+    text = "" if content is None else str(content)
+    if fmt == "md":
+        return text.encode("utf-8")
+    if fmt == "docx":
+        return _markdown_to_docx(text)
+    return _markdown_to_pdf(text)
+
+
+def seafile_publish_configured(repo_id: str | None, path: str | None) -> bool:
+    """WeeklyPublish writes to Seafile only when both library and path are set."""
+    return bool(str(repo_id or "").strip()) and bool(str(path or "").strip())
+
+
+def resolve_library_id(libraries: list[dict], repo: str) -> str:
+    wanted = (repo or "").strip()
+    if not wanted:
+        raise ValueError("Seafile 资料库不能为空。")
+    for lib in libraries or []:
+        if (lib.get("id") or "").strip() == wanted:
+            return wanted
+    for lib in libraries or []:
+        if (lib.get("name") or "").strip() == wanted and lib.get("id"):
+            return str(lib["id"])
+    raise ValueError(f"找不到 Seafile 资料库 {wanted!r}。")
 
 
 def parse_report_date(value: str | None) -> date | None:

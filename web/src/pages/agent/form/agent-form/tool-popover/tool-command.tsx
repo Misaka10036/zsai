@@ -53,6 +53,7 @@ const Menus = [
       Operator.Code,
       Operator.Retrieval,
       Operator.Seafile,
+      Operator.ProductionData,
       Operator.DatasetWrite,
     ],
   },

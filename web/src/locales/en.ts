@@ -2896,17 +2896,41 @@ Best for: Documents with flowing, contextually connected content — such as boo
       seafileRequireComplete: 'Block publish if anyone is missing',
       seafileRequireCompleteTip:
         'When on, a missing expected author blocks writing the weekly dataset. Off (default): missing people are only listed in the report.',
+      productionData: 'Fetch production data',
+      productionDataDescription:
+        'Extract this week MES production facts from the latest PostgreSQL snapshot in Seafile.',
+      productionDataConnector: 'Database snapshot source',
+      productionDataConnectorTip:
+        'Select the Seafile data source that stores database snapshots. Database credentials are not stored on the canvas.',
+      productionDataRepo: 'Snapshot library ID (optional)',
+      productionDataRepoTip:
+        'For an account-scoped source, optionally restrict lookup to one Seafile library UUID.',
+      productionDataPath: 'Snapshot folder',
+      productionDataPathTip:
+        'Folder containing snapshots. The most recently modified matching file is selected recursively.',
+      productionDataFilename: 'Snapshot filename pattern',
+      productionDataFilenameTip:
+        'Matches plain PostgreSQL pg_dump files. .sql and .sql.gz are supported; SQL is parsed and never executed.',
+      productionDataSampleLimit: 'Samples per table',
+      productionDataSampleLimitTip:
+        'Maximum detail samples supplied to the report editor in addition to aggregates.',
       datasetWrite: 'Write weekly report',
       datasetWriteDescription:
-        'Write the generated weekly report into a knowledge base dataset.',
+        'Write the generated weekly report into a knowledge base dataset, and optionally into Seafile.',
       datasetWriteKb: 'Weekly-report dataset',
       datasetWriteKbTip:
         'Destination dataset. Empty datasets are allowed. Choose exactly one.',
       datasetWriteKbLoading: 'Loading datasets…',
       datasetWriteKbPlaceholder: 'Select a weekly-report dataset',
+      datasetWriteOutputFormat: 'Weekly-report format',
+      datasetWriteOutputFormatTip:
+        'File type written to the weekly-report dataset and, if configured, to Seafile. The synthesizer still produces Markdown; DatasetWrite converts it.',
+      datasetWriteOutputFormatMd: 'Markdown (.md)',
+      datasetWriteOutputFormatDocx: 'Word (.docx)',
+      datasetWriteOutputFormatPdf: 'PDF (.pdf)',
       datasetWriteWeekId: 'Week id',
       datasetWriteWeekIdTip:
-        'Used to name weekly-report-{week}.md. Usually bind {Seafile:DailyFetch@json.week_id}. Re-running the same week overwrites that file.',
+        'Used to name weekly-report-{week}.{md|docx|pdf}. Usually bind {Seafile:DailyFetch@json.week_id}. Re-running the same week overwrites that file.',
       datasetWriteContent: 'Report body',
       datasetWriteContentTip:
         'Markdown to store. Usually bind {Agent:WeeklySynthesizer@content}.',
@@ -2920,6 +2944,18 @@ Best for: Documents with flowing, contextually connected content — such as boo
         'Metadata language tag for later retrieval. The body language follows the synthesizer prompt.',
       datasetWriteLanguageZh: 'Chinese',
       datasetWriteLanguageEn: 'English',
+      datasetWriteSeafileConnector: 'Seafile data source (optional)',
+      datasetWriteSeafileConnectorTip:
+        'Connector used when also writing the weekly report to Seafile. Leave empty to use the first Seafile connector if a library and path are set.',
+      datasetWriteSeafileConnectorPlaceholder: 'Optional connector',
+      datasetWriteSeafileRepo: 'Seafile library (optional)',
+      datasetWriteSeafileRepoTip:
+        'Destination Seafile library name or UUID. Leave this and the path empty to write only the RAGFlow dataset.',
+      datasetWriteSeafileRepoPlaceholder: 'e.g. 周报; empty = skip Seafile',
+      datasetWriteSeafilePath: 'Seafile folder (optional)',
+      datasetWriteSeafilePathTip:
+        'Folder inside the library. Use / for the library root. Both library and path must be set to upload. Re-running the same week overwrites weekly-report-{week}.md.',
+      datasetWriteSeafilePathPlaceholder: 'e.g. / ; empty = skip Seafile',
       crawler: 'Web crawler',
       crawlerDescription:
         'A component that crawls HTML source code from a specified URL.',

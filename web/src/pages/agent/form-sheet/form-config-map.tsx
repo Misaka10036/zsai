@@ -45,6 +45,7 @@ import WenCaiForm from '../form/wencai-form';
 import WikipediaForm from '../form/wikipedia-form';
 import YahooFinanceForm from '../form/yahoo-finance-form';
 import SeafileForm from '../form/seafile-form';
+import ProductionDataForm from '../form/production-data-form';
 import DatasetWriteForm from '../form/dataset-write-form';
 
 export const FormConfigMap = {
@@ -116,6 +117,9 @@ export const FormConfigMap = {
   },
   [Operator.Seafile]: {
     component: SeafileForm,
+  },
+  [Operator.ProductionData]: {
+    component: ProductionDataForm,
   },
   [Operator.DatasetWrite]: {
     component: DatasetWriteForm,

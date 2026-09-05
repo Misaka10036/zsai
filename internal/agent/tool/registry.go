@@ -785,5 +785,17 @@ func buildDatasetWriteTool(params map[string]any) (einotool.BaseTool, error) {
 	if v, ok := stringParam(params, "language"); ok {
 		defaults.Language = v
 	}
+	if v, ok := stringParam(params, "seafile_connector_id"); ok {
+		defaults.SeafileConnectorID = v
+	}
+	if v, ok := stringParam(params, "seafile_repo_id"); ok {
+		defaults.SeafileRepoID = v
+	}
+	if v, ok := stringParam(params, "seafile_path"); ok {
+		defaults.SeafilePath = v
+	}
+	if v, ok := stringParam(params, "output_format"); ok {
+		defaults.OutputFormat = v
+	}
 	return NewDatasetWriteToolWithDefaults(defaults), nil
 }
