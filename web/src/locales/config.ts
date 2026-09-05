@@ -86,14 +86,20 @@ export const loadLanguageAsync = async (lng: string): Promise<void> => {
   }
 };
 
-export const changeLanguageAsync = async (lng: string): Promise<void> => {
+export const changeLanguageAsync = async (
+  lng: string,
+  options: { persist?: boolean } = {},
+): Promise<void> => {
+  const { persist = true } = options;
   const normalizedLng = normalizeLanguageCode(lng);
 
   if (!i18n.hasResourceBundle(normalizedLng, 'translation')) {
     await loadLanguageAsync(normalizedLng);
   }
 
-  storage.setLanguage(normalizedLng);
+  if (persist) {
+    storage.setLanguage(normalizedLng);
+  }
 
   updateDocumentLocale(normalizedLng);
 

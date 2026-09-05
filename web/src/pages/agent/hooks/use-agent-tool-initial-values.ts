@@ -1,6 +1,7 @@
 import { omit, pick } from 'lodash';
 import { useCallback } from 'react';
 import { Operator } from '../constant';
+import { getQueritAgentInitialValues } from './querit-agent-initial-values';
 import { useInitializeOperatorParams } from './use-add-node';
 
 export function useAgentToolInitialValues() {
@@ -20,6 +21,10 @@ export function useAgentToolInitialValues() {
           return {
             api_key: '',
           };
+        case Operator.QueritSearch:
+          return getQueritAgentInitialValues(initialValues);
+        case Operator.QueritContents:
+          return { api_key: '' };
         case Operator.ExeSQL:
           return omit(initialValues, 'sql');
         case Operator.Bing:
@@ -96,6 +101,9 @@ export function useAgentToolInitialValues() {
             'seafile_repo_id',
             'seafile_path',
           );
+
+        case Operator.YouComSearch:
+          return pick(initialValues, 'api_key', 'freshness', 'top_n');
 
         default:
           return initialValues;

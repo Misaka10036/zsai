@@ -118,6 +118,20 @@ class SeaFileConnector(LoadConnector, PollConnector, SlimConnectorWithPermSync):
         """GET against /api/v2.1/via-repo-token/... using the repo token."""
         return self._client.repo_token_get(endpoint, params)
 
+    @classmethod
+    def build_connector(cls, config: dict[str, Any]) -> "SeaFileConnector":
+        batch_size = int(config.get("batch_size") or INDEX_BATCH_SIZE)
+        connector = cls(
+            seafile_url=config["seafile_url"],
+            batch_size=batch_size,
+            include_shared=config.get("include_shared", True),
+            sync_scope=config.get("sync_scope", SeafileSyncScope.ACCOUNT),
+            repo_id=config.get("repo_id") or None,
+            sync_path=config.get("sync_path") or None,
+        )
+        connector.load_credentials(config.get("credentials") or {})
+        return connector
+
     def load_credentials(self, credentials: dict[str, Any]) -> dict[str, Any] | None:
         logger.debug("Loading credentials for SeaFile server %s", self.seafile_url)
 

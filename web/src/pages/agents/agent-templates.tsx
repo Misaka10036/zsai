@@ -100,6 +100,7 @@ export default function AgentTemplates() {
               loading={loading}
               visible={creatingVisible}
               hideModal={hideCreatingModal}
+              canvasCategory={template?.canvas_category as AgentCategory}
               onOk={handleOk}
             ></CreateAgentDialog>
           )}

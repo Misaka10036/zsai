@@ -41,6 +41,8 @@ export function useValues(node?: RAGFlowNodeType) {
         !sysPrompt || sysPrompt === 'flow.sysPromptDefaultValue'
           ? t('flow.sysPromptDefaultValue')
           : sysPrompt,
+
+      tool_timeout: get(formData, 'tool_timeout', 10),
       prompts: get(formData, 'prompts.0.content', ''),
     };
   }, [defaultValues, node?.data?.form, t]);

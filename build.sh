@@ -317,7 +317,7 @@ build_go() {
     [ -n "$STRIP_SYMBOLS" ] && strip_flags=(-ldflags="-s -w")
 
     echo "Building RAGFlow binary: $RAGFLOW_CLI_BINARY and $RAGFLOW_SERVER_BINARY"
-    GOPROXY=${GOPROXY:-https://goproxy.cn,https://proxy.golang.org,direct}
+    GOPROXY=${GOPROXY:-https://goproxy.cn,https://proxy.golang.org,direct} \
         go build "${strip_flags[@]}" -o "$RAGFLOW_CLI_BINARY" cmd/ragflow-cli.go
 
     GOPROXY=${GOPROXY:-https://goproxy.cn,https://proxy.golang.org,direct} CGO_ENABLED=1 \
@@ -432,6 +432,24 @@ run_go_tests() {
         go test -count=1 "$@"
 }
 
+# Run Go tests gated behind a build tag (or space-separated tag list), e.g.
+# `./build.sh --test-integration -run TestFoo ./internal/engine/...`.
+# See "Go Test Tiers" in AGENTS.md for the tier definitions.
+run_go_tests_tagged() {
+    local tags="$1"; shift
+    print_section "Running Go tests (tags: ${tags})"
+
+    cd "$PROJECT_ROOT"
+    setup_cgo_env
+
+    if [ "$#" -eq 0 ]; then
+        set -- ./...
+    fi
+    GOPROXY=${GOPROXY:-https://goproxy.cn,https://proxy.golang.org,direct} CGO_ENABLED=1 \
+        CGO_CFLAGS="$CGO_CFLAGS" CGO_LDFLAGS="$CGO_LDFLAGS" \
+        go test -tags "${tags}" -count=1 "$@"
+}
+
 # Clean build artifacts
 clean() {
     print_section "Cleaning build artifacts"
@@ -457,7 +475,13 @@ run() {
     print_section "Starting admin server (background)"
     "$RAGFLOW_SERVER_BINARY" --admin &
     ADMIN_PID=$!
-    trap 'kill "$ADMIN_PID" 2>/dev/null || true' EXIT INT TERM
+    # One trap for both background services: a second `trap ... EXIT INT TERM`
+    # would replace this one rather than add to it, leaving admin_server holding
+    # port 9383 after the foreground server exits. INGESTOR_PID is cleared first
+    # so a value inherited from the environment cannot be signalled during the
+    # window before the ingestor starts.
+    INGESTOR_PID=""
+    trap 'kill "$ADMIN_PID" ${INGESTOR_PID:+"$INGESTOR_PID"} 2>/dev/null || true' EXIT INT TERM
 
     # Give admin_server a moment to bind its listening port (9383) before
     # ragflow_server starts sending heartbeats to it.
@@ -466,7 +490,6 @@ run() {
     print_section "Starting ingestor (background)"
     "$RAGFLOW_SERVER_BINARY" --ingestor &
     INGESTOR_PID=$!
-    trap 'kill "$INGESTOR_PID" 2>/dev/null || true' EXIT INT TERM
     sleep 1
 
     print_section "Starting RAGFlow server (foreground)"
@@ -485,11 +508,20 @@ Build script for RAGFlow Go server with C++ bindings.
 OPTIONS:
     --all, -a       Build everything (C++ library + Go server) [default]
     --cpp, -c       Build only C++ static library
-    --cpp-test      Build C++ test executable (requires --cpp first)
+    --cpp-test      Build C++ test executable (builds the C++ library if needed)
     --go, -g        Build only Go server (requires C++ library to be built)
-    --test, -t      Run Go unit tests (sets up CGO env for office_oxide).
-                    Any extra args are forwarded to `go test`, e.g.
+    --test, -t      Run Go unit tests (no build tag). Sets up the CGO env and
+                    native static libs (office_oxide/pdfium/pdf_oxide) needed to
+                    build (same contract as the Go tier table in AGENTS.md).
+                    Extra args are forwarded to `go test`, e.g.
                     `$0 --test -run TestFoo ./internal/admin/...`
+    --test-integration   Run Go tests tagged 'integration' (need real services,
+                    e.g. MySQL/MinIO/ES/Infinity/LLM). e.g.
+                    `$0 --test-integration ./internal/engine/...`
+    --test-e2e           Run Go tests tagged 'e2e' (full-pipeline, heavy).
+    --test-manual        Run Go tests tagged 'manual' (very slow; local opt-in
+                    ONLY, never run in CI).
+    --test-all           Run 'integration' + 'e2e' tests (excludes 'manual').
     --clean, -C     Clean all build artifacts
     --run, -r       Build and run the server
     --strip, -s     Strip debug symbols from Go binaries (-ldflags="-s -w")
@@ -501,15 +533,19 @@ EXAMPLES:
     $0 --cpp        # Build only C++ library
     $0 --go         # Build only Go server
     $0 --cpp-test   # Build C++ test executable
-    $0 --test       # Run all Go tests
+    $0 --test       # Run all Go tests (unit tier, no build tag)
     $0 --test -run TestFoo ./internal/admin/...      # Targeted Go tests
+    $0 --test-integration ./internal/engine/...      # integration tier
+    $0 --test-e2e                                 # e2e tier
+    $0 --test-manual                             # manual tier (very slow)
+    $0 --test-all                                # integration + e2e (no manual)
     $0 --run        # Build and run
     $0 --clean      # Clean build artifacts
 
 DEPENDENCIES:
     - cmake >= 4.0
-    - go >= 1.24
-    - g++ with C++17/23 support
+    - go >= 1.26.4
+    - clang++ with C++20 support
     - office_oxide native library (download with: uv run python3 ragflow_deps/download_go_deps.py)
     - lld (Linux only): sudo apt install lld-20 && sudo ln -s /usr/bin/ld.lld-20 /usr/bin/ld.lld
     - pcre2 development files
@@ -551,6 +587,38 @@ main() {
                 run_go_tests "${args[@]:1}"
             fi
             ;;
+        --test-integration)
+            check_go_deps
+            if [ "${args[1]:-}" = "--" ]; then
+                run_go_tests_tagged integration "${args[@]:2}"
+            else
+                run_go_tests_tagged integration "${args[@]:1}"
+            fi
+            ;;
+        --test-e2e)
+            check_go_deps
+            if [ "${args[1]:-}" = "--" ]; then
+                run_go_tests_tagged e2e "${args[@]:2}"
+            else
+                run_go_tests_tagged e2e "${args[@]:1}"
+            fi
+            ;;
+        --test-manual)
+            check_go_deps
+            if [ "${args[1]:-}" = "--" ]; then
+                run_go_tests_tagged manual "${args[@]:2}"
+            else
+                run_go_tests_tagged manual "${args[@]:1}"
+            fi
+            ;;
+        --test-all)
+            check_go_deps
+            if [ "${args[1]:-}" = "--" ]; then
+                run_go_tests_tagged "integration e2e" "${args[@]:2}"
+            else
+                run_go_tests_tagged "integration e2e" "${args[@]:1}"
+            fi
+            ;;
         --clean|-C)
             clean
             ;;
@@ -573,7 +641,7 @@ main() {
             echo "Binary: $RAGFLOW_SERVER_BINARY, $RAGFLOW_CLI_BINARY"
             ;;
         *)
-            echo -e "${RED}Unknown option: $1${NC}"
+            echo -e "${RED}Unknown option: ${args[0]}${NC}"
             show_help
             exit 1
             ;;

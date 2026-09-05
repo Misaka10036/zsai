@@ -17,13 +17,18 @@ package component
 
 import (
 	"context"
+	"ragflow/internal/dao"
+	"strings"
 	"sync"
 	"testing"
 
 	"ragflow/internal/common"
 	"ragflow/internal/entity"
 	modelModule "ragflow/internal/entity/models"
+	"ragflow/internal/ingestion/component/schema"
 	"ragflow/internal/utility"
+
+	"gorm.io/gorm"
 )
 
 // imagePromptCaptureDriver embeds ModelDriver so it satisfies the interface
@@ -78,7 +83,7 @@ func TestMaybeDispatchImage_UsesSystemPrompt(t *testing.T) {
 	defer func() { resolveTenantModelByType = origResolver }()
 
 	drv := &imagePromptCaptureDriver{}
-	resolveTenantModelByType = func(tenantID string, modelType entity.ModelType) (modelModule.ModelDriver, string, *modelModule.APIConfig, int, error) {
+	resolveTenantModelByType = func(ctx context.Context, db *gorm.DB, tenantID string, modelType entity.ModelType) (modelModule.ModelDriver, string, *modelModule.APIConfig, int, error) {
 		return drv, "img-model", &modelModule.APIConfig{}, 0, nil
 	}
 
@@ -90,8 +95,10 @@ func TestMaybeDispatchImage_UsesSystemPrompt(t *testing.T) {
 	setups["image"]["prompt"] = "legacy prompt"
 	setups["image"]["system_prompt"] = "自定义视觉提示"
 
+	ctx := t.Context()
 	res, dispatched, err := maybeDispatchImage(
-		context.Background(),
+		ctx,
+		dao.DB,
 		utility.FileTypeVISUAL,
 		"test.png",
 		[]byte("not-a-real-image"),
@@ -104,8 +111,18 @@ func TestMaybeDispatchImage_UsesSystemPrompt(t *testing.T) {
 	if !dispatched {
 		t.Fatalf("expected dispatched=true for VISUAL file")
 	}
-	if res.Text == "" {
-		t.Fatalf("expected non-empty combined text")
+	// After the output-shape fix the image branch returns JSON items
+	// (OutputFormat=="json"), not a bare Text field. The combined text
+	// now lives in JSON[0]["text"]; the legacy res.Text is no longer
+	// populated for the image family.
+	if res.OutputFormat != "json" {
+		t.Fatalf("OutputFormat = %q, want json (image family is always structured)", res.OutputFormat)
+	}
+	if len(res.JSON) != 1 {
+		t.Fatalf("JSON len = %d, want 1 (image result must be a single JSON item)", len(res.JSON))
+	}
+	if txt, _ := res.JSON[0]["text"].(string); txt == "" {
+		t.Fatalf("expected non-empty combined text in JSON[0][\"text\"]")
 	}
 
 	got, ok := firstUserText(drv.captured)
@@ -114,5 +131,390 @@ func TestMaybeDispatchImage_UsesSystemPrompt(t *testing.T) {
 	}
 	if got != "自定义视觉提示" {
 		t.Fatalf("VLM user text = %q, want %q (image branch must read system_prompt)", got, "自定义视觉提示")
+	}
+}
+
+func TestMaybeDispatchImage_DefaultPromptUsesDatasetLanguage(t *testing.T) {
+	origResolver := resolveTenantModelByType
+	defer func() { resolveTenantModelByType = origResolver }()
+
+	drv := &imagePromptCaptureDriver{}
+	resolveTenantModelByType = func(ctx context.Context, db *gorm.DB, tenantID string, modelType entity.ModelType) (modelModule.ModelDriver, string, *modelModule.APIConfig, int, error) {
+		return drv, "img-model", &modelModule.APIConfig{}, 0, nil
+	}
+
+	setups := defaultSetups()
+	setups["image"]["lang"] = "Chinese"
+	setups["image"]["system_prompt"] = ""
+
+	_, _, err := maybeDispatchImage(
+		t.Context(),
+		dao.DB,
+		utility.FileTypeVISUAL,
+		"test.png",
+		[]byte("not-a-real-image"),
+		map[string]any{"tenant_id": "t1", "lang": "Japanese"},
+		setups,
+	)
+	if err != nil {
+		t.Fatalf("maybeDispatchImage: %v", err)
+	}
+
+	got, ok := firstUserText(drv.captured)
+	if !ok {
+		t.Fatalf("no user text captured in VLM messages: %#v", drv.captured)
+	}
+	if !strings.Contains(got, "Respond in Japanese.") {
+		t.Fatalf("VLM user text = %q, want dataset language instruction", got)
+	}
+	if strings.Contains(got, "Respond in Chinese.") {
+		t.Fatalf("VLM user text = %q, setup fallback overrode dataset language", got)
+	}
+}
+
+// TestMaybeDispatchImage_ReturnsJSONWithImage pins the output-shape fix:
+// the image branch must return a JSON item carrying the `image` attachment
+// (data URI) and `doc_type_kwd:"image"`, mirroring Python
+// rag/app/picture.py:71-72. Before the fix the branch returned a bare Text
+// string with JSON=nil, dropping the image attachment and (on the default
+// json path) causing OneChunker/TokenChunker to reject the payload.
+func TestMaybeDispatchImage_ReturnsJSONWithImage(t *testing.T) {
+	origResolver := resolveTenantModelByType
+	defer func() { resolveTenantModelByType = origResolver }()
+
+	drv := &imagePromptCaptureDriver{}
+	resolveTenantModelByType = func(ctx context.Context, db *gorm.DB, tenantID string, modelType entity.ModelType) (modelModule.ModelDriver, string, *modelModule.APIConfig, int, error) {
+		return drv, "img-model", &modelModule.APIConfig{}, 0, nil
+	}
+
+	setups := defaultSetups()
+	ctx := t.Context()
+	res, dispatched, err := maybeDispatchImage(
+		ctx,
+		dao.DB,
+		utility.FileTypeVISUAL,
+		"test.png",
+		[]byte("not-a-real-image"),
+		map[string]any{"tenant_id": "t1"},
+		setups,
+	)
+	if err != nil {
+		t.Fatalf("maybeDispatchImage: %v", err)
+	}
+	if !dispatched {
+		t.Fatalf("expected dispatched=true")
+	}
+	if res.OutputFormat != "json" {
+		t.Fatalf("OutputFormat = %q, want json", res.OutputFormat)
+	}
+	if len(res.JSON) != 1 {
+		t.Fatalf("JSON len = %d, want 1", len(res.JSON))
+	}
+	item := res.JSON[0]
+	if got, _ := item["doc_type_kwd"].(string); got != "image" {
+		t.Errorf("doc_type_kwd = %q, want \"image\"", got)
+	}
+	img, _ := item["image"].(string)
+	if !strings.HasPrefix(img, "data:") || !strings.Contains(img, ";base64,") {
+		t.Errorf("image = %q, want a data URI (data:<mime>;base64,<b64>)", img)
+	}
+	if txt, _ := item["text"].(string); txt == "" {
+		t.Errorf("text field empty; want non-empty combined OCR+VLM text")
+	}
+}
+
+// TestMaybeDispatchImage_HardcodesJSONOutput verifies the image family
+// always emits json regardless of setup["output_format"]. Python
+// rag/app/picture.py:chunk() has no output_format concept — it always
+// returns a structured doc. Honoring a "text" override produced a bare
+// Text payload that lost the image attachment and set doc_type to "text".
+func TestMaybeDispatchImage_HardcodesJSONOutput(t *testing.T) {
+	origResolver := resolveTenantModelByType
+	defer func() { resolveTenantModelByType = origResolver }()
+
+	drv := &imagePromptCaptureDriver{}
+	resolveTenantModelByType = func(ctx context.Context, db *gorm.DB, tenantID string, modelType entity.ModelType) (modelModule.ModelDriver, string, *modelModule.APIConfig, int, error) {
+		return drv, "img-model", &modelModule.APIConfig{}, 0, nil
+	}
+
+	setups := defaultSetups()
+	setups["image"]["output_format"] = "text" // legacy/override; must be ignored
+	ctx := t.Context()
+	res, _, err := maybeDispatchImage(
+		ctx,
+		dao.DB,
+		utility.FileTypeVISUAL,
+		"test.png",
+		[]byte("not-a-real-image"),
+		map[string]any{"tenant_id": "t1"},
+		setups,
+	)
+	if err != nil {
+		t.Fatalf("maybeDispatchImage: %v", err)
+	}
+	if res.OutputFormat != "json" {
+		t.Fatalf("OutputFormat = %q, want json (image family must ignore output_format override)", res.OutputFormat)
+	}
+	if len(res.JSON) != 1 {
+		t.Fatalf("JSON len = %d, want 1 even when setup says text", len(res.JSON))
+	}
+}
+
+// audioTranscribeDriver is a mock ModelDriver whose TranscribeAudio returns a
+// fixed transcription, so maybeDispatchAudio can be exercised without a real
+// ASR provider.
+type audioTranscribeDriver struct {
+	modelModule.ModelDriver
+	transcription string
+}
+
+func (d *audioTranscribeDriver) TranscribeAudio(ctx context.Context, _ *string, _ *string, _ *modelModule.APIConfig, _ *modelModule.ASRConfig, _ *common.ModelUsage) (*modelModule.ASRResponse, error) {
+	return &modelModule.ASRResponse{Text: d.transcription}, nil
+}
+
+// TestMaybeDispatchAudio_JSONCarriesTranscription pins diff 2.11: when the
+// audio family's output_format is "json", the ASR transcription must be
+// carried in the JSON items (not only in the Text field). Before the fix the
+// branch returned Text only with an empty JSON slice, and the Invoke switch
+// silently dropped the transcription because it has no "json" branch.
+func TestMaybeDispatchAudio_JSONCarriesTranscription(t *testing.T) {
+	origResolver := resolveTenantModelByType
+	defer func() { resolveTenantModelByType = origResolver }()
+
+	const want = "hello world"
+	drv := &audioTranscribeDriver{transcription: want}
+	resolveTenantModelByType = func(ctx context.Context, db *gorm.DB, tenantID string, modelType entity.ModelType) (modelModule.ModelDriver, string, *modelModule.APIConfig, int, error) {
+		return drv, "asr-model", &modelModule.APIConfig{}, 0, nil
+	}
+
+	setups := defaultSetups()
+	setups["audio"]["output_format"] = "json"
+
+	ctx := t.Context()
+	res, dispatched, err := maybeDispatchAudio(
+		ctx,
+		dao.DB,
+		utility.FileTypeAURAL,
+		"test.mp3",
+		[]byte("fake-audio"),
+		map[string]any{"tenant_id": "t1"},
+		setups,
+	)
+	if err != nil {
+		t.Fatalf("maybeDispatchAudio: %v", err)
+	}
+	if !dispatched {
+		t.Fatalf("expected dispatched=true for AURAL file")
+	}
+	if res.OutputFormat != "json" {
+		t.Fatalf("OutputFormat = %q, want json", res.OutputFormat)
+	}
+	if len(res.JSON) != 1 {
+		t.Fatalf("JSON len = %d, want 1 (transcription must be carried as a JSON item)", len(res.JSON))
+	}
+	if got, _ := res.JSON[0]["text"].(string); got != want {
+		t.Fatalf("JSON[0].text = %q, want %q", got, want)
+	}
+	if got, _ := res.JSON[0]["doc_type_kwd"].(string); got != "audio" {
+		t.Fatalf("JSON[0].doc_type_kwd = %q, want audio", got)
+	}
+}
+
+// TestMaybeDispatchAudio_TextCarriesTranscription guards the text path: with
+// output_format "text" the transcription stays in the Text field and JSON is
+// empty (current default after aligning with Python parser.py:232).
+func TestMaybeDispatchAudio_TextCarriesTranscription(t *testing.T) {
+	origResolver := resolveTenantModelByType
+	defer func() { resolveTenantModelByType = origResolver }()
+
+	const want = "hello world"
+	drv := &audioTranscribeDriver{transcription: want}
+	resolveTenantModelByType = func(ctx context.Context, db *gorm.DB, tenantID string, modelType entity.ModelType) (modelModule.ModelDriver, string, *modelModule.APIConfig, int, error) {
+		return drv, "asr-model", &modelModule.APIConfig{}, 0, nil
+	}
+
+	setups := defaultSetups()
+	setups["audio"]["output_format"] = "text"
+
+	ctx := t.Context()
+	res, dispatched, err := maybeDispatchAudio(
+		ctx,
+		dao.DB,
+		utility.FileTypeAURAL,
+		"test.mp3",
+		[]byte("fake-audio"),
+		map[string]any{"tenant_id": "t1"},
+		setups,
+	)
+	if err != nil {
+		t.Fatalf("maybeDispatchAudio: %v", err)
+	}
+	if !dispatched {
+		t.Fatalf("expected dispatched=true for AURAL file")
+	}
+	if res.OutputFormat != "text" {
+		t.Fatalf("OutputFormat = %q, want text", res.OutputFormat)
+	}
+	if res.Text != want {
+		t.Fatalf("Text = %q, want %q", res.Text, want)
+	}
+	if len(res.JSON) != 0 {
+		t.Fatalf("JSON len = %d, want 0 for text output", len(res.JSON))
+	}
+}
+
+// TestMaybeDispatchAudio_DefaultOutputFormatJson covers the
+// maybeDispatchAudio fallback: when an audio setup omits
+// output_format entirely, the dispatch defaults to "json" and wraps
+// the transcription as a JSON item. (The defaultSetups value is
+// "text" to mirror the Python audio setup in parser.py; this test
+// deliberately supplies an empty setup to exercise the fallback
+// inside the dispatch itself.)
+func TestMaybeDispatchAudio_DefaultOutputFormatJson(t *testing.T) {
+	const want = "hello world"
+	drv := &audioTranscribeDriver{transcription: want}
+	orig := resolveTenantModelByType
+	defer func() { resolveTenantModelByType = orig }()
+	resolveTenantModelByType = func(ctx context.Context, db *gorm.DB, tenantID string, modelType entity.ModelType) (modelModule.ModelDriver, string, *modelModule.APIConfig, int, error) {
+		return drv, "asr-model", &modelModule.APIConfig{}, 0, nil
+	}
+	// No output_format key — exercise the default path inside
+	// maybeDispatchAudio.
+	setups := map[string]schema.ParserSetup{"audio": {}}
+	res, dispatched, err := maybeDispatchAudio(
+		context.Background(),
+		nil,
+		utility.FileTypeAURAL,
+		"test.mp3",
+		[]byte("fake-audio"),
+		map[string]any{"tenant_id": "t1"},
+		setups,
+	)
+	if err != nil {
+		t.Fatalf("maybeDispatchAudio: %v", err)
+	}
+	if !dispatched {
+		t.Fatal("expected dispatched=true for AURAL file")
+	}
+	if res.OutputFormat != "json" {
+		t.Fatalf("default OutputFormat = %q, want json", res.OutputFormat)
+	}
+}
+
+// TestDefaultEmailOutputFormatIsJSON pins diff 2.2: the email family default
+// output_format must be "json" (matching Python parser.py:212), not "text".
+// With "text" the structured email fields (from/to/subject/attachments/...) are
+// flattened into a blob and lost downstream.
+func TestDefaultEmailOutputFormatIsJSON(t *testing.T) {
+	got, _ := defaultSetups()["email"]["output_format"].(string)
+	if got != "json" {
+		t.Fatalf("email default output_format = %q, want json", got)
+	}
+}
+
+func TestMaybeDispatchImage_UsesConfiguredVLMModel(t *testing.T) {
+	origTenantResolver := resolveTenantModelByType
+	origModelResolver := resolveModelConfig
+	t.Cleanup(func() {
+		resolveTenantModelByType = origTenantResolver
+		resolveModelConfig = origModelResolver
+	})
+
+	tenantResolverCalled := false
+	resolveTenantModelByType = func(_ context.Context, _ *gorm.DB, _ string, _ entity.ModelType) (modelModule.ModelDriver, string, *modelModule.APIConfig, int, error) {
+		tenantResolverCalled = true
+		return nil, "", nil, 0, nil
+	}
+
+	var gotRef string
+	var gotType entity.ModelType
+	drv := &imagePromptCaptureDriver{}
+	resolveModelConfig = func(_ context.Context, _ *gorm.DB, _ string, modelType entity.ModelType, ref string) (modelModule.ModelDriver, string, *modelModule.APIConfig, int, error) {
+		gotRef = ref
+		gotType = modelType
+		return drv, "custom-vlm", &modelModule.APIConfig{}, 0, nil
+	}
+
+	setups := defaultSetups()
+	setups["image"]["parse_method"] = "custom-vlm@provider"
+
+	_, dispatched, err := maybeDispatchImage(
+		t.Context(),
+		dao.DB,
+		utility.FileTypeVISUAL,
+		"test.png",
+		[]byte("not-a-real-image"),
+		map[string]any{"tenant_id": "t1"},
+		setups,
+	)
+	if err != nil {
+		t.Fatalf("maybeDispatchImage: %v", err)
+	}
+	if !dispatched {
+		t.Fatal("expected dispatched=true for VISUAL file")
+	}
+	if gotRef != "custom-vlm@provider" {
+		t.Errorf("model ref = %q, want %q", gotRef, "custom-vlm@provider")
+	}
+	if gotType != entity.ModelTypeImage2Text {
+		t.Errorf("model type = %q, want %q", gotType, entity.ModelTypeImage2Text)
+	}
+	if tenantResolverCalled {
+		t.Error("tenant default resolver must not be called when image parse_method names a VLM model")
+	}
+}
+
+func TestMaybeDispatchAudio_UsesConfiguredModel(t *testing.T) {
+	origTenantResolver := resolveTenantModelByType
+	origModelResolver := resolveModelConfig
+	t.Cleanup(func() {
+		resolveTenantModelByType = origTenantResolver
+		resolveModelConfig = origModelResolver
+	})
+
+	tenantResolverCalled := false
+	resolveTenantModelByType = func(_ context.Context, _ *gorm.DB, _ string, _ entity.ModelType) (modelModule.ModelDriver, string, *modelModule.APIConfig, int, error) {
+		tenantResolverCalled = true
+		return nil, "", nil, 0, nil
+	}
+
+	var gotRef string
+	var gotType entity.ModelType
+	drv := &audioTranscribeDriver{transcription: "transcribed"}
+	resolveModelConfig = func(_ context.Context, _ *gorm.DB, _ string, modelType entity.ModelType, ref string) (modelModule.ModelDriver, string, *modelModule.APIConfig, int, error) {
+		gotRef = ref
+		gotType = modelType
+		return drv, "custom-asr", &modelModule.APIConfig{}, 0, nil
+	}
+
+	setups := map[string]schema.ParserSetup{
+		"audio": {"vlm": map[string]any{"llm_id": "custom-asr@provider"}},
+	}
+	res, dispatched, err := maybeDispatchAudio(
+		t.Context(),
+		dao.DB,
+		utility.FileTypeAURAL,
+		"test.mp3",
+		[]byte("fake-audio"),
+		map[string]any{"tenant_id": "t1"},
+		setups,
+	)
+	if err != nil {
+		t.Fatalf("maybeDispatchAudio: %v", err)
+	}
+	if !dispatched {
+		t.Fatal("expected dispatched=true for AURAL file")
+	}
+	if gotRef != "custom-asr@provider" {
+		t.Errorf("model ref = %q, want %q", gotRef, "custom-asr@provider")
+	}
+	if gotType != entity.ModelTypeSpeech2Text {
+		t.Errorf("model type = %q, want %q", gotType, entity.ModelTypeSpeech2Text)
+	}
+	if tenantResolverCalled {
+		t.Error("tenant default resolver must not be called when audio setup vlm.llm_id is set")
+	}
+	if len(res.JSON) != 1 || res.JSON[0]["text"] != "transcribed" {
+		t.Fatalf("unexpected audio result: %#v", res.JSON)
 	}
 }

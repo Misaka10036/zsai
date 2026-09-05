@@ -15,13 +15,13 @@ import (
 
 // GetFileContent gets file metadata and checks permission for download
 // Matches Python's file_api_service.get_file_content function
-func (s *FileService) GetFileContent(uid, fileID string) (*entity.File, error) {
-	file, err := s.fileDAO.GetByID(fileID)
+func (s *FileService) GetFileContent(ctx context.Context, uid, fileID string) (*entity.File, error) {
+	file, err := s.fileDAO.GetByID(ctx, dao.DB, fileID)
 	if err != nil || file == nil {
-		return nil, fmt.Errorf("Document not found!")
+		return nil, fmt.Errorf("document not found")
 	}
-	if !s.checkFilePerm(s.fileDAO, file, uid) {
-		return nil, fmt.Errorf("No authorization.")
+	if !s.checkFilePerm(ctx, s.fileDAO, file, uid) {
+		return nil, fmt.Errorf("no authorization")
 	}
 	return file, nil
 }
@@ -30,7 +30,7 @@ func (s *FileService) GetFileContent(uid, fileID string) (*entity.File, error) {
 // Matches Python's File2DocumentService.get_storage_address function
 func (s *FileService) GetStorageAddress(ctx context.Context, fileID string) (*StorageAddress, error) {
 	// Get file2document mapping
-	f2d, err := s.file2DocumentDAO.GetByFileID(fileID)
+	f2d, err := s.file2DocumentDAO.GetByFileID(ctx, dao.DB, fileID)
 	if err != nil || len(f2d) == 0 {
 		return nil, fmt.Errorf("file2document mapping not found")
 	}
@@ -39,7 +39,7 @@ func (s *FileService) GetStorageAddress(ctx context.Context, fileID string) (*St
 	if f2d[0].FileID == nil {
 		return nil, fmt.Errorf("file_id is nil in file2document mapping")
 	}
-	file, err := s.fileDAO.GetByID(*f2d[0].FileID)
+	file, err := s.fileDAO.GetByID(ctx, dao.DB, *f2d[0].FileID)
 	if err != nil || file == nil {
 		return nil, fmt.Errorf("file not found")
 	}
@@ -85,7 +85,7 @@ func (s *FileService) DownloadAgentFile(ctx context.Context, tenantID, location 
 
 	bucketName := fmt.Sprintf("%s-downloads", tenantID)
 
-	blob, err := storageImpl.Get(bucketName, location)
+	blob, err := storageImpl.Get(ctx, bucketName, location)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file from storage: %w", err)
 	}
@@ -94,7 +94,9 @@ func (s *FileService) DownloadAgentFile(ctx context.Context, tenantID, location 
 }
 
 // GetFileContents fetches file contents (text + image) from storage
-// for the given file dicts.
+// for the given file dicts. Images are always returned as MIME-preserving
+// base64 data URIs so the multimodal conversion layer (parseDataURIOrB64)
+// accepts them.
 //
 // File dicts are the descriptors returned by the upload_info endpoint
 // (UploadInfos / storeUploadInfoBlob). They contain:
@@ -107,10 +109,7 @@ func (s *FileService) DownloadAgentFile(ctx context.Context, tenantID, location 
 // Blobs are stored directly in "{created_by}-downloads/{id}" in object
 // storage WITHOUT a corresponding File entity row in the database.
 // Mirrors Python's FileService.get_files → get_blob(user_id, file_id).
-//
-//   - raw=false: images returned as base64 data URIs in images; non-images parsed and returned as text.
-//   - raw=true:  images returned as raw bytes in images; non-images parsed and returned as text.
-func (s *FileService) GetFileContents(ctx context.Context, uid string, fileDicts []map[string]interface{}, raw bool) (texts []string, images []string, err error) {
+func (s *FileService) GetFileContents(ctx context.Context, uid string, fileDicts []map[string]interface{}) (texts []string, images []string, err error) {
 	storageImpl := storage.GetStorageFactory().GetStorage()
 	if storageImpl == nil {
 		return nil, nil, fmt.Errorf("storage not initialized")
@@ -129,26 +128,22 @@ func (s *FileService) GetFileContents(ctx context.Context, uid string, fileDicts
 		}
 		// Permission: only the owner can access their uploads bucket.
 		if createdBy != uid {
-			return nil, nil, fmt.Errorf("No authorization.")
+			return nil, nil, fmt.Errorf("no authorization")
 		}
 
-		data, derr := storageImpl.Get(createdBy+"-downloads", id)
+		data, derr := storageImpl.Get(ctx, createdBy+"-downloads", id)
 		if derr != nil || len(data) == 0 {
 			continue
 		}
 
 		ft := utility.FilenameType(name)
 		if ft == utility.FileTypeVISUAL {
-			if raw {
-				images = append(images, string(data))
-			} else {
-				mediaType := strings.ToLower(strings.TrimSpace(strings.Split(mimeType, ";")[0]))
-				if mediaType == "" {
-					ext := utility.GetFileExtension(name)
-					mediaType = utility.GetContentType(ext, string(ft))
-				}
-				images = append(images, "data:"+mediaType+";base64,"+base64.StdEncoding.EncodeToString(data))
+			mediaType := strings.ToLower(strings.TrimSpace(strings.Split(mimeType, ";")[0]))
+			if mediaType == "" {
+				ext := utility.GetFileExtension(name)
+				mediaType = utility.GetContentType(ext, string(ft))
 			}
+			images = append(images, "data:"+mediaType+";base64,"+base64.StdEncoding.EncodeToString(data))
 		} else {
 			texts = append(texts, parseFileContent(ctx, name, data))
 		}
@@ -156,7 +151,7 @@ func (s *FileService) GetFileContents(ctx context.Context, uid string, fileDicts
 	return texts, images, nil
 }
 
-// parseAgentUploads resolves descriptors returned by upload_info from the
+// ParseAgentUploads resolves descriptors returned by upload_info from the
 // caller's downloads bucket and converts them to sys.files values.
 func (s *FileService) ParseAgentUploads(ctx context.Context, userID string, fileDicts []map[string]interface{}, layoutRecognize string) ([]string, error) {
 	storageImpl := storage.GetStorageFactory().GetStorage()
@@ -177,7 +172,7 @@ func (s *FileService) ParseAgentUploads(ctx context.Context, userID string, file
 			return nil, fmt.Errorf("file %q: created_by does not match the current user", name)
 		}
 
-		data, err := storageImpl.Get(createdBy+"-downloads", id)
+		data, err := storageImpl.Get(ctx, createdBy+"-downloads", id)
 		if err != nil {
 			return nil, fmt.Errorf("file %q: read upload: %w", name, err)
 		}
