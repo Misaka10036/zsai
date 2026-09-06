@@ -15,31 +15,12 @@ import { cn } from '@/lib/utils';
 import { isEmpty } from 'lodash';
 import { Operator } from '../constant';
 import { JsonViewer } from '../form/components/json-viewer';
-import OperatorIcon, { SVGIconMap } from '@/components/operator-icon';
+import OperatorIcon, {
+  LucideIconMap,
+  SVGIconMap,
+} from '@/components/operator-icon';
 import { getToolOperatorName } from './tool-name';
 import { toLowerCaseStringAndDeleteChar, typeMap } from './workflow-timeline';
-type IToolIcon =
-  | Operator.ArXiv
-  | Operator.GitHub
-  | Operator.Bing
-  | Operator.DuckDuckGo
-  | Operator.Google
-  | Operator.GoogleScholar
-  | Operator.PubMed
-  | Operator.BGPT
-  | Operator.TavilyExtract
-  | Operator.TavilySearch
-  | Operator.QueritContents
-  | Operator.QueritSearch
-  | Operator.KeenableSearch
-  | Operator.YouComSearch
-  | Operator.Wikipedia
-  | Operator.YahooFinance
-  | Operator.WenCai
-  | Operator.Crawler
-  | Operator.Seafile
-  | Operator.ProductionData
-  | Operator.DatasetWrite;
 
 const capitalizeWords = (str: string, separator: string = '_'): string[] => {
   if (!str) return [''];
@@ -127,7 +108,7 @@ const ToolTimelineItem = ({
                     <OperatorIcon
                       className="size-4"
                       name={
-                        (SVGIconMap[toolName as IToolIcon]
+                        (toolName in SVGIconMap || toolName in LucideIconMap
                           ? toolName
                           : 'Agent') as Operator
                       }
