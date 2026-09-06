@@ -12,6 +12,7 @@ $currentUser = checkAdmin();
     <link href="/vendor/font-awesome/css/all.min.css" rel="stylesheet" />
     <link href="/css/style.css" rel="stylesheet" />
     <script src="/vendor/marked/marked.min.js"></script>
+  <script src="/vendor/dompurify/purify.min.js"></script>
     <script src="/vendor/echarts/echarts.min.js"></script>
     <!-- PDF.js 用于PDF预览和高亮定位 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>

@@ -92,3 +92,10 @@ function getStatusBadgeClass(status) {
   if (status == '3' || status === 'FAILED' || status === 'ERROR') return 'bg-danger-subtle text-danger border';
   return 'bg-secondary-subtle text-secondary border';
 }
+// Fail closed if either optional rendering dependency is unavailable.
+function renderSafeMarkdown(text) {
+  if (typeof DOMPurify === 'undefined' || typeof marked === 'undefined') {
+    return escapeHtml(text).replace(/\n/g, '<br>');
+  }
+  return DOMPurify.sanitize(marked.parse(String(text || '')), { USE_PROFILES: { html: true } });
+}

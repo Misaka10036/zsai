@@ -1,10 +1,13 @@
 <?php
 define('PROJECT_ROOT', __DIR__);
 
+$vivarlyLocalConfig = is_file(__DIR__ . '/config.local.php') ? require __DIR__ . '/config.local.php' : [];
+
 function vivarly_env($name, $default = '') {
+    global $vivarlyLocalConfig;
     $value = getenv($name);
     if ($value === false || $value === '') {
-        return $default;
+        return $vivarlyLocalConfig[$name] ?? $default;
     }
     return $value;
 }
@@ -21,7 +24,7 @@ define('VIVARLY_ADMIN_USER', vivarly_env('VIVARLY_ADMIN_USER', 'admin'));
 define('VIVARLY_ADMIN_PASSWORD', vivarly_env('VIVARLY_ADMIN_PASSWORD', 'admin123'));
 define('VIVARLY_ADMIN_EMAIL', vivarly_env('VIVARLY_ADMIN_EMAIL', 'admin@localhost'));
 
-define('DEBUG_MODE', vivarly_env('DEBUG_MODE', '1') === '1');
+define('DEBUG_MODE', vivarly_env('DEBUG_MODE', '0') === '1');
 
 if (DEBUG_MODE) {
     ini_set('display_errors', 1);
@@ -29,6 +32,7 @@ if (DEBUG_MODE) {
 }
 
 if (session_status() === PHP_SESSION_NONE) {
+    session_set_cookie_params(['httponly' => true, 'samesite' => 'Lax', 'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off']);
     session_start();
 }
 

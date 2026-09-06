@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // ===== 加载搜索应用列表 =====
 function loadSearchApps() {
     var container = document.getElementById('searchAppList');
-    container.innerHTML = '<div class="text-center text-muted py-3 small"><i class="fas fa-spinner fa-spin me-1"></i>加载中...</div>';
+    if (container) container.innerHTML = '<div class="text-center text-muted py-3 small">加载中...</div>';
 
     fetch('/api.php?action=search_app_list&page=1&page_size=50')
         .then(function(r) { return r.json(); })
@@ -33,22 +33,27 @@ function loadSearchApps() {
                 var apps = res.data?.search_apps || res.data || [];
                 currentSearchApps = apps;
                 renderAppList(apps);
+                var select = document.getElementById('searchAppSelect');
+                if (select) {
+                    select.replaceChildren(...apps.map(function(app) { return new Option(app.name || app.id, app.id); }));
+                }
                 if (apps.length > 0 && !currentSearchId) {
                     selectApp(apps[0].id);
                 } else if (apps.length === 0) {
                     showEmptyState();
                 }
             } else {
-                container.innerHTML = '<div class="text-center text-muted py-3 small">加载失败: ' + escapeHtml(res.message || '') + '</div>';
+                if (container) container.innerHTML = '<div class="text-center text-muted py-3 small">加载失败: ' + escapeHtml(res.message || '') + '</div>';
             }
         })
         .catch(function(e) {
-            container.innerHTML = '<div class="text-center text-muted py-3 small">加载失败: ' + escapeHtml(e.message) + '</div>';
+            if (container) container.innerHTML = '<div class="text-center text-muted py-3 small">加载失败: ' + escapeHtml(e.message) + '</div>';
         });
 }
 
 function renderAppList(apps) {
     var container = document.getElementById('searchAppList');
+    if (!container) return;
     if (apps.length === 0) {
         container.innerHTML = '<div class="text-center text-muted py-3 small">暂无搜索应用</div>';
         return;
@@ -79,6 +84,8 @@ function renderAppList(apps) {
 
 function selectApp(appId) {
     currentSearchId = appId;
+    var select = document.getElementById('searchAppSelect');
+    if (select) select.value = appId;
     var items = document.querySelectorAll('#searchAppList .app-item');
     for (var i = 0; i < items.length; i++) {
         items[i].classList.toggle('active', items[i].getAttribute('data-id') === appId);
@@ -177,12 +184,7 @@ function fillSearchQuery(text) {
 function renderSearchResult(answer, chunks, mindmap, docAggs) {
     var area = document.getElementById('searchResultsArea');
 
-    var formattedAnswer = answer;
-    if (typeof marked !== 'undefined' && marked.parse) {
-        formattedAnswer = marked.parse(answer);
-    } else {
-        formattedAnswer = escapeHtml(answer).replace(/\n/g, '<br>');
-    }
+    var formattedAnswer = renderSafeMarkdown(answer);
 
     var html = '';
 

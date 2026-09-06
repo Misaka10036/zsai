@@ -219,7 +219,7 @@ function renderMessages(messages) {
     if (typeof cleanThinkProcess === 'function') {
       content = cleanThinkProcess(content);
     }
-    var parsedContent = (typeof marked !== 'undefined' && marked.parse) ? marked.parse(content) : escapeHtml(content);
+    var parsedContent = renderSafeMarkdown(content);
 
     html += '<div class="message ' + (isUser ? 'user' : 'bot') + '">';
     html += '  <div class="msg-avatar ' + (isUser ? 'user-av' : 'bot') + '">' + (isUser ? 'U' : 'V') + '</div>';
@@ -326,7 +326,7 @@ async function sendChatMessage() {
 
     if (typeof cleanThinkProcess === 'function') answer = cleanThinkProcess(answer);
 
-    var parsedAnswer = (typeof marked !== 'undefined' && marked.parse) ? marked.parse(answer) : escapeHtml(answer);
+    var parsedAnswer = renderSafeMarkdown(answer);
 
     chatStream.insertAdjacentHTML('beforeend',
       '<div class="message bot">' +

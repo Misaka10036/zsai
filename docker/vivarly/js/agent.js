@@ -867,7 +867,7 @@ function addLog(level, message) {
     entry.innerHTML =
         '<span class="log-time">[' + time + ']</span>' +
         '<span class="log-level">' + level + '</span>' +
-        '<span class="log-msg">' + message + '</span>';
+        '<span class="log-msg">' + escapeHtml(String(message)) + '</span>';
 
     logBody.appendChild(entry);
     logBody.scrollTop = logBody.scrollHeight;
@@ -954,7 +954,8 @@ function startAgent() {
             currentSessionId = data.session_id || null;
             var result = data.data && data.data.content ? data.data.content : (data.answer || data.content || 'Agent 执行完成');
             addLog('success', '✅ Agent 运行成功');
-            executeSteps(result);
+            addLog('info', result);
+            finishAgent(true);
         } else {
             addLog('error', '❌ Agent 运行失败: ' + (res.message || '未知错误'));
             finishAgent(false);
@@ -964,50 +965,6 @@ function startAgent() {
         addLog('error', '❌ Agent 运行失败: ' + e.message);
         finishAgent(false);
     });
-}
-
-function executeSteps(finalResult) {
-    var nodeList = rawGraphData.nodes;
-    var total = nodeList.length;
-    if (total === 0) {
-        finishAgent(true);
-        return;
-    }
-
-    var stepIndex = 0;
-
-    function runNextStep() {
-        if (!isRunning || stepIndex >= total) {
-            finishAgent(true);
-            return;
-        }
-
-        var node = nodeList[stepIndex];
-        treeStatus = 'running';
-        treeActiveId = node.id;
-        highlightedNodeId = null;
-        
-        var container = document.getElementById(containerId);
-        var width = container ? container.clientWidth : 900;
-        var height = container ? container.clientHeight : 700;
-        renderEChartsGraph(forceLayoutNodes, rawGraphData.edges, treeStatus, treeActiveId, width, height, false);
-        
-        addLog('info', '⚙️ 执行: ' + (node.fullName || node.name));
-
-        var delay = 400 + Math.random() * 600;
-
-        var timer = setTimeout(function() {
-            if (isRunning) {
-                addLog('success', '✅ ' + (node.fullName || node.name) + ' 完成');
-                stepIndex++;
-                runNextStep();
-            }
-        }, delay);
-
-        stepTimers.push(timer);
-    }
-
-    runNextStep();
 }
 
 function finishAgent(success) {

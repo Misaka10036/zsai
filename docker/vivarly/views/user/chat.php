@@ -11,6 +11,7 @@ $currentUser = checkAuth(); // 普通用户权限拦截
   <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
   <link href="/vendor/font-awesome/css/all.min.css" rel="stylesheet" />
   <script src="/vendor/marked/marked.min.js"></script>
+  <script src="/vendor/dompurify/purify.min.js"></script>
   <link href="/css/style.css" rel="stylesheet" />
   <style>
     .chat-layout { flex: 1; min-height: 0; }

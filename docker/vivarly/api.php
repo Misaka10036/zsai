@@ -4,8 +4,13 @@ require_once __DIR__ . '/db.php';
 
 $action = $_GET['action'] ?? '';
 $ragflow = new RAGFlowAPI();
-$userManager = new UserManager();
 $currentUser = $_SESSION['user'] ?? null;
+require_once __DIR__ . '/access.php';
+if (!in_array($action, ['login', 'register'], true)) {
+    requirePortalLogin($currentUser);
+}
+$userManager = new UserManager();
+
 
 // 辅助函数：检查管理员权限
 function requireAdmin() {
@@ -76,6 +81,7 @@ try {
             }
 
             unset($user['password']);
+            session_regenerate_id(true);
             $_SESSION['user'] = $user;
             echo json_encode(['code' => 0, 'message' => '登录成功', 'data' => $user]);
             break;
@@ -259,7 +265,7 @@ try {
                 exit;
             }
 
-            $result = $ragflow->uploadDocuments($datasetId, $filePaths, 'local');
+            $result = $ragflow->uploadDocuments($datasetId, $uploadedFiles, 'local');
             
             foreach ($uploadedFiles as $file) {
                 if (file_exists($file['tmp_path'])) {
@@ -427,7 +433,7 @@ try {
                 exit;
             }
 
-            $result = $ragflow->uploadFiles($filePaths, $parentId);
+            $result = $ragflow->uploadFiles($uploadedFiles, $parentId);
             
             foreach ($uploadedFiles as $file) {
                 if (file_exists($file['tmp_path'])) {
@@ -466,6 +472,7 @@ try {
             break;
 
         case 'files_download':
+            requireAdmin();
             $fileId = $_GET['file_id'] ?? '';
             if (empty($fileId)) {
                 header('Content-Type: application/json; charset=utf-8');
@@ -534,7 +541,6 @@ try {
         // ==================== 搜索应用管理 API ====================
         case 'search_app_list':
             header('Content-Type: application/json; charset=utf-8');
-            requireAdmin();
             $page = intval($_GET['page'] ?? 1);
             $pageSize = intval($_GET['page_size'] ?? 50);
             echo json_encode($ragflow->getSearchApps($page, $pageSize));
@@ -681,17 +687,19 @@ try {
                 exit;
             }
 
-            $res = $ragflow->getChatSessions($chatId, 1, 100);
             $mySessionIds = $userManager->getUserSessionIds($currentUser['id'], $chatId);
-
-            if ($res['code'] === 0 || $res['code'] === 200) {
-                $rawSessions = $res['data'] ?? [];
-                $filteredSessions = array_values(array_filter($rawSessions, function($sess) use ($mySessionIds) {
-                    return in_array($sess['id'], $mySessionIds);
-                }));
-                $res['data'] = $filteredSessions;
+            $sessions = [];
+            foreach ($mySessionIds as $sessionId) {
+                $res = $ragflow->getChatSessionMessages($chatId, $sessionId);
+                if (($res['code'] ?? 500) !== 0) {
+                    echo json_encode($res);
+                    exit;
+                }
+                $session = $res['data'];
+                unset($session['messages'], $session['reference']);
+                $sessions[] = $session;
             }
-            echo json_encode($res);
+            echo json_encode(['code' => 0, 'data' => $sessions]);
             break;
 
         case 'chat_session_detail':
@@ -732,8 +740,11 @@ try {
                 exit;
             }
 
+            requirePortalSession($userManager, $currentUser, $chatId, $sessionId);
             $res = $ragflow->deleteChatSession($chatId, $sessionId);
-            $userManager->unbindUserSession($currentUser['id'], $sessionId);
+            if (($res['code'] ?? 500) === 0) {
+                $userManager->unbindUserSession($currentUser['id'], $sessionId);
+            }
             echo json_encode($res);
             break;
 
@@ -750,6 +761,7 @@ try {
                 exit;
             }
 
+            requirePortalSession($userManager, $currentUser, $chatId, $sessionId);
             echo json_encode($ragflow->sendChatMessage($chatId, $sessionId, $question, $stream));
             break;
 
@@ -925,7 +937,7 @@ case 'agent_sessions_delete':
     echo json_encode($result);
     break;
     }
-} catch (Exception $e) {
+} catch (Throwable $e) {
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode(['code' => 500, 'message' => $e->getMessage()]);
 }
