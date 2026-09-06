@@ -1,0 +1,222 @@
+{
+  "components": {
+    "Agent:StalePandasDream": {
+      "downstream": [
+        "Message:BrownPugsStick"
+      ],
+      "obj": {
+        "component_name": "Agent",
+        "params": {
+          "delay_after_error": 1,
+          "description": "",
+          "exception_comment": "",
+          "exception_default_value": "",
+          "exception_goto": [],
+          "exception_method": null,
+          "frequencyPenaltyEnabled": false,
+          "frequency_penalty": 0.7,
+          "llm_id": "",
+          "maxTokensEnabled": false,
+          "max_retries": 3,
+          "max_rounds": 5,
+          "max_tokens": 256,
+          "mcp": [],
+          "message_history_window_size": 12,
+          "outputs": {
+            "content": {
+              "type": "string",
+              "value": ""
+            }
+          },
+          "presencePenaltyEnabled": false,
+          "presence_penalty": 0.4,
+          "prompts": [
+            {
+              "content": "The user query is {sys.query}",
+              "role": "user"
+            }
+          ],
+          "sys_prompt": "请用中文回答用户问题。",
+          "temperature": 0.1,
+          "temperatureEnabled": true,
+          "tools": [],
+          "topPEnabled": false,
+          "top_p": 0.3,
+          "user_prompt": "",
+          "visual_files_var": ""
+        }
+      },
+      "upstream": [
+        "begin"
+      ]
+    },
+    "Message:BrownPugsStick": {
+      "downstream": [],
+      "obj": {
+        "component_name": "Message",
+        "params": {
+          "content": [
+            "{Agent:StalePandasDream@content}"
+          ]
+        }
+      },
+      "upstream": [
+        "Agent:StalePandasDream"
+      ]
+    },
+    "begin": {
+      "downstream": [
+        "Agent:StalePandasDream"
+      ],
+      "obj": {
+        "component_name": "Begin",
+        "params": {}
+      },
+      "upstream": []
+    }
+  },
+  "globals": {
+    "sys.conversation_turns": 0,
+    "sys.files": [],
+    "sys.query": "",
+    "sys.user_id": ""
+  },
+  "graph": {
+    "edges": [
+      {
+        "data": {
+          "isHovered": false
+        },
+        "id": "xy-edge__beginstart-Agent:StalePandasDreamend",
+        "source": "begin",
+        "sourceHandle": "start",
+        "target": "Agent:StalePandasDream",
+        "targetHandle": "end"
+      },
+      {
+        "data": {
+          "isHovered": false
+        },
+        "id": "xy-edge__Agent:StalePandasDreamstart-Message:BrownPugsStickend",
+        "source": "Agent:StalePandasDream",
+        "sourceHandle": "start",
+        "target": "Message:BrownPugsStick",
+        "targetHandle": "end"
+      }
+    ],
+    "nodes": [
+      {
+        "data": {
+          "label": "Begin",
+          "name": "begin",
+          "form": {
+            "enablePrologue": true,
+            "mode": "conversational"
+          }
+        },
+        "dragging": false,
+        "id": "begin",
+        "measured": {
+          "height": 48,
+          "width": 200
+        },
+        "position": {
+          "x": 47.500000000000014,
+          "y": 199.5
+        },
+        "selected": false,
+        "sourcePosition": "left",
+        "targetPosition": "right",
+        "type": "beginNode"
+      },
+      {
+        "data": {
+          "form": {
+            "delay_after_error": 1,
+            "description": "",
+            "exception_comment": "",
+            "exception_default_value": "",
+            "exception_goto": [],
+            "exception_method": null,
+            "frequencyPenaltyEnabled": false,
+            "frequency_penalty": 0.7,
+            "llm_id": "",
+            "maxTokensEnabled": false,
+            "max_retries": 3,
+            "max_rounds": 5,
+            "max_tokens": 256,
+            "mcp": [],
+            "message_history_window_size": 12,
+            "outputs": {
+              "content": {
+                "type": "string",
+                "value": ""
+              }
+            },
+            "presencePenaltyEnabled": false,
+            "presence_penalty": 0.4,
+            "prompts": [
+              {
+                "content": "The user query is {sys.query}",
+                "role": "user"
+              }
+            ],
+            "sys_prompt": "请用中文回答用户问题。",
+            "temperature": 0.1,
+            "temperatureEnabled": true,
+            "tools": [],
+            "topPEnabled": false,
+            "top_p": 0.3,
+            "user_prompt": "",
+            "visual_files_var": ""
+          },
+          "label": "Agent",
+          "name": "Docs QA Agent"
+        },
+        "dragging": false,
+        "id": "Agent:StalePandasDream",
+        "measured": {
+          "height": 87,
+          "width": 200
+        },
+        "position": {
+          "x": 351.5,
+          "y": 231
+        },
+        "selected": true,
+        "sourcePosition": "right",
+        "targetPosition": "left",
+        "type": "agentNode"
+      },
+      {
+        "data": {
+          "form": {
+            "content": [
+              "{Agent:StalePandasDream@content}"
+            ]
+          },
+          "label": "Message",
+          "name": "Message_0"
+        },
+        "dragging": false,
+        "id": "Message:BrownPugsStick",
+        "measured": {
+          "height": 56,
+          "width": 200
+        },
+        "position": {
+          "x": 671.5,
+          "y": 192.5
+        },
+        "selected": false,
+        "sourcePosition": "right",
+        "targetPosition": "left",
+        "type": "messageNode"
+      }
+    ]
+  },
+  "history": [],
+  "messages": [],
+  "path": [],
+  "retrieval": []
+}
