@@ -65,7 +65,7 @@ The [.env](./.env) file contains important environment variables for Docker.
 - `MYSQL_PORT`
   The port to connect to MySQL from RAGFlow container. Defaults to `3306`. Change this if you use an external MySQL.
 - `EXPOSE_MYSQL_PORT`
-  The port used to expose the MySQL service to the host machine, allowing **external** access to the MySQL database running inside the Docker container. Defaults to `5455`.
+  The MySQL port published on the host. Defaults to `3307` to avoid the host's local MySQL on `3306`. Use `3307:3306` in every deployment bundle: host clients connect to `127.0.0.1:3307`, while Compose services connect to `mysql:3306` with `MYSQL_PORT=3306`.
 
 ### MinIO
 

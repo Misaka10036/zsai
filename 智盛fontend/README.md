@@ -1,5 +1,27 @@
 # Vivarly portal for RAGFlow v0.27.1
 
+## Windows 本地启动
+
+在项目根目录运行 `powershell -ExecutionPolicy Bypass -File .\start_frontend.ps1`，
+同时启动原版 Vite 前端（`http://127.0.0.1:9222`）和本目录的智盛前端
+（`http://127.0.0.1:8080`）。按 Ctrl+C 停止两个前端；后端需要单独启动。
+
+可使用 `-Port 19222 -ZhishengPort 18081` 调整端口。端口占用时脚本会直接报错。
+智盛前端默认连接 `http://127.0.0.1:9380`，可用 `-BackendUrl` 调整；此参数仅控制
+智盛前端，原版 Vite 的代理仍由 `-ApiProxyScheme` 及 Vite 配置决定。
+API key 和数据库设置继续从本目录 `config.local.php` 或环境变量读取。
+
+本地智盛页面使用 Docker MySQL 中的 `vivarly_db` 数据库。宿主机连接地址为
+`127.0.0.1:3307`，容器映射为 `3307:3306`，避免占用宿主机本地 MySQL 的 `3306`。
+容器内的应用仍使用 `mysql:3306`。数据库保存在 Compose 的 `mysql_data` 卷中；
+重建容器会保留该卷，勿使用 `docker compose down -v` 删除数据卷。
+本地专用数据库账号仅授予 `vivarly_db` 的读写权限，密码保存在被 Git 忽略的
+`config.local.php` 中，已有智盛登录账号保持不变。
+
+脚本会查找 PATH 或 WinGet 安装目录中的 PHP，也可通过 `-PhpPath` 指定 `php.exe`。
+需要 PHP 8.2+ 及 curl、fileinfo、pdo_mysql、session、mbstring 扩展。
+运行日志保存在项目 `logs/frontend-时间戳/` 目录。
+
 The browser calls `api.php`; PHP authenticates the portal user and calls RAGFlow
 with the server-side API key. Logged-in portal users share the knowledge resources
 of that API key's tenant. Chat sessions are private to their portal owner.

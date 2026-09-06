@@ -16,6 +16,7 @@ $composeFile = Join-Path $repoRoot "docker\docker-compose-base.yml"
 $composeEnvFile = Join-Path $repoRoot "docker\.env"
 $serviceConfig = Join-Path $repoRoot "conf\service_conf.yaml"
 $childProcesses = [System.Collections.Generic.List[System.Diagnostics.Process]]::new()
+$startupLogs = Join-Path $repoRoot ('logs\startup-' + (Get-Date -Format 'yyyyMMdd-HHmmss-fff'))
 
 function Write-Step {
     param([string]$Message)
@@ -73,6 +74,27 @@ function Initialize-Database {
     )
 }
 
+function Test-BackendPort {
+    $probe = @'
+import socket
+from common.config_utils import get_base_config
+config = get_base_config("ragflow", {})
+host, port = config.get("host", "127.0.0.1"), int(config["http_port"])
+try:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
+        listener.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        listener.bind((host, port))
+except OSError as exc:
+    raise SystemExit(f"Cannot bind API address {host}:{port}: {exc}. Check existing RAGFlow processes and Docker port mappings.")
+print(f"{host}:{port}")
+'@
+    $address = $probe | & $pythonPath -
+    if ($LASTEXITCODE -ne 0) {
+        throw 'API port is unavailable; no backend processes were started.'
+    }
+    return $address
+}
+
 function Start-BackendProcess {
     param(
         [Parameter(Mandatory)]
@@ -83,13 +105,33 @@ function Start-BackendProcess {
     )
 
     Write-Step "Starting $Name..."
-    $process = Start-Process `
-        -FilePath $pythonPath `
-        -ArgumentList $Arguments `
-        -WorkingDirectory $repoRoot `
-        -NoNewWindow `
-        -PassThru
+    # Own the process handle from launch so even an early exit retains its code.
+    $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+    $startInfo.FileName = $pythonPath
+    $startInfo.Arguments = (@('-u', '-X', 'faulthandler') + $Arguments) -join ' '
+    $startInfo.WorkingDirectory = $repoRoot
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    $logName = $Name -replace '[^a-zA-Z0-9_-]', '-'
+    New-Item -ItemType Directory -Path $startupLogs -Force | Out-Null
+    $outputPath = Join-Path $startupLogs "$logName.stdout.log"
+    $errorPath = Join-Path $startupLogs "$logName.stderr.log"
+    $process = [System.Diagnostics.Process]::new()
+    $process.StartInfo = $startInfo
+    $process | Add-Member -NotePropertyName BackendName -NotePropertyValue $Name
+    if (-not $process.Start()) {
+        $process.Dispose()
+        throw "Could not start $Name."
+    }
     $childProcesses.Add($process)
+    $process | Add-Member -NotePropertyName OutputFile -NotePropertyValue ([System.IO.FileStream]::new($outputPath, [System.IO.FileMode]::Create, [System.IO.FileAccess]::Write, [System.IO.FileShare]::ReadWrite, 1))
+    $process | Add-Member -NotePropertyName ErrorFile -NotePropertyValue ([System.IO.FileStream]::new($errorPath, [System.IO.FileMode]::Create, [System.IO.FileAccess]::Write, [System.IO.FileShare]::ReadWrite, 1))
+    $process | Add-Member -NotePropertyName OutputCopy -NotePropertyValue ($process.StandardOutput.BaseStream.CopyToAsync($process.OutputFile))
+    $process | Add-Member -NotePropertyName ErrorCopy -NotePropertyValue ($process.StandardError.BaseStream.CopyToAsync($process.ErrorFile))
+    $process | Add-Member -NotePropertyName ErrorLog -NotePropertyValue $errorPath
+    Write-Step "$Name logs: $outputPath / $errorPath"
 }
 
 if (-not (Test-Path -LiteralPath $pythonPath -PathType Leaf)) {
@@ -99,6 +141,7 @@ if (-not (Test-Path -LiteralPath $pythonPath -PathType Leaf)) {
 Set-Location -LiteralPath $repoRoot
 $env:PYTHONPATH = $repoRoot
 $env:NLTK_DATA = Join-Path $repoRoot "nltk_data"
+$env:LITELLM_LOCAL_MODEL_COST_MAP = 'True'
 
 try {
     if (-not $SkipDependencies) {
@@ -122,6 +165,8 @@ try {
         )
     }
 
+    $apiAddress = Test-BackendPort
+
     if ($InitDatabase) {
         Initialize-Database
     }
@@ -135,15 +180,15 @@ try {
     Start-BackendProcess -Name "API server" -Arguments @("api/ragflow_server.py")
 
     Write-Host ""
-    Write-Step "Backend is running at http://127.0.0.1:9380"
-    Write-Step "Scheduled-agent polling is active in the API server."
+    Write-Step "Backend processes launched; waiting for API initialization at $apiAddress."
     Write-Step "Press Ctrl+C to stop the API server and task executors."
 
     while ($true) {
         foreach ($process in $childProcesses) {
             $process.Refresh()
             if ($process.HasExited) {
-                throw "Backend process $($process.Id) exited with code $($process.ExitCode)."
+                $process.WaitForExit()
+                throw "$($process.BackendName) (PID $($process.Id)) exited with code $($process.ExitCode). Error log: $($process.ErrorLog)"
             }
         }
         Start-Sleep -Seconds 2
@@ -160,6 +205,15 @@ finally {
         }
         catch {
             Write-Warning "Could not stop process $($process.Id): $($_.Exception.Message)"
+        }
+        finally {
+            $process.WaitForExit()
+            foreach ($copy in @($process.OutputCopy, $process.ErrorCopy)) {
+                if ($null -ne $copy) { $null = $copy.GetAwaiter().GetResult() }
+            }
+            if ($null -ne $process.OutputFile) { $process.OutputFile.Dispose() }
+            if ($null -ne $process.ErrorFile) { $process.ErrorFile.Dispose() }
+            $process.Dispose()
         }
     }
 }
