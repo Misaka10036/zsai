@@ -23,6 +23,10 @@ start_ts = time.time()
 
 import os
 
+from common.nltk_setup import ensure_nltk_data
+
+ensure_nltk_data()
+
 # LiteLLM fetches a model cost map from GitHub during import unless this is set.
 # The API server should not block startup on external network access.
 os.environ.setdefault("LITELLM_LOCAL_MODEL_COST_MAP", "True")

@@ -1,0 +1,4 @@
+interface:
+  display_name: "构建 RAGFlow Docker 离线包"
+  short_description: "编译前后端并导出可直接部署的完整 Docker 离线包"
+  default_prompt: "Use $build-ragflow-docker-bundle to build a complete runnable offline Docker bundle for this RAGFlow checkout."

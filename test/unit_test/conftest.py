@@ -27,24 +27,6 @@ before any test imports a tokenizer: reuse a provisioned ``nltk_data`` directory
 when present, and download only what is still missing.
 """
 
-import os
+from common.nltk_setup import ensure_nltk_data
 
-import nltk
-
-# Reuse data already fetched by download_deps.py (the directory the app exports
-# as NLTK_DATA) so provisioned environments do not download it again.
-_REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
-_LOCAL_NLTK_DATA = os.path.join(_REPO_ROOT, "ragflow_deps", "nltk_data")
-if os.path.isdir(_LOCAL_NLTK_DATA) and _LOCAL_NLTK_DATA not in nltk.data.path:
-    nltk.data.path.insert(0, _LOCAL_NLTK_DATA)
-
-# (download name, resource path used by nltk.data.find)
-_REQUIRED_NLTK_DATA = (
-    ("punkt_tab", "tokenizers/punkt_tab"),
-    ("wordnet", "corpora/wordnet"),
-)
-for _name, _find_path in _REQUIRED_NLTK_DATA:
-    try:
-        nltk.data.find(_find_path)
-    except LookupError:
-        nltk.download(_name, quiet=True)
+ensure_nltk_data()

@@ -1,0 +1,9 @@
+# Overlay weekly-report canvas and Seafile publish changes onto an existing
+# production image. Used when a full multi-stage rebuild is not possible.
+FROM ragflow-local:cd9a2320e092
+COPY agent /ragflow/agent
+COPY common /ragflow/common
+COPY overlay-assets/web-dist /ragflow/web/dist
+COPY docker/entrypoint.sh /ragflow/entrypoint.sh
+COPY docker/service_conf.yaml.template /ragflow/conf/service_conf.yaml.template
+RUN chmod +x /ragflow/entrypoint.sh

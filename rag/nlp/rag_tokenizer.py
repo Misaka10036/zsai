@@ -14,7 +14,14 @@
 #  limitations under the License.
 #
 
+import logging
+
 import infinity.rag_tokenizer
+
+from common.nltk_setup import ensure_nltk_data
+
+logger = logging.getLogger(__name__)
+ensure_nltk_data()
 
 
 class RagTokenizer(infinity.rag_tokenizer.RagTokenizer):
@@ -23,16 +30,30 @@ class RagTokenizer(infinity.rag_tokenizer.RagTokenizer):
 
         if settings.DOC_ENGINE_INFINITY:
             return line
-        else:
+        try:
             return super().tokenize(line)
+        except LookupError:
+            ensure_nltk_data()
+            try:
+                return super().tokenize(line)
+            except LookupError:
+                logger.error("NLTK tokenizer data is missing; falling back to whitespace split")
+                return " ".join(str(line or "").split())
 
     def fine_grained_tokenize(self, tks: str) -> str:
         from common import settings  # moved from the top of the file to avoid circular import
 
         if settings.DOC_ENGINE_INFINITY:
             return tks
-        else:
+        try:
             return super().fine_grained_tokenize(tks)
+        except LookupError:
+            ensure_nltk_data()
+            try:
+                return super().fine_grained_tokenize(tks)
+            except LookupError:
+                logger.error("NLTK tokenizer data is missing; returning original tokens")
+                return tks
 
 
 def is_chinese(s):
