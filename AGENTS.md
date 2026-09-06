@@ -11,6 +11,7 @@ Use this file as the local operating guide for the current codebase. Prefer the 
 - Keep refactors centered on the owning abstraction, not on adjacent compatibility layers.
 
 ## Current stack
+- User-maintained 智盛 frontend: `智盛fontend/`. For future changes to this portal, edit this directory as the authoritative source. This replaces the previous desktop portal location; `docker/vivarly/` is not the default editing target for these requests.
 - Backend: Python 3.13+, Quart-based API server, Peewee ORM, async workers.
 - Frontend: React + TypeScript + Vite in `web/` (dual-backend Go/Python variant conventions: see `web/CLAUDE.md`).
 - Go: the repository also has a substantial Go module for servers, ingestion, parser/runtime, CLI, and supporting services.
@@ -89,7 +90,7 @@ Rules:
 ## Commands
 ### Docker bundle deployment defaults
 - When building the Docker image bundle for the Ubuntu deployment at `172.20.1.131`, set `SEAFILE_SERVER_HOSTNAME=172.20.1.131:8082` in the bundled `docker/.env`. Do not use `host.docker.internal:8082` as Seafile's browser-facing hostname because client browsers cannot resolve Docker's internal hostname.
-- Avoid the Ubuntu host's existing MySQL service by setting `EXPOSE_MYSQL_PORT=3307` in the bundled `docker/.env`. Keep `MYSQL_PORT=3306`; containers must continue to connect to MySQL on its internal Compose-network port.
+- For every Docker build, bundle, and deployment, publish MySQL on host port 3307 (`EXPOSE_MYSQL_PORT=3307`) to avoid the host's local MySQL on 3306. Keep container port and `MYSQL_PORT=3306`; container clients use `mysql:3306`, while host clients use `127.0.0.1:3307`. Preserve this mapping in bundled `docker/.env` files unless the user explicitly requests a different host port.
 
 ### Backend
 ```bash
