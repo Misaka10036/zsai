@@ -11,9 +11,8 @@ window.rawRAGFlowGraph = null;
 window.activeGraphNodes = [];
 window.activeGraphLinks = [];
 window.expandedNodeNames = new Set();
+var graphLoadVersion = 0;
 
-var currentPage = 1;
-var pageSize = 30;
 
 document.addEventListener('DOMContentLoaded', function() {
   if (document.getElementById('datasetListContainer') || document.getElementById('graphKbSelect')) {
@@ -26,8 +25,6 @@ document.addEventListener('DOMContentLoaded', function() {
   var btnSubmit = document.getElementById('btnSubmitCreateDataset');
   if (btnSubmit) btnSubmit.addEventListener('click', createDataset);
 
-  var btnParse = document.getElementById('btnParseAll');
-  if (btnParse) btnParse.addEventListener('click', parseAllUnparsedFiles);
 
   var btnRefresh = document.getElementById('btnRefreshGraph');
   if (btnRefresh) {
@@ -79,10 +76,7 @@ async function fetchDatasets() {
   var graphSelect = document.getElementById('graphKbSelect');
 
   try {
-    var response = await fetch('/api.php?action=dataset_list&page_size=50');
-    var res = await response.json();
-
-    var datasets = res.data?.datasets || res.data?.list || (Array.isArray(res.data) ? res.data : []);
+    var datasets = await portalList('dataset_list', ['datasets', 'list']);
 
     if (graphSelect) {
       if (datasets.length > 0) {
@@ -136,7 +130,7 @@ async function fetchDatasets() {
       container.innerHTML = cardsHtml;
     }
 
-    if (!window.currentDataset && datasets.length > 0) {
+    if (typeof selectDataset === 'function' && !window.currentDataset && datasets.length > 0) {
       selectDataset(datasets[0].id, datasets[0].name);
     }
 
@@ -145,29 +139,9 @@ async function fetchDatasets() {
     document.dispatchEvent(event);
 
   } catch (err) {
-    console.error('获取知识库列表失败:', err);
+    if (container) container.innerHTML = '<div class="text-danger p-3">知识库加载失败：' + escapeHtml(err.message) + '</div>';
+    if (graphSelect) graphSelect.replaceChildren(new Option('加载失败：' + err.message, ''));
   }
-}
-
-function selectDataset(id, name) {
-  window.currentDataset = { id: id, name: name };
-  currentPage = 1;
-  var fileSection = document.getElementById('fileManagementSection');
-  if (fileSection) fileSection.style.display = 'block';
-
-  // 刷新卡片激活状态
-  var cards = document.querySelectorAll('#datasetListContainer .stat-card');
-  for (var i = 0; i < cards.length; i++) {
-    var card = cards[i];
-    var onclickAttr = card.getAttribute('onclick') || '';
-    if (onclickAttr.indexOf(id) !== -1) {
-      card.classList.add('active');
-    } else {
-      card.classList.remove('active');
-    }
-  }
-
-  fetchFileList(currentPage);
 }
 
 async function createDataset() {
@@ -204,104 +178,8 @@ async function createDataset() {
       alert('创建失败: ' + (res.message || '未知错误'));
     }
   } catch (err) {
-    console.error('新建知识库出错:', err);
+    alert('新建知识库失败：' + err.message);
   }
-}
-
-async function fetchFileList(page) {
-  if (!window.currentDataset) return;
-  if (page === undefined) page = currentPage;
-  currentPage = page;
-  var tbody = document.getElementById('fileTableBody');
-
-  try {
-    var response = await fetch('/api.php?action=file_list&dataset_id=' + window.currentDataset.id + '&page=' + page + '&page_size=' + pageSize);
-    var res = await response.json();
-
-    var files = res.data?.docs || res.data?.documents || (Array.isArray(res.data) ? res.data : []);
-    var total = res.data?.total || files.length;
-
-    if (!tbody) return;
-
-    if (files.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">当前知识库暂无文档</td></tr>';
-      renderPagination(0, page);
-      setTimeout(adjustTableHeight, 50);
-      return;
-    }
-
-    var rowsHtml = '';
-    for (var i = 0; i < files.length; i++) {
-      var file = files[i];
-      var name = file.name || file.filename || '未命名文件';
-      var size = formatBytes(getValidFileSize(file));
-      var runStatus = file.run !== undefined ? file.run : (file.status || 'UNSTART');
-      var chunkNum = file.chunk_num || file.chunk_count || 0;
-      var createTime = file.create_time ? new Date(file.create_time).toLocaleString() : '-';
-
-      rowsHtml += '<tr>';
-      rowsHtml += '  <td class="file-name" title="' + escapeHtml(name) + '">';
-      rowsHtml += '    <i class="' + getFileIcon(name) + ' me-1"></i> ' + escapeHtml(name);
-      rowsHtml += '  </td>';
-      rowsHtml += '  <td>' + size + '</td>';
-      rowsHtml += '  <td><span class="badge bg-success-subtle text-success border"><i class="fas fa-check-circle me-1"></i>已启用</span></td>';
-      rowsHtml += '  <td><span class="badge ' + getStatusBadgeClass(runStatus) + '">' + getStatusBadgeText(runStatus) + '</span></td>';
-      rowsHtml += '  <td>' + chunkNum + ' 块</td>';
-      rowsHtml += '  <td>' + createTime + '</td>';
-      rowsHtml += '  <td>';
-      rowsHtml += '    <a href="javascript:void(0)" class="text-primary text-decoration-none fw-semibold" onclick="previewFile(\'' + escapeHtml(window.currentDataset.id) + '\', \'' + escapeHtml(file.id) + '\', \'' + escapeJsString(name) + '\')">';
-      rowsHtml += '      <i class="fas fa-eye me-1"></i>预览';
-      rowsHtml += '    </a>';
-      rowsHtml += '  </td>';
-      rowsHtml += '</tr>';
-    }
-    tbody.innerHTML = rowsHtml;
-
-    renderPagination(total, page);
-    setTimeout(adjustTableHeight, 50);
-
-  } catch (err) {
-    if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">读取文档列表失败: ' + escapeHtml(err.message) + '</td></tr>';
-  }
-}
-
-function renderPagination(total, page) {
-  var container = document.getElementById('paginationContainer');
-  var infoEl = document.getElementById('paginationInfo');
-
-  if (infoEl) infoEl.innerText = '共 ' + total + ' 条';
-  if (!container) return;
-
-  var totalPages = Math.ceil(total / pageSize);
-  if (totalPages <= 1) {
-    container.innerHTML = '';
-    return;
-  }
-
-  page = Math.max(1, Math.min(page, totalPages));
-  var html = '<div class="pagination">';
-
-  var prevDisabled = (page === 1) ? 'disabled' : '';
-  var prevClick = (page > 1) ? 'onclick="fetchFileList(' + (page - 1) + ')"' : '';
-  html += '<span class="page-item prev ' + prevDisabled + '" ' + prevClick + ' title="上一页"><i class="fas fa-chevron-left"></i></span>';
-
-  for (var i = 1; i <= totalPages; i++) {
-    if (i === 1 || i === totalPages || (i >= page - 1 && i <= page + 1)) {
-      html += '<span class="page-item ' + (i === page ? 'active' : '') + '" onclick="fetchFileList(' + i + ')">' + i + '</span>';
-    } else if (i === page - 2 || i === page + 2) {
-      html += '<span class="page-ellipsis">...</span>';
-    }
-  }
-
-  var nextDisabled = (page === totalPages) ? 'disabled' : '';
-  var nextClick = (page < totalPages) ? 'onclick="fetchFileList(' + (page + 1) + ')"' : '';
-  html += '<span class="page-item next ' + nextDisabled + '" ' + nextClick + ' title="下一页"><i class="fas fa-chevron-right"></i></span></div>';
-
-  container.innerHTML = html;
-}
-
-function parseAllUnparsedFiles() {
-  alert('已发起解析任务！');
 }
 
 // ==================== 知识图谱相关 ====================
@@ -311,6 +189,7 @@ function initGraphCanvas() {
   if (!container) return;
   if (typeof echarts === 'undefined') return;
   if (window.graphChartInstance) window.graphChartInstance.dispose();
+  container.replaceChildren();
   window.graphChartInstance = echarts.init(container);
   window.addEventListener('resize', function() {
     if (window.graphChartInstance) window.graphChartInstance.resize();
@@ -320,6 +199,7 @@ function initGraphCanvas() {
 async function loadKnowledgeGraph(datasetId) {
   var container = document.getElementById('ragflowGraphCanvas');
   if (!datasetId || !container) return;
+  var version = ++graphLoadVersion;
   try {
     if (!window.graphChartInstance) initGraphCanvas();
     if (!window.graphChartInstance) throw new Error('图谱组件未加载，请检查页面资源后重试');
@@ -333,6 +213,7 @@ async function loadKnowledgeGraph(datasetId) {
 
     var response = await fetch('/api.php?action=dataset_graph&dataset_id=' + datasetId);
     var res = await response.json();
+    if (version !== graphLoadVersion) return;
     if (window.graphChartInstance) window.graphChartInstance.hideLoading();
     if (!response.ok || !res || res.code !== 0) {
       throw new Error((res && res.message) || '请求失败（HTTP ' + response.status + '）');
@@ -357,6 +238,7 @@ async function loadKnowledgeGraph(datasetId) {
     if (nodeCountEl) nodeCountEl.innerText = graphData.totalNodeCount || graphData.nodes.length;
     if (edgeCountEl) edgeCountEl.innerText = graphData.totalEdgeCount || graphData.links.length;
   } catch (err) {
+    if (version !== graphLoadVersion) return;
     if (window.graphChartInstance) window.graphChartInstance.hideLoading();
     container.innerHTML = '<div class="text-danger text-center p-4">图谱加载失败：' + escapeHtml(err.message) + '</div>';
     if (window.graphChartInstance) window.graphChartInstance.dispose();
@@ -551,13 +433,18 @@ function renderArtisticGraphChart(nodes, links) {
 }
 
 function showEmptyGraphGuide(datasetId, kbName) {
-  if (window.graphChartInstance) window.graphChartInstance.clear();
+  if (window.graphChartInstance) window.graphChartInstance.dispose();
+  window.graphChartInstance = null;
+  for (var id of ['nodeCount', 'edgeCount']) {
+    var count = document.getElementById(id);
+    if (count) count.textContent = '0';
+  }
   var container = document.getElementById('ragflowGraphCanvas');
   if (container) {
     container.innerHTML = '<div class="d-flex flex-column align-items-center justify-content-center h-100 text-center p-4">' +
       '<i class="fas fa-project-diagram text-primary mb-3" style="font-size: 2.5rem; opacity: 0.5;"></i>' +
       '<h6 class="fw-bold text-dark mb-1">"' + escapeHtml(kbName) + '" 尚未构建知识图谱</h6>' +
-      '<button class="btn btn-primary rounded-pill px-4 btn-sm mt-2" onclick="triggerBuildGraphRAG(\'' + escapeHtml(datasetId) + '\')"><i class="fas fa-play me-1"></i> 立即构建</button>' +
+      (portalIsAdmin() ? '<button class="btn btn-primary rounded-pill px-4 btn-sm mt-2" onclick="triggerBuildGraphRAG(\'' + escapeHtml(datasetId) + '\')"><i class="fas fa-play me-1"></i> 立即构建</button>' : '<div class="text-muted mt-2">请联系管理员构建图谱</div>') +
       '</div>';
   }
 }
@@ -640,11 +527,11 @@ function previewFile(datasetId, docId, fileName, chunkText) {
     if (modalBody) {
       modalBody.innerHTML = '<iframe src="' + fileUrl + '" style="width: 100%; height: 100%; min-height: 600px; border: none;"></iframe>';
     }
-  } else {
+  } else if (['txt', 'md', 'csv', 'json', 'log', 'html', 'xml'].includes(ext)) {
     if (modalBody) {
       modalBody.innerHTML = '<div class="text-center py-5"><i class="fas fa-spinner fa-spin me-2"></i>加载原文中...</div>';
     }
-    fetch(fileUrl).then(function(r) { return r.text(); }).then(function(rawText) {
+    fetch(fileUrl).then(function(r) { if (!r.ok) throw new Error('文件读取失败（HTTP ' + r.status + '）'); return r.text(); }).then(function(rawText) {
       if (modalBody) {
         modalBody.innerHTML = '<div style="width:100%; height:100%; min-height:600px; max-height:80vh; overflow-y:auto; background:#ffffff; padding:24px;">' +
           '<pre class="text-dark fs-6" style="white-space:pre-wrap; word-break:break-all;">' + escapeHtml(rawText) + '</pre>' +
@@ -655,6 +542,9 @@ function previewFile(datasetId, docId, fileName, chunkText) {
         modalBody.innerHTML = '<div class="text-danger text-center p-5">错误: ' + escapeHtml(err.message) + '</div>';
       }
     });
+  }
+  if (!['pdf', 'txt', 'md', 'csv', 'json', 'log', 'html', 'xml'].includes(ext) && modalBody) {
+    modalBody.innerHTML = '<div class="p-4 text-muted">此格式不支持在线预览，请点击“下载原始文件”后打开。</div>';
   }
   if (previewModal) previewModal.show();
 }

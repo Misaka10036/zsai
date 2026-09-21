@@ -21,6 +21,9 @@ API key 和数据库设置继续从本目录 `config.local.php` 或环境变量�
 脚本会查找 PATH 或 WinGet 安装目录中的 PHP，也可通过 `-PhpPath` 指定 `php.exe`。
 需要 PHP 8.2+ 及 curl、fileinfo、pdo_mysql、session、mbstring 扩展。
 运行日志保存在项目 `logs/frontend-时间戳/` 目录。
+本地门户使用同源 Node 代理和三个 PHP worker（其中一个专供 Agent 取消），
+避免长问答阻塞取消请求。Ctrl+C 会停止全部子进程。生产部署使用并发 PHP-FPM；
+直接使用单个 `php -S` 进程无法及时取消正在执行的请求。
 
 The browser calls `api.php`; PHP authenticates the portal user and calls RAGFlow
 with the server-side API key. Logged-in portal users share the knowledge resources
@@ -45,7 +48,17 @@ an existing desktop installation can retain its own database initialization.
 The portal currently returns complete JSON answers, not browser-streamed chat.
 Search SSE is collected server-side, including references; interrupted or failed
 streams return errors. A new Agent starts with a valid Agent/Message canvas and
-uses the tenant's configured default chat model.
+uses the tenant's configured default chat model. Agent runs create a session first,
+reuse it across normal turns, and cancel through the Python task API. Protected
+requests refresh the portal user's account status and role.
+
+Uploads report per-file results and optionally submit successful documents for
+parsing (enabled by default). Search applications require a dataset selection;
+admins can edit their dataset binding in the portal. Chat displays source
+references. PDF/text preview and optional search mindmaps use local browser assets;
+other document formats offer the original download. PDF.js 2.16.105, its matching
+worker, CMaps, fonts and licenses are bundled from the workspace dependency;
+PDF loading disables JavaScript evaluation (`isEvalSupported: false`).
 
 ## Verification
 
@@ -54,8 +67,11 @@ From the repository root (PHP and Node must be on PATH):
 ```sh
 python test/unit_test/vivarly/test_portal_contract.py
 node test/unit_test/vivarly/portal-ui.test.cjs
+node test/unit_test/vivarly/portal-workflows.test.cjs
 ```
 
 The contract suite uses a local mock HTTP server and never mutates live datasets.
 The UI suite uses the existing `web/node_modules` installation. These checks do
 not replace deployment verification with a reachable RAGFlow service and MySQL.
+
+具体修复与验证范围见 [FUNCTIONAL_CHECK.md](FUNCTIONAL_CHECK.md)。

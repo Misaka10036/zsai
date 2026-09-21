@@ -277,7 +277,7 @@ function startUpload() {
                     updateFileStatus(index, 'success', '<i class="fas fa-check-circle"></i> 成功');
                     successList.push(relativePath);
                 } else {
-                    updateFileStatus(index, 'fail', '<i class="fas fa-times-circle"></i> ' + (res.message || '失败'));
+                    updateFileStatus(index, 'fail', '<i class="fas fa-times-circle"></i> ' + escapeHtml(res.message || '失败'));
                     failed++;
                     failList.push(relativePath + ': ' + (res.message || '未知错误'));
                 }
@@ -795,10 +795,8 @@ function showLinkToDataset(fileIds) {
     var listEl = document.getElementById('datasetListForLink');
     listEl.innerHTML = '<div class="text-center text-muted py-3 small"><i class="fas fa-spinner fa-spin me-1"></i>加载知识库...</div>';
 
-    fetch('/api.php?action=dataset_list&page=1&page_size=50')
-        .then(function(r) { return r.json(); })
-        .then(function(res) {
-            var datasets = res.data?.datasets || res.data?.list || (Array.isArray(res.data) ? res.data : []);
+    portalList('dataset_list', ['datasets', 'list'])
+        .then(function(datasets) {
             if (datasets.length === 0) {
                 listEl.innerHTML = '<div class="text-center text-muted py-3 small">暂无可用知识库，请先创建知识库</div>';
                 return;

@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>VIVARILY · 用户登录与注册</title>
-  <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet" />
-  <link href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+  <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="/vendor/font-awesome/css/all.min.css" rel="stylesheet" />
   <link href="/css/style.css" rel="stylesheet" />
   <style>
     .auth-card { width: 400px; border-radius: 1.2rem; }
@@ -67,7 +67,7 @@
     </div>
   </div>
 
-  <script src="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+  <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
   <script>
     async function doLogin() {
       const account = document.getElementById('loginAccount').value.trim();

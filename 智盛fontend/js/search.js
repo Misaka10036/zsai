@@ -8,13 +8,11 @@ var currentSearchApps = [];
 var mindmapData = null;
 var currentChunks = [];
 var pdfDoc = null;
-var pdfPageNum = 1;
-var pdfRendering = false;
 var pdfCurrentTarget = null;
 
 // 设置PDF.js worker
 if (typeof pdfjsLib !== 'undefined') {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    pdfjsLib.GlobalWorkerOptions.workerSrc = '/vendor/pdfjs/pdf.worker.min.js';
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -22,33 +20,34 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ===== 加载搜索应用列表 =====
-function loadSearchApps() {
-    var container = document.getElementById('searchAppList');
-    if (container) container.innerHTML = '<div class="text-center text-muted py-3 small">加载中...</div>';
+var searchVersion = 0;
+var searchBusy = false;
+var lastSearchQuestion = '';
+var searchListVersion = 0;
+var editingSearchId = null;
+var savingSearch = false;
 
-    fetch('/api.php?action=search_app_list&page=1&page_size=50')
-        .then(function(r) { return r.json(); })
-        .then(function(res) {
-            if (res.code === 0) {
-                var apps = res.data?.search_apps || res.data || [];
-                currentSearchApps = apps;
-                renderAppList(apps);
-                var select = document.getElementById('searchAppSelect');
-                if (select) {
-                    select.replaceChildren(...apps.map(function(app) { return new Option(app.name || app.id, app.id); }));
-                }
-                if (apps.length > 0 && !currentSearchId) {
-                    selectApp(apps[0].id);
-                } else if (apps.length === 0) {
-                    showEmptyState();
-                }
-            } else {
-                if (container) container.innerHTML = '<div class="text-center text-muted py-3 small">加载失败: ' + escapeHtml(res.message || '') + '</div>';
-            }
-        })
-        .catch(function(e) {
-            if (container) container.innerHTML = '<div class="text-center text-muted py-3 small">加载失败: ' + escapeHtml(e.message) + '</div>';
-        });
+async function loadSearchApps(preferredId) {
+    var version = ++searchListVersion;
+    var container = document.getElementById('searchAppList');
+    try {
+        var apps = await portalList('search_app_list', ['search_apps']);
+        if (version !== searchListVersion) return;
+        currentSearchApps = apps;
+        renderAppList(apps);
+        var select = document.getElementById('searchAppSelect');
+        if (select) select.replaceChildren(...apps.map(app => new Option(app.name || app.id, app.id)));
+        var selected = preferredId || currentSearchId;
+        if (!apps.some(app => app.id === selected)) selected = apps[0]?.id || null;
+        selectApp(selected);
+    } catch (error) {
+        if (version !== searchListVersion) return;
+        if (container) container.textContent = '加载失败：' + error.message;
+        var select = document.getElementById('searchAppSelect');
+        if (select) select.replaceChildren(new Option('加载失败：' + error.message, ''));
+        currentSearchId = null;
+        document.getElementById('searchResultsArea').textContent = '搜索应用加载失败：' + error.message;
+    }
 }
 
 function renderAppList(apps) {
@@ -75,6 +74,7 @@ function renderAppList(apps) {
         }
         html += '  </div>';
         html += '  <div class="app-actions">';
+        html += '<button onclick="event.stopPropagation();editSearchApp(\'' + app.id + '\')" title="设置知识库"><i class="fas fa-cog"></i></button>';
         html += '    <button class="danger" onclick="event.stopPropagation();deleteApp(\'' + app.id + '\')" title="删除"><i class="fas fa-trash"></i></button>';
         html += '  </div>';
         html += '</div>';
@@ -83,6 +83,9 @@ function renderAppList(apps) {
 }
 
 function selectApp(appId) {
+    searchVersion++;
+    searchBusy = false;
+    lastSearchQuestion = '';
     currentSearchId = appId;
     var select = document.getElementById('searchAppSelect');
     if (select) select.value = appId;
@@ -118,62 +121,45 @@ function cleanThinkProcess(text) {
                .trim();
 }
 
-function executeSearch() {
-    if (!currentSearchId) {
-        alert('请先选择一个搜索应用');
-        return;
-    }
-
-    var input = document.getElementById('searchQueryInput');
-    var question = input.value.trim();
-    if (!question) {
-        alert('请输入问题');
-        return;
-    }
-
+async function executeSearch() {
+    if (!currentSearchId) return alert('请先选择搜索应用');
+    if (searchBusy) return;
+    var question = document.getElementById('searchQueryInput').value.trim();
+    if (!question) return alert('请输入问题');
+    var searchId = currentSearchId;
+    var version = ++searchVersion;
+    searchBusy = true;
     var area = document.getElementById('searchResultsArea');
-    area.innerHTML = '<div class="text-center text-muted py-5"><i class="fas fa-spinner fa-spin me-2"></i>检索中...</div>';
+    area.textContent = '检索中...';
+    try {
+        var data = await portalRequest('search_app_exec', { search_id: searchId, question: question });
+        if (version !== searchVersion || searchId !== currentSearchId) return;
+        var chunks = Object.values(data.reference?.chunks || []);
+        var docs = Object.values(data.reference?.doc_aggs || []);
+        lastSearchQuestion = question;
+        currentChunks = chunks;
+        renderSearchResult(cleanThinkProcess(data.answer || '未找到匹配结果'), chunks, data.mindmap, docs);
+    } catch (error) {
+        if (version === searchVersion) area.textContent = '检索失败：' + error.message;
+    } finally {
+        if (version === searchVersion) searchBusy = false;
+    }
+}
 
-    fetch('/api.php?action=search_app_exec', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            search_id: currentSearchId,
-            question: question
-        })
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(res) {
-        console.log('搜索响应:', res);
-        
-        if (res.code === 0) {
-            var data = res.data || {};
-            var answer = data.answer || '未找到匹配结果。';
-            var chunks = data.reference?.chunks || data.chunks || [];
-            var mindmap = data.mindmap || data.mind_map || null;
-            var docAggs = data.reference?.doc_aggs || data.doc_aggs || [];
-            
-            answer = cleanThinkProcess(answer);
-            
-            if (chunks && typeof chunks === 'object' && !Array.isArray(chunks)) {
-                chunks = Object.values(chunks);
-            }
-            if (docAggs && typeof docAggs === 'object' && !Array.isArray(docAggs)) {
-                docAggs = Object.values(docAggs);
-            }
-            
-            currentChunks = chunks || [];
-            renderSearchResult(answer, currentChunks, mindmap, docAggs || []);
-        } else {
-            var errorMsg = res.message || '未知错误';
-            console.error('搜索失败:', errorMsg);
-            area.innerHTML = '<div class="text-danger text-center py-4">检索失败: ' + escapeHtml(errorMsg) + '<br><small class="text-muted">请检查搜索应用配置是否正确</small></div>';
-        }
-    })
-    .catch(function(e) {
-        console.error('搜索请求异常:', e);
-        area.innerHTML = '<div class="text-danger text-center py-4">请求异常: ' + escapeHtml(e.message) + '</div>';
-    });
+async function generateSearchMindmap(button) {
+    var version = searchVersion;
+    button.disabled = true;
+    try {
+        var data = await portalRequest('search_app_mindmap', { search_id: currentSearchId, question: lastSearchQuestion });
+        if (version !== searchVersion) return;
+        var box = document.createElement('div');
+        box.id = 'mindmapContainer';
+        box.style.height = '450px';
+        button.replaceWith(box);
+        renderMindmapWithECharts(data);
+    } catch (error) {
+        if (version === searchVersion) { button.disabled = false; button.textContent = '生成失败，点击重试：' + error.message; }
+    }
 }
 
 function fillSearchQuery(text) {
@@ -183,6 +169,7 @@ function fillSearchQuery(text) {
 
 function renderSearchResult(answer, chunks, mindmap, docAggs) {
     var area = document.getElementById('searchResultsArea');
+    currentChunks = chunks;
 
     var formattedAnswer = renderSafeMarkdown(answer);
 
@@ -211,6 +198,7 @@ function renderSearchResult(answer, chunks, mindmap, docAggs) {
         html += '</div>';
     }
 
+    if (!mindmap) html += '<button class="btn btn-outline-primary my-2" onclick="generateSearchMindmap(this)">生成思维导图</button>';
     html += '<div class="result-sources">';
     html += '  <div class="sources-header">';
     html += '    <span class="sources-title"><i class="fas fa-book text-primary me-1"></i>引用来源</span>';
@@ -237,22 +225,22 @@ function renderSearchResult(answer, chunks, mindmap, docAggs) {
         html += '  <div class="source-list">';
         for (var i = 0; i < Math.min(chunks.length, 20); i++) {
             var chunk = chunks[i];
-            var docName = chunk.document_name || chunk.doc_name || chunk.filename || '来源文档';
+            var docName = chunk.document_name || chunk.docnm_kwd || chunk.doc_name || chunk.filename || '来源文档';
             var score = chunk.similarity || chunk.score || 0;
             var scoreText = (score * 100).toFixed(0) + '%';
             var scoreClass = score >= 0.7 ? 'high' : (score >= 0.4 ? 'medium' : 'low');
-            var content = chunk.content || chunk.text || '';
+            var content = chunk.content || chunk.content_with_weight || chunk.text || '';
             var chunkId = chunk.id || chunk.chunk_id || 'chunk-' + i;
             var docId = chunk.document_id || chunk.doc_id || 'doc-' + i;
             var datasetId = chunk.dataset_id || chunk.kb_id || '';
-            var pageNumber = chunk.page_num || chunk.page || chunk.page_number || 1;
+            var pageNumber = Math.max(1, Number(chunk.page_num || chunk.page || chunk.page_number || chunk.positions?.[0]?.[0] || chunk.position_int?.[0]?.[0]) || 1);
             
             var previewText = content.substring(0, 120);
             if (content.length > 120) {
                 previewText += '...';
             }
 
-            html += '<div class="source-item" onclick="openPreviewWithHighlight(\'' + escapeJsString(datasetId) + '\', \'' + escapeJsString(docId) + '\', \'' + escapeJsString(docName) + '\', \'' + escapeJsString(content) + '\', \'' + escapeJsString(chunkId) + '\', ' + parseInt(pageNumber) + ')" data-chunk-id="' + escapeHtml(chunkId) + '">';
+            html += '<div class="source-item" onclick="openSearchReference(' + i + ')" data-chunk-id="' + escapeHtml(chunkId) + '">';
             html += '  <span class="index">' + (i + 1) + '</span>';
             html += '  <div class="info">';
             html += '    <div class="title" title="' + escapeHtml(docName) + '">' + escapeHtml(docName) + '</div>';
@@ -281,10 +269,19 @@ function renderSearchResult(answer, chunks, mindmap, docAggs) {
     }
 }
 
+function openSearchReference(index) {
+    var chunk = currentChunks[index];
+    if (!chunk) return;
+    var page = Math.max(1, Number(chunk.page_num || chunk.page || chunk.page_number || chunk.positions?.[0]?.[0] || chunk.position_int?.[0]?.[0]) || 1);
+    openPreviewWithHighlight(chunk.dataset_id || chunk.kb_id, chunk.document_id || chunk.doc_id,
+        chunk.document_name || chunk.docnm_kwd || chunk.doc_name || chunk.filename || '来源文档',
+        chunk.content || chunk.content_with_weight || chunk.text || '', chunk.id || chunk.chunk_id, page);
+}
+
 // ===== 打开预览并定位高亮 =====
 function openPreviewWithHighlight(datasetId, docId, docName, chunkContent, chunkId, pageNum) {
-    if (!docId) {
-        alert('文档ID不存在，无法预览');
+    if (!docId || !datasetId) {
+        alert('引用缺少文档或知识库 ID，无法预览');
         return;
     }
 
@@ -320,6 +317,12 @@ function openPreviewWithHighlight(datasetId, docId, docName, chunkContent, chunk
         return;
     }
 
+    if (!isText) {
+        modalBody.innerHTML = '<div class="p-4 text-muted">此格式不支持在线预览，请点击“下载原始文件”后打开。</div>';
+        showPreviewModal(modalEl);
+        return;
+    }
+
     // 文本文件直接显示
     if (modalBody) {
         modalBody.innerHTML = '<div class="text-center py-5"><i class="fas fa-spinner fa-spin me-2" style="font-size:2rem;color:var(--blue,#3b82f6);"></i><div class="mt-2 text-muted">正在加载文档...</div></div>';
@@ -331,7 +334,7 @@ function openPreviewWithHighlight(datasetId, docId, docName, chunkContent, chunk
             return response.text();
         })
         .then(function(rawText) {
-            if (rawText && (rawText.startsWith('%PDF') || rawText.includes('PDF'))) {
+            if (rawText && rawText.startsWith('%PDF')) {
                 renderPDFWithPDFJS(fileUrl, pageNum || 1, chunkContent, modalEl, modalBody);
                 return;
             }
@@ -359,6 +362,7 @@ function openPreviewWithHighlight(datasetId, docId, docName, chunkContent, chunk
 
 // ===== 使用PDF.js渲染PDF =====
 function renderPDFWithPDFJS(pdfUrl, targetPage, searchText, modalEl, modalBody) {
+    pdfCurrentTarget = searchText || '';
     if (typeof pdfjsLib === 'undefined') {
         if (modalBody) {
             modalBody.innerHTML = '<div class="text-danger text-center p-5">PDF.js 未加载，请检查网络连接</div>';
@@ -379,7 +383,7 @@ function renderPDFWithPDFJS(pdfUrl, targetPage, searchText, modalEl, modalBody) 
     showPreviewModal(modalEl);
 
     // 使用PDF.js加载
-    var loadingTask = pdfjsLib.getDocument(pdfUrl);
+    var loadingTask = pdfjsLib.getDocument({ url: pdfUrl, isEvalSupported: false, cMapUrl: '/vendor/pdfjs/cmaps/', cMapPacked: true, standardFontDataUrl: '/vendor/pdfjs/standard_fonts/' });
     
     loadingTask.promise.then(function(pdf) {
         pdfDoc = pdf;
@@ -448,7 +452,7 @@ function renderPDFPage(pageNum, searchText, modalBody) {
             viewport: viewport
         };
         
-        page.render(renderContext).promise.then(function() {
+        return page.render(renderContext).promise.then(function() {
             // 移除加载状态
             container.innerHTML = '';
             
@@ -486,7 +490,8 @@ function highlightPDFText(pageNum, searchText, wrapper) {
     
     pdfDoc.getPage(pageNum).then(function(page) {
         page.getTextContent().then(function(textContent) {
-            var items = textContent.items;
+            var items = textContent.items.filter(function(item) { return item.str.trim().length > 0; });
+            var viewport = page.getViewport({ scale: 1.5 });
             var found = false;
             var searchLower = searchText.toLowerCase().substring(0, 100);
             
@@ -501,8 +506,8 @@ function highlightPDFText(pageNum, searchText, wrapper) {
                     var highlightDiv = document.createElement('div');
                     highlightDiv.style.cssText = 
                         'position:absolute;' +
-                        'left:' + (item.transform[4] * 1.5) + 'px;' +
-                        'top:' + (item.transform[5] * 1.5) + 'px;' +
+                        'left:' + viewport.convertToViewportPoint(item.transform[4], item.transform[5])[0] + 'px;' +
+                        'top:' + (viewport.convertToViewportPoint(item.transform[4], item.transform[5])[1] - item.height * 1.5) + 'px;' +
                         'width:' + (item.width * 1.5) + 'px;' +
                         'height:' + (item.height * 1.5) + 'px;' +
                         'background:rgba(252,211,77,0.6);' +
@@ -529,8 +534,8 @@ function highlightPDFText(pageNum, searchText, wrapper) {
                             var highlightDiv2 = document.createElement('div');
                             highlightDiv2.style.cssText = 
                                 'position:absolute;' +
-                                'left:' + (items[k].transform[4] * 1.5) + 'px;' +
-                                'top:' + (items[k].transform[5] * 1.5) + 'px;' +
+                                'left:' + viewport.convertToViewportPoint(items[k].transform[4], items[k].transform[5])[0] + 'px;' +
+                                'top:' + (viewport.convertToViewportPoint(items[k].transform[4], items[k].transform[5])[1] - items[k].height * 1.5) + 'px;' +
                                 'width:' + (items[k].width * 1.5) + 'px;' +
                                 'height:' + (items[k].height * 1.5) + 'px;' +
                                 'background:rgba(252,211,77,0.4);' +
@@ -860,41 +865,57 @@ function renderMindmapWithECharts(data) {
 }
 
 // ===== 新建应用 =====
-function showCreateAppModal() {
+async function showCreateAppModal() {
+    editingSearchId = null;
     document.getElementById('newAppName').value = '';
     document.getElementById('newAppDesc').value = '';
-    var modal = new bootstrap.Modal(document.getElementById('createAppModal'));
-    modal.show();
+    await openSearchConfig([]);
 }
 
-function confirmCreateApp() {
+async function editSearchApp(id) {
+    try {
+        var app = await portalRequest('search_app_detail&search_id=' + encodeURIComponent(id));
+        editingSearchId = id;
+        document.getElementById('newAppName').value = app.name || '';
+        document.getElementById('newAppDesc').value = app.description || '';
+        await openSearchConfig(app.search_config?.kb_ids || []);
+    } catch (error) { alert('读取应用失败：' + error.message); }
+}
+
+async function openSearchConfig(selected) {
+    var button = document.getElementById('saveSearchApp');
+    button.disabled = true;
+    button.textContent = editingSearchId ? '保存配置' : '创建';
+    document.getElementById('searchConfigTitle').textContent = editingSearchId ? '编辑搜索应用' : '新建搜索应用';
+    var selector = document.getElementById('searchDatasetIds');
+    selector.replaceChildren();
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('createAppModal')).show();
+    try {
+        var datasets = await portalList('dataset_list', ['datasets', 'list']);
+        selector.replaceChildren(...datasets.map(dataset => new Option(dataset.name, dataset.id, false, selected.includes(dataset.id))));
+        document.getElementById('searchConfigError').textContent = datasets.length ? '' : '请先创建知识库';
+        button.disabled = !datasets.length;
+    } catch (error) { document.getElementById('searchConfigError').textContent = '知识库加载失败：' + error.message; }
+}
+
+async function confirmCreateApp() {
+    if (savingSearch) return;
     var name = document.getElementById('newAppName').value.trim();
-    var desc = document.getElementById('newAppDesc').value.trim();
-
-    if (!name) {
-        alert('请输入应用名称');
-        return;
-    }
-
-    fetch('/api.php?action=search_app_create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name, description: desc })
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(res) {
-        if (res.code === 0) {
-            var modal = bootstrap.Modal.getInstance(document.getElementById('createAppModal'));
-            if (modal) modal.hide();
-            loadSearchApps();
-            if (res.data && res.data.search_id) {
-                setTimeout(function() { selectApp(res.data.search_id); }, 300);
-            }
-        } else {
-            alert('创建失败: ' + (res.message || '未知错误'));
-        }
-    })
-    .catch(function(e) { alert('创建失败: ' + e.message); });
+    var description = document.getElementById('newAppDesc').value.trim();
+    var ids = Array.from(document.getElementById('searchDatasetIds').selectedOptions, option => option.value);
+    if (!name || !ids.length) return alert('请输入应用名称并选择至少一个知识库');
+    savingSearch = true;
+    var button = document.getElementById('saveSearchApp');
+    button.disabled = true;
+    try {
+        var id = editingSearchId;
+        var data = await portalRequest(id ? 'search_app_update' : 'search_app_create', id
+            ? { search_id: id, name: name, description: description, search_config: { kb_ids: ids } }
+            : { name: name, description: description, kb_ids: ids });
+        bootstrap.Modal.getInstance(document.getElementById('createAppModal')).hide();
+        await loadSearchApps(id || data.search_id);
+    } catch (error) { document.getElementById('searchConfigError').textContent = '保存失败：' + error.message; }
+    finally { savingSearch = false; button.disabled = false; }
 }
 
 // ===== 删除应用 =====

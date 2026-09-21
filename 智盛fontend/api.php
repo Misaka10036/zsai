@@ -10,6 +10,12 @@ if (!in_array($action, ['login', 'register'], true)) {
     requirePortalLogin($currentUser);
 }
 $userManager = new UserManager();
+if (!in_array($action, ['login', 'register'], true)) {
+    $currentUser = refreshPortalUser($userManager);
+    requirePortalLogin($currentUser);
+}
+// Long backend requests must not block cancellation or other tabs on the PHP session lock.
+if (!in_array($action, ['login', 'register', 'logout'], true)) session_write_close();
 
 
 // 辅助函数：检查管理员权限
@@ -568,7 +574,12 @@ try {
                 echo json_encode(['code' => 400, 'message' => '搜索应用名称不能为空']);
                 exit;
             }
-            echo json_encode($ragflow->createSearchApp($name, $description));
+            $datasetIds = $input['kb_ids'] ?? [];
+            if (!is_array($datasetIds) || !$datasetIds) {
+                echo json_encode(['code' => 400, 'message' => '请选择至少一个知识库']);
+                exit;
+            }
+            echo json_encode($ragflow->createSearchApp($name, $description, $datasetIds));
             break;
 
         case 'search_app_update':
@@ -578,6 +589,10 @@ try {
             $searchId = $input['search_id'] ?? '';
             $name = trim($input['name'] ?? '');
             $searchConfig = $input['search_config'] ?? [];
+            if (!is_array($searchConfig) || empty($searchConfig['kb_ids']) || !is_array($searchConfig['kb_ids'])) {
+                echo json_encode(['code' => 400, 'message' => '请选择至少一个知识库']);
+                break;
+            }
 
             if (empty($searchId)) {
                 echo json_encode(['code' => 400, 'message' => '请指定搜索应用ID']);
@@ -590,6 +605,7 @@ try {
 
             $payload = [
                 'name' => $name,
+                'description' => trim($input['description'] ?? ''),
                 'search_config' => $searchConfig
             ];
 
@@ -607,6 +623,16 @@ try {
                 exit;
             }
             echo json_encode($ragflow->deleteSearchApp($searchId));
+            break;
+
+        case 'search_app_mindmap':
+            header('Content-Type: application/json; charset=utf-8');
+            $input = json_decode(file_get_contents('php://input'), true);
+            if (empty($input['search_id']) || empty(trim($input['question'] ?? ''))) {
+                echo json_encode(['code' => 400, 'message' => '缺少搜索应用或问题']);
+                break;
+            }
+            echo json_encode($ragflow->searchMindmap($input['search_id'], $input['question']));
             break;
 
         case 'search_app_exec':
@@ -900,6 +926,20 @@ case 'agent_converse_openai':
         $result = ['code' => 0, 'data' => $result];
     }
     echo json_encode($result);
+    break;
+
+case 'agent_session_create':
+case 'agent_cancel':
+    header('Content-Type: application/json; charset=utf-8');
+    requireAdmin();
+    $input = json_decode(file_get_contents('php://input'), true);
+    if (empty($input['agent_id']) || ($action === 'agent_cancel' && empty($input['session_id']))) {
+        echo json_encode(['code' => 400, 'message' => '缺少 Agent 或会话 ID']);
+        break;
+    }
+    echo json_encode($action === 'agent_session_create'
+        ? $ragflow->createAgentSession($input['agent_id'])
+        : $ragflow->cancelAgentSession($input['agent_id'], $input['session_id']));
     break;
 
 case 'agent_sessions':

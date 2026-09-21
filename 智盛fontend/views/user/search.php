@@ -13,8 +13,10 @@ $currentUser = checkAuth();
   <link href="/css/style.css" rel="stylesheet" />
   <script src="/vendor/marked/marked.min.js"></script>
   <script src="/vendor/dompurify/purify.min.js"></script>
+<script src="/vendor/echarts/echarts.min.js"></script>
+<script src="/vendor/pdfjs/pdf.min.js"></script>
 </head>
-<body>
+<body data-portal-role="<?php echo htmlspecialchars($currentUser['role'], ENT_QUOTES); ?>">
   <div class="vivarly-frame">
     <div class="view-pane">
       <?php $page = 'search'; include __DIR__ . '/../../templates/navbar.php'; ?>
@@ -54,6 +56,5 @@ $currentUser = checkAuth();
   <script src="/js/main.js"></script>
   <script src="/js/app.js"></script>
   <script src="/js/search.js"></script>
-  <script>function fillSearchQuery(query) { document.getElementById("searchQueryInput").value = query; }</script>
 </body>
 </html>

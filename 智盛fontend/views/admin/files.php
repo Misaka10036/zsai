@@ -8,8 +8,8 @@ $currentUser = checkAdmin();
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>VIVARILY · 文件管理</title>
-    <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet" />
-    <link href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="/vendor/font-awesome/css/all.min.css" rel="stylesheet" />
     <link href="/css/style.css" rel="stylesheet" />
     <style>
         /* ===== 文件管理器布局 ===== */
@@ -742,7 +742,7 @@ $currentUser = checkAdmin();
         }
     </style>
 </head>
-<body>
+<body data-portal-role="<?php echo htmlspecialchars($currentUser['role'], ENT_QUOTES); ?>">
 <div class="vivarly-frame">
     <div class="view-pane">
         <?php $page = 'files'; include PROJECT_ROOT . '/templates/navbar.php'; ?>
@@ -908,7 +908,7 @@ $currentUser = checkAdmin();
     </div>
 </div>
 
-<script src="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+<script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
 <script src="/js/main.js"></script>
 <script src="/js/app.js"></script>
 <script src="/js/files.js"></script>

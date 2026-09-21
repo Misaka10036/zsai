@@ -80,7 +80,7 @@ class PortalContract(unittest.TestCase):
             ('deleteFiles', [['file']]), ('moveFiles', [['file'], 'folder']),
             ('getParentFolder', ['file']), ('getAncestors', ['file']),
             ('linkFilesToDatasets', [['file'], ['kb']]), ('getSearchApps', []),
-            ('getSearchAppDetail', ['search']), ('createSearchApp', ['name']),
+            ('getSearchAppDetail', ['search']), ('createSearchApp', ['name', '', ['kb']]),
             ('updateSearchApp', ['search', {'name': 'name', 'search_config': {'kb_ids': ['kb']}}]),
             ('deleteSearchApp', ['search']), ('getModels', []), ('getRerankModels', []),
             ('getEmbeddingModels', []), ('getChatApps', []), ('getChatAppDetail', ['chat']),
@@ -249,6 +249,58 @@ class PortalContract(unittest.TestCase):
             result = subprocess.run(['php', '-r', code, str(PORTAL / 'access.php'), session],
                                     capture_output=True, text=True, encoding='utf-8', timeout=10)
             self.assertEqual(json.loads(result.stdout)['code'], expected)
+
+    def test_disabled_deleted_and_changed_role_are_refreshed(self):
+        for user in [None, {'id': 1, 'status': 0, 'role': 'admin'},
+                     {'id': 1, 'status': 1, 'role': 'user', 'password': 'private'}]:
+            with self.subTest(user=user):
+                code = ('require $argv[1]; '
+                        '$_SESSION=["user"=>["id"=>1,"role"=>"admin"]]; '
+                        'class Manager { function findById($id) { return json_decode($GLOBALS["argv"][2],true); } } '
+                        '$user=refreshPortalUser(new Manager()); '
+                        'echo json_encode(["user"=>$user,"session"=>$_SESSION["user"]??null]);')
+                result = subprocess.run(['php', '-r', code, str(PORTAL / 'access.php'), json.dumps(user)],
+                                        capture_output=True, text=True, encoding='utf-8', timeout=10)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                data = json.loads(result.stdout)
+                expected = {'id': 1, 'status': 1, 'role': 'user'} if user and user['status'] == 1 else None
+                self.assertEqual(data, {'user': expected, 'session': expected})
+
+    def test_search_creation_binds_datasets(self):
+        self.reply({'search_id': 'search'})
+        self.call('createSearchApp', 'name', 'description', ['kb'])
+        self.assertEqual(json.loads(self.server.requests[0][3])['search_config'], {'kb_ids': ['kb']})
+        self.assertEqual(self.call('createSearchApp', 'name')['code'], 400)
+        self.assertEqual(len(self.server.requests), 1)
+
+    def test_mindmap_uses_authenticated_chat_endpoint(self):
+        self.reply({'search_config': {'kb_ids': ['kb']}})
+        self.reply({'name': 'map', 'children': []})
+        result = self.call('searchMindmap', 'search', 'question')
+        self.assertEqual(result['data']['name'], 'map')
+        self.assertEqual(self.server.requests[1][:2], ('POST', '/api/v1/chat/mindmap'))
+        self.assertEqual(json.loads(self.server.requests[1][3]), {'search_id': 'search', 'question': 'question', 'kb_ids': ['kb']})
+
+    def test_search_preserves_mindmap_events(self):
+        self.reply(raw='data:{"code":0,"data":{"mindmap":{"name":"map"}}}\n\ndata:{"code":0,"data":true}\n\n')
+        self.assertEqual(self.call('searchWithApp', 'search', 'question')['data']['mindmap'], {'name': 'map'})
+
+    def test_agent_session_creation_and_cancel(self):
+        self.reply({'id': 'session'})
+        self.call('createAgentSession', 'agent')
+        self.reply({'id': 'session', 'dialog_id': 'agent'})
+        self.reply(True)
+        self.assertEqual(self.call('cancelAgentSession', 'agent', 'session')['code'], 0)
+        self.assertEqual([request[:2] for request in self.server.requests], [
+            ('POST', '/api/v1/agents/agent/sessions'),
+            ('GET', '/api/v1/agents/agent/sessions/session'),
+            ('POST', '/api/v1/tasks/session/cancel'),
+        ])
+
+    def test_agent_cancel_does_not_cancel_unrelated_sessions(self):
+        self.reply(status=403, raw='{"code":403,"message":"Session not found"}')
+        self.assertEqual(self.call('cancelAgentSession', 'agent', 'other')['code'], 403)
+        self.assertEqual(len(self.server.requests), 1)
 
 
 if __name__ == '__main__':

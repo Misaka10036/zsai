@@ -5,12 +5,10 @@
 
 var pageSize = 30;
 var currentPage = 1;
+var documentListVersion = 0;
+var documentPollTimer = null;
 
-document.addEventListener('DOMContentLoaded', function() {
-    if (typeof fetchDatasets === 'function') {
-        fetchDatasets();
-    }
-});
+
 
 function selectDataset(id, name) {
     window.currentDataset = { id: id, name: name };
@@ -45,6 +43,9 @@ function fetchFileList(page) {
     if (!window.currentDataset) return;
     if (page === undefined) page = currentPage || 1;
     currentPage = page;
+    var version = ++documentListVersion;
+    clearTimeout(documentPollTimer);
+    var datasetId = window.currentDataset.id;
     var tbody = document.getElementById('fileTableBody');
     if (!tbody) return;
 
@@ -57,11 +58,14 @@ function fetchFileList(page) {
     if (suffix) url += '&suffix=' + encodeURIComponent(suffix);
     if (keywords) url += '&keywords=' + encodeURIComponent(keywords);
 
+    var selectedIds = new Set(getSelectedFileIds());
     tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin me-2"></i>加载中...</td></tr>';
 
     fetch(url)
         .then(function(r) { return r.json(); })
         .then(function(res) {
+            if (version !== documentListVersion || datasetId !== window.currentDataset?.id) return;
+            if (!res || res.code !== 0) throw new Error(res?.message || '文档列表请求失败');
             var files = res.data?.docs || res.data?.documents || (Array.isArray(res.data) ? res.data : []);
             var total = res.data?.total || res.data?.total_datasets || files.length;
 
@@ -77,18 +81,18 @@ function fetchFileList(page) {
                 var file = files[i];
                 var name = file.name || file.filename || '未命名文件';
                 var size = formatBytes(getValidFileSize(file));
-                var runStatusText = file.run || file.status || 'UNSTART';
+                var runStatusText = String(file.run ?? '0');
                 var chunkNum = file.chunk_count || file.chunk_num || 0;
                 var createTime = file.create_time ? new Date(file.create_time).toLocaleString() : (file.create_date || '-');
                 var enabled = file.status == 1 || file.status === '1' || file.status === true;
-                var isRunning = runStatusText === 'RUNNING' || runStatusText === '1';
+                var isRunning = ['RUNNING', 'SCHEDULE', '1', '5'].includes(String(runStatusText));
                 var isDone = runStatusText === 'DONE' || runStatusText === '3';
                 var isFail = runStatusText === 'FAIL' || runStatusText === '4';
                 var isCancel = runStatusText === 'CANCEL' || runStatusText === '2';
 
                 var statusBadgeClass = 'bg-secondary-subtle text-secondary border';
                 var statusText = '未解析';
-                if (isRunning) { statusBadgeClass = 'bg-warning-subtle text-warning border'; statusText = '解析中'; }
+                if (isRunning) { statusBadgeClass = 'bg-warning-subtle text-warning border'; statusText = ['5', 'SCHEDULE'].includes(String(runStatusText)) ? '等待解析' : '解析中'; }
                 else if (isDone) { statusBadgeClass = 'bg-success-subtle text-success border'; statusText = '解析完成'; }
                 else if (isFail) { statusBadgeClass = 'bg-danger-subtle text-danger border'; statusText = '解析失败'; }
                 else if (isCancel) { statusBadgeClass = 'bg-secondary-subtle text-secondary border'; statusText = '已取消'; }
@@ -104,30 +108,35 @@ function fetchFileList(page) {
                 }
 
                 rowsHtml += '<tr>';
-                rowsHtml += '  <td><input type="checkbox" class="file-checkbox" value="' + escapeHtml(file.id) + '"></td>';
+                if (portalIsAdmin()) rowsHtml += '  <td><input type="checkbox" class="file-checkbox" value="' + escapeHtml(file.id) + '"></td>';
                 rowsHtml += '  <td class="file-name" title="' + escapeHtml(name) + '">';
                 rowsHtml += '    <i class="' + getFileIcon(name) + ' me-1"></i> ' + escapeHtml(name);
                 rowsHtml += '  </td>';
                 rowsHtml += '  <td>' + size + '</td>';
                 rowsHtml += '  <td><span class="badge ' + (enabled ? 'bg-success-subtle text-success border' : 'bg-danger-subtle text-danger border') + ' status-badge">' + (enabled ? '已启用' : '已禁用') + '</span></td>';
-                rowsHtml += '  <td><span class="badge ' + statusBadgeClass + ' status-badge">' + statusText + '</span>' + progressHtml + '</td>';
+                rowsHtml += '  <td><span class="badge ' + statusBadgeClass + ' status-badge">' + statusText + '</span>' + progressHtml + (file.progress_msg ? '<div class="small text-muted">' + escapeHtml(file.progress_msg) + '</div>' : '') + '</td>';
                 rowsHtml += '  <td>' + chunkNum + ' 块</td>';
                 rowsHtml += '  <td>' + createTime + '</td>';
                 rowsHtml += '  <td class="text-nowrap">';
                 rowsHtml += '    <a href="javascript:void(0)" class="btn btn-sm btn-outline-primary btn-action-sm me-1" onclick="previewFile(\'' + escapeHtml(window.currentDataset.id) + '\', \'' + escapeHtml(file.id) + '\', \'' + escapeJsString(name) + '\')"><i class="fas fa-eye"></i> 预览</a>';
-                rowsHtml += '    <a href="javascript:void(0)" class="btn btn-sm btn-outline-secondary btn-action-sm me-1" onclick="openEditDocument(\'' + escapeHtml(window.currentDataset.id) + '\',\'' + escapeHtml(file.id) + '\',\'' + escapeJsString(name) + '\',\'' + chunkMethod + '\',' + chunkTokenNum + ',' + (layoutRecognize ? 'true' : 'false') + ',' + (enabled ? 1 : 0) + ')"><i class="fas fa-edit"></i> 编辑</a>';
-                if (isRunning) {
+                if (portalIsAdmin()) rowsHtml += '    <a href="javascript:void(0)" class="btn btn-sm btn-outline-secondary btn-action-sm me-1" onclick="openEditDocument(\'' + escapeHtml(window.currentDataset.id) + '\',\'' + escapeHtml(file.id) + '\',\'' + escapeJsString(name) + '\',\'' + chunkMethod + '\',' + chunkTokenNum + ',' + (layoutRecognize ? 'true' : 'false') + ',' + (enabled ? 1 : 0) + ')"><i class="fas fa-edit"></i> 编辑</a>';
+                if (isRunning && portalIsAdmin()) {
                     rowsHtml += '    <a href="javascript:void(0)" class="btn btn-sm btn-outline-warning btn-action-sm me-1" onclick="stopParsing(\'' + escapeHtml(file.id) + '\')"><i class="fas fa-stop"></i> 停止</a>';
                 }
                 rowsHtml += '  </td>';
                 rowsHtml += '</tr>';
             }
             tbody.innerHTML = rowsHtml;
+            tbody.querySelectorAll('.file-checkbox').forEach(function(input) { input.checked = selectedIds.has(input.value); });
+            if (files.some(file => ['1', '5', 'RUNNING', 'SCHEDULE'].includes(String(file.run)))) {
+                documentPollTimer = setTimeout(function() { if (datasetId === window.currentDataset?.id) fetchFileList(page); }, 5000);
+            }
 
             renderPagination(total, page);
             setTimeout(adjustTableHeight, 50);
         })
         .catch(function(err) {
+            if (version !== documentListVersion || datasetId !== window.currentDataset?.id) return;
             tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">读取文档列表失败: ' + escapeHtml(err.message) + '</td></tr>';
         });
 }
@@ -395,6 +404,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var uploadZone = document.getElementById('uploadZone');
     var fileInput = document.getElementById('fileInput');
     var selectedFiles = [];
+    var uploading = false;
 
     if (uploadZone && fileInput) {
         uploadZone.addEventListener('click', function() {
@@ -403,6 +413,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         fileInput.addEventListener('change', function() {
             if (this.files.length > 0) {
+                if (uploading) return;
                 selectedFiles = Array.from(this.files);
                 updateSelectedFilesList(selectedFiles);
             }
@@ -422,6 +433,7 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             this.classList.remove('dragover');
             if (e.dataTransfer.files.length > 0) {
+                if (uploading) return;
                 selectedFiles = Array.from(e.dataTransfer.files);
                 updateSelectedFilesList(selectedFiles);
             }
@@ -432,6 +444,8 @@ document.addEventListener('DOMContentLoaded', function() {
         var listEl = document.getElementById('selectedFilesList');
         var container = document.getElementById('uploadedFileList');
         if (files.length > 0 && listEl && container) {
+            document.getElementById('btnConfirmUpload').disabled = false;
+            document.getElementById('btnConfirmUpload').textContent = '确认上传';
             container.style.display = 'block';
             var html = '';
             for (var i = 0; i < files.length; i++) {
@@ -450,81 +464,72 @@ document.addEventListener('DOMContentLoaded', function() {
 
     var btnConfirmUpload = document.getElementById('btnConfirmUpload');
     if (btnConfirmUpload) {
-        btnConfirmUpload.addEventListener('click', function() {
-            if (!window.currentDataset || !window.currentDataset.id) {
-                alert('请先选择一个知识库');
-                return;
-            }
-            if (selectedFiles.length === 0) {
-                alert('请选择要上传的文件');
-                return;
-            }
-
-            var formData = new FormData();
-            for (var i = 0; i < selectedFiles.length; i++) {
-                formData.append('files[]', selectedFiles[i]);
-            }
-
-            var progressEl = document.getElementById('uploadProgress');
-            var progressBar = document.getElementById('uploadProgressBar');
-            var statusText = document.getElementById('uploadStatusText');
-            var percentText = document.getElementById('uploadPercentText');
-            
-            if (progressEl) progressEl.style.display = 'block';
-            if (progressBar) progressBar.style.width = '30%';
-            if (percentText) percentText.textContent = '30%';
-            if (statusText) statusText.textContent = '正在上传...';
-
-            var xhr = new XMLHttpRequest();
-            xhr.open('POST', '/api.php?action=file_upload&dataset_id=' + window.currentDataset.id);
-            
-            xhr.upload.onprogress = function(e) {
-                if (e.lengthComputable) {
-                    var percent = Math.round((e.loaded / e.total) * 70) + 30;
-                    if (progressBar) progressBar.style.width = percent + '%';
-                    if (percentText) percentText.textContent = percent + '%';
-                }
-            };
-
-            xhr.onload = function() {
-                if (progressBar) progressBar.style.width = '100%';
-                if (percentText) percentText.textContent = '100%';
-                if (statusText) statusText.textContent = '上传完成！';
-                
-                try {
-                    var res = JSON.parse(xhr.responseText);
-                    if (res.code === 0 || res.code === 200) {
-                        setTimeout(function() {
-                            var modal = bootstrap.Modal.getInstance(document.getElementById('uploadFileModal'));
-                            if (modal) modal.hide();
-                            fetchFileList(currentPage);
-                            selectedFiles = [];
-                            var container = document.getElementById('uploadedFileList');
-                            if (container) container.style.display = 'none';
-                            if (progressEl) progressEl.style.display = 'none';
-                            if (progressBar) progressBar.style.width = '0%';
-                        }, 800);
-                    } else {
-                        alert('上传失败: ' + (res.message || '未知错误'));
-                        if (progressEl) progressEl.style.display = 'none';
+        btnConfirmUpload.addEventListener('click', async function() {
+            if (uploading) return;
+            if (!window.currentDataset?.id || !selectedFiles.length) return alert('请选择知识库和文件');
+            var datasetId = window.currentDataset.id;
+            var files = selectedFiles.slice();
+            var failedFiles = [];
+            var uploadedIds = [];
+            var list = document.getElementById('selectedFilesList');
+            var status = document.getElementById('uploadStatusText');
+            var progress = document.getElementById('uploadProgress');
+            var bar = document.getElementById('uploadProgressBar');
+            var percent = document.getElementById('uploadPercentText');
+            var autoParse = document.getElementById('uploadAutoParse').checked;
+            uploading = true;
+            btnConfirmUpload.disabled = true;
+            fileInput.disabled = true;
+            if (progress) progress.style.display = 'block';
+            list.replaceChildren();
+            try {
+                for (var i = 0; i < files.length; i++) {
+                    var row = document.createElement('li');
+                    list.appendChild(row);
+                    row.textContent = files[i].name + '：上传中';
+                    var payload = new FormData();
+                    payload.append('files[]', files[i]);
+                    try {
+                        var response = await fetch('/api.php?action=file_upload&dataset_id=' + encodeURIComponent(datasetId), { method: 'POST', body: payload });
+                        var result = await response.json();
+                        if (!response.ok || result.code !== 0) throw new Error(result.errors?.[0]?.message || result.message || '上传失败');
+                        var ids = (result.data || []).map(doc => doc.id).filter(Boolean);
+                        if (!ids.length) throw new Error('未返回文档 ID，请刷新列表确认后再试');
+                        uploadedIds.push(...ids);
+                        row.textContent = files[i].name + '：上传成功';
+                    } catch (error) {
+                        failedFiles.push(files[i]);
+                        row.className = 'text-danger';
+                        row.textContent = files[i].name + '：' + error.message;
                     }
-                } catch(e) {
-                    alert('上传失败: ' + e.message);
-                    if (progressEl) progressEl.style.display = 'none';
+                    var value = Math.round((i + 1) / files.length * 100) + '%';
+                    if (bar) bar.style.width = value;
+                    if (percent) percent.textContent = value;
                 }
-            };
-
-            xhr.onerror = function() {
-                alert('上传失败: 网络错误');
-                if (progressEl) progressEl.style.display = 'none';
-            };
-
-            xhr.send(formData);
+                selectedFiles = failedFiles;
+                status.textContent = '上传成功 ' + (files.length - failedFiles.length) + ' 个，失败 ' + failedFiles.length + ' 个。';
+                if (autoParse && uploadedIds.length) {
+                    try {
+                        await portalRequest('file_parse', { dataset_id: datasetId, document_ids: uploadedIds });
+                        status.textContent += '已提交解析任务，可在列表查看进度。';
+                    } catch (error) {
+                        status.textContent += '解析提交失败：' + error.message + '。文件已上传，请在列表选择后重试解析。';
+                    }
+                } else if (uploadedIds.length) status.textContent += '请在文档列表选择文件并开始解析。';
+                if (window.currentDataset?.id === datasetId) fetchFileList(currentPage);
+            } finally {
+                uploading = false;
+                fileInput.disabled = false;
+                btnConfirmUpload.disabled = !selectedFiles.length;
+                btnConfirmUpload.textContent = selectedFiles.length ? '重试失败文件' : '上传完成';
+            }
         });
     }
 
     var uploadModal = document.getElementById('uploadFileModal');
     if (uploadModal) {
+        uploadModal.addEventListener('hide.bs.modal', function(event) { if (uploading) event.preventDefault(); });
+        uploadModal.addEventListener('show.bs.modal', function() { btnConfirmUpload.disabled = false; btnConfirmUpload.textContent = '确认上传'; });
         uploadModal.addEventListener('hidden.bs.modal', function() {
             selectedFiles = [];
             var container = document.getElementById('uploadedFileList');

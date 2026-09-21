@@ -1,5 +1,18 @@
 <?php
 
+function refreshPortalUser($manager) {
+    $sessionUser = $_SESSION['user'] ?? null;
+    if (!$sessionUser) return null;
+    $user = $manager->findById($sessionUser['id']);
+    if (!$user || (int) $user['status'] !== 1) {
+        unset($_SESSION['user']);
+        return null;
+    }
+    unset($user['password']);
+    $_SESSION['user'] = $user;
+    return $user;
+}
+
 function requirePortalLogin($user) {
     if (!$user) {
         http_response_code(401);

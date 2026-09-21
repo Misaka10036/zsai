@@ -8,10 +8,10 @@ $currentUser = checkAuth(); // 登录基础拦截
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>VIVARILY · 个人知识中心</title>
-  <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet" />
-  <link href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+  <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="/vendor/font-awesome/css/all.min.css" rel="stylesheet" />
   <link href="/css/style.css" rel="stylesheet" />
-  <script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
+  <script src="/vendor/echarts/echarts.min.js"></script>
   <style>
     .quick-entry .entry-item .icon i { font-size: 1.1rem; }
     .graph-section { flex: 1; min-height: 0; }
@@ -28,7 +28,7 @@ $currentUser = checkAuth(); // 登录基础拦截
     }
   </style>
 </head>
-<body>
+<body data-portal-role="<?php echo htmlspecialchars($currentUser['role'], ENT_QUOTES); ?>">
   <div class="vivarly-frame">
     <div class="view-pane">
       <?php $page = 'home'; include __DIR__ . '/../../templates/navbar.php'; ?>
@@ -69,17 +69,13 @@ $currentUser = checkAuth(); // 登录基础拦截
           <div class="icon"><i class="fas fa-database"></i></div>
           <div><div class="fw-bold">我的知识库</div><div class="small text-muted">文档浏览与切片</div></div>
         </div>
-        <div class="entry-item" onclick="alert('Agent 工作流准备就绪')">
-          <div class="icon"><i class="fas fa-robot"></i></div>
-          <div><div class="fw-bold">Agent 工作流</div><div class="small text-muted">智能助手</div></div>
-        </div>
       </div>
     </div>
 
     <?php include __DIR__ . '/../../templates/footer.php'; ?>
   </div>
 
-  <script src="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+  <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
   <script src="/js/main.js"></script>
   <script src="/js/app.js"></script>
 </body>

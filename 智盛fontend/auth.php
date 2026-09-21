@@ -1,8 +1,11 @@
 <?php
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/access.php';
 
 function getCurrentUser() {
-    return $_SESSION['user'] ?? null;
+    if (empty($_SESSION['user'])) return null;
+    return refreshPortalUser(new UserManager());
 }
 
 // 登录拦截器：未登录直接跳转至登录页

@@ -8,8 +8,8 @@ $currentUser = checkAdmin();
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>VIVARILY · 知识库管理后台</title>
-    <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet" />
-    <link href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="/vendor/font-awesome/css/all.min.css" rel="stylesheet" />
     <link href="/css/style.css" rel="stylesheet" />
     <style>
         .stat-card .actions-dropdown { position: relative; }
@@ -51,7 +51,7 @@ $currentUser = checkAdmin();
         .text-nowrap { white-space: nowrap; }
     </style>
 </head>
-<body>
+<body data-portal-role="<?php echo htmlspecialchars($currentUser['role'], ENT_QUOTES); ?>">
 <div class="vivarly-frame">
     <div class="view-pane">
         <?php $page = 'dataset'; include PROJECT_ROOT . '/templates/navbar.php'; ?>
@@ -164,6 +164,7 @@ $currentUser = checkAdmin();
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">取消</button>
+                <label class="me-auto"><input type="checkbox" id="uploadAutoParse" checked> 上传后开始解析</label>
                 <button type="button" class="btn btn-dark rounded-pill px-4" id="btnConfirmUpload"><i class="fas fa-check me-1"></i>确认上传</button>
             </div>
         </div>
@@ -228,7 +229,7 @@ $currentUser = checkAdmin();
     </div>
 </div>
 
-<script src="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+<script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
 <script src="/js/main.js"></script>
 <script src="/js/app.js"></script>
 <script src="/js/dataset.js"></script>

@@ -38,306 +38,200 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
+var chatViewVersion = 0;
+var chatListVersion = 0;
+var chatHistoryVersion = 0;
+var chatPending = new Set();
+var creatingChatSession = false;
+
+function currentChatView(chatId, sessionId, version) {
+  return window.currentChatId === chatId && window.currentSessionId === sessionId && chatViewVersion === version;
+}
+
 async function initChatApps() {
-  var appSelector = document.getElementById('chatAppSelector');
-  if (!appSelector) return;
-
+  var selector = document.getElementById('chatAppSelector');
+  if (!selector) return;
   try {
-    var res = await fetch('/api.php?action=chat_app_list&page_size=50').then(function(r) { return r.json(); });
-    var apps = [];
-    if (res.code === 0 || res.code === 200) {
-      apps = res.data?.chats || res.data?.list || (Array.isArray(res.data) ? res.data : []);
-    }
-
-    window.chatApps = apps;
-    if (apps.length === 0) {
-      appSelector.innerHTML = '<option value="">RAGFlow 中无现成聊天应用</option>';
+    window.chatApps = await portalList('chat_app_list', ['chats', 'list']);
+    selector.replaceChildren(...window.chatApps.map(app => new Option(app.name || app.id, app.id)));
+    if (!window.chatApps.length) {
+      selector.replaceChildren(new Option('暂无聊天应用，请联系管理员配置', ''));
       return;
     }
-
-    var optionsHtml = '';
-    for (var i = 0; i < apps.length; i++) {
-      var app = apps[i];
-      optionsHtml += '<option value="' + escapeHtml(app.id) + '">' + escapeHtml(app.name || app.id) + '</option>';
-    }
-    appSelector.innerHTML = optionsHtml;
-    appSelector.value = apps[0].id;
-    switchChatApp(apps[0].id);
-  } catch (err) {
-    console.error('加载应用列表失败:', err);
+    switchChatApp(window.chatApps[0].id);
+  } catch (error) {
+    selector.replaceChildren(new Option('加载失败：' + error.message, ''));
   }
 }
 
 function switchChatApp(chatId) {
   if (!chatId) return;
+  chatViewVersion++;
+  chatHistoryVersion++;
   window.currentChatId = chatId;
   window.currentSessionId = '';
-
-  var app = null;
-  for (var i = 0; i < window.chatApps.length; i++) {
-    if (window.chatApps[i].id === chatId) {
-      app = window.chatApps[i];
-      break;
-    }
-  }
-  var appNameEl = document.getElementById('currentAppName');
-  if (appNameEl) appNameEl.innerText = app ? (app.name || app.id) : '已选择';
-
-  var inputEl = document.getElementById('chatInputMessage');
-  if (inputEl) {
-    inputEl.disabled = false;
-    inputEl.placeholder = '输入你的问题，按 Enter 发送...';
-  }
-
-  updateAppInfo(app);
+  renderMessages([]);
+  var app = window.chatApps.find(app => app.id === chatId);
+  var name = document.getElementById('currentAppName');
+  if (name) name.textContent = app?.name || chatId;
+  var input = document.getElementById('chatInputMessage');
+  if (input) input.disabled = false;
+  var info = document.getElementById('appInfoContainer');
+  if (info) info.textContent = '应用：' + (app?.name || chatId) + ' · 模型：' + (app?.llm_id || '默认');
   loadAppSessions(chatId);
-}
-
-function updateAppInfo(app) {
-  var infoEl = document.getElementById('appInfoContainer');
-  if (!infoEl) return;
-
-  if (!app) {
-    infoEl.innerHTML = '<div class="text-muted text-center py-2 small">未选择应用</div>';
-    return;
-  }
-
-  infoEl.innerHTML = 
-    '<div style="display:flex; justify-content:space-between; padding:3px 0; font-size:0.75rem; border-bottom:1px solid #eef2f6;">' +
-      '<span style="color:#64748b;">应用名称</span>' +
-      '<span style="font-weight:600; color:#0f172a;">' + escapeHtml(app.name || app.id) + '</span>' +
-    '</div>' +
-    '<div style="display:flex; justify-content:space-between; padding:3px 0; font-size:0.75rem; border-bottom:1px solid #eef2f6;">' +
-      '<span style="color:#64748b;">模型</span>' +
-      '<span style="font-weight:500; color:#0f172a;">' + escapeHtml(app.llm_id || '默认') + '</span>' +
-    '</div>';
 }
 
 async function loadAppSessions(chatId) {
   var container = document.getElementById('chatSessionList');
   if (!container) return;
-
-  container.innerHTML = '<div class="text-center text-muted py-3 small"><i class="fas fa-spinner fa-spin me-1"></i>读取对话中...</div>';
-
+  var version = ++chatListVersion;
+  container.textContent = '读取对话中...';
   try {
-    var res = await fetch('/api.php?action=chat_session_list&chat_id=' + chatId).then(function(r) { return r.json(); });
-    var sessions = res.data || [];
-
-    if (sessions.length === 0) {
-      container.innerHTML = '<div class="text-center text-muted py-4 small">暂无您发起的对话</div>';
-      renderMessages([]);
-      return;
+    var sessions = await portalRequest('chat_session_list&chat_id=' + encodeURIComponent(chatId));
+    if (version !== chatListVersion || window.currentChatId !== chatId) return;
+    if (!Array.isArray(sessions)) throw new Error('会话列表格式无效');
+    container.replaceChildren();
+    for (var session of sessions) {
+      var row = document.createElement('div');
+      row.className = 'session-item' + (session.id === window.currentSessionId ? ' active' : '');
+      row.dataset.id = session.id;
+      var title = document.createElement('span');
+      title.textContent = session.name || '新对话';
+      row.appendChild(title);
+      var remove = document.createElement('button');
+      remove.textContent = '删除';
+      remove.onclick = (id => event => { event.stopPropagation(); deleteSession(id); })(session.id);
+      row.appendChild(remove);
+      row.onclick = (id => () => switchSession(id))(session.id);
+      container.appendChild(row);
     }
-
-    var html = '';
-    for (var i = 0; i < sessions.length; i++) {
-      var sess = sessions[i];
-      var isActive = sess.id === window.currentSessionId;
-      html += '<div class="session-item' + (isActive ? ' active' : '') + '" onclick="switchSession(\'' + sess.id + '\')">';
-      html += '  <div class="info">';
-      html += '    <div class="name">' + escapeHtml(sess.name || '新对话') + '</div>';
-      html += '  </div>';
-      html += '  <div class="actions">';
-      html += '    <button title="删除" onclick="event.stopPropagation(); deleteSession(\'' + sess.id + '\')">';
-      html += '      <i class="fas fa-trash-alt"></i>';
-      html += '    </button>';
-      html += '  </div>';
-      html += '</div>';
+    if (!sessions.some(session => session.id === window.currentSessionId)) {
+      if (sessions.length) switchSession(sessions[0].id);
+      else { window.currentSessionId = ''; chatViewVersion++; renderMessages([]); }
     }
-    container.innerHTML = html;
-
-    if (!window.currentSessionId && sessions.length > 0) {
-      switchSession(sessions[0].id);
-    }
-  } catch (err) {
-    container.innerHTML = '<div class="text-danger text-center py-3 small">读取对话失败</div>';
+    if (!sessions.length) container.textContent = '暂无对话，请新建';
+  } catch (error) {
+    if (version === chatListVersion && window.currentChatId === chatId) container.textContent = '读取对话失败：' + error.message;
   }
 }
 
 function switchSession(sessionId) {
   window.currentSessionId = sessionId;
-  var items = document.querySelectorAll('#chatSessionList .session-item');
-  for (var i = 0; i < items.length; i++) {
-    var el = items[i];
-    var onclickAttr = el.getAttribute('onclick') || '';
-    if (onclickAttr.indexOf(sessionId) !== -1) {
-      el.classList.add('active');
-    } else {
-      el.classList.remove('active');
-    }
-  }
-  fetchSessionMessages(sessionId);
+  chatViewVersion++;
+  document.querySelectorAll('#chatSessionList .session-item').forEach(row => row.classList.toggle('active', row.dataset.id === sessionId));
+  renderMessages([]);
+  return fetchSessionMessages(sessionId);
 }
 
 async function fetchSessionMessages(sessionId) {
-  var chatStream = document.getElementById('chatMessageStream');
-  if (!chatStream) return;
-
-  chatStream.innerHTML = '<div class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin me-1"></i>调取历史对话记录...</div>';
-
+  var stream = document.getElementById('chatMessageStream');
+  if (!stream) return;
+  var chatId = window.currentChatId;
+  var version = chatViewVersion;
+  var historyVersion = ++chatHistoryVersion;
+  stream.textContent = '读取历史消息...';
   try {
-    var res = await fetch('/api.php?action=chat_session_detail&chat_id=' + window.currentChatId + '&session_id=' + sessionId).then(function(r) { return r.json(); });
-    
-    var rawMessages = res.data?.messages || res.data?.history || [];
-    var formattedMessages = [];
-
-    if (Array.isArray(rawMessages)) {
-      for (var i = 0; i < rawMessages.length; i++) {
-        var item = rawMessages[i];
-        if (item.role && item.content) {
-          formattedMessages.push({
-            role: item.role === 'assistant' ? 'bot' : item.role,
-            content: item.content
-          });
-        } else if (item.question || item.answer) {
-          if (item.question) formattedMessages.push({ role: 'user', content: item.question });
-          if (item.answer) formattedMessages.push({ role: 'bot', content: item.answer });
-        }
+    var data = await portalRequest('chat_session_detail&chat_id=' + encodeURIComponent(chatId) + '&session_id=' + encodeURIComponent(sessionId));
+    if (!currentChatView(chatId, sessionId, version) || historyVersion !== chatHistoryVersion) return;
+    var references = data.reference || [];
+    var referenceIndex = 0;
+    var sawQuestion = false;
+    var messages = (data.messages || []).map(function(message) {
+      if (message.role === 'user') sawQuestion = true;
+      var reference = message.reference;
+      if (message.role === 'assistant' && sawQuestion) {
+        reference = reference || (Array.isArray(references) ? references[referenceIndex++] : references[message.id]);
       }
-    }
-
-    renderMessages(formattedMessages);
-  } catch (e) {
-    renderMessages([]);
+      return { role: message.role, content: message.content, reference: reference };
+    });
+    renderMessages(messages);
+  } catch (error) {
+    if (currentChatView(chatId, sessionId, version) && historyVersion === chatHistoryVersion) stream.textContent = '读取历史失败：' + error.message;
   }
+}
+
+function chatMessageHTML(message) {
+  var isUser = message.role === 'user';
+  var content = String(message.content || '');
+  return '<div class="message ' + (isUser ? 'user' : 'bot') + '"><div class="msg-avatar ' + (isUser ? 'user-av' : 'bot') + '">' +
+    (isUser ? 'U' : 'V') + '</div><div><div class="bubble">' + renderSafeMarkdown(content) +
+    (isUser ? '' : renderChatReferences(message.reference)) + '</div></div></div>';
 }
 
 function renderMessages(messages) {
-  var chatStream = document.getElementById('chatMessageStream');
-  if (!chatStream) return;
-
-  if (messages.length === 0) {
-    chatStream.innerHTML = '<div class="text-center text-muted py-4 small">暂无历史消息，请输入问题发起对话</div>';
-    return;
-  }
-
-  var html = '';
-  for (var i = 0; i < messages.length; i++) {
-    var msg = messages[i];
-    var isUser = msg.role === 'user';
-    var content = msg.content || '';
-    if (typeof cleanThinkProcess === 'function') {
-      content = cleanThinkProcess(content);
-    }
-    var parsedContent = renderSafeMarkdown(content);
-
-    html += '<div class="message ' + (isUser ? 'user' : 'bot') + '">';
-    html += '  <div class="msg-avatar ' + (isUser ? 'user-av' : 'bot') + '">' + (isUser ? 'U' : 'V') + '</div>';
-    html += '  <div><div class="bubble">' + parsedContent + '</div></div>';
-    html += '</div>';
-  }
-  chatStream.innerHTML = html;
-  chatStream.scrollTop = chatStream.scrollHeight;
+  var stream = document.getElementById('chatMessageStream');
+  if (!stream) return;
+  stream.innerHTML = messages.length ? messages.map(chatMessageHTML).join('') : '<div class="text-muted p-3">暂无历史消息，请输入问题发起对话</div>';
+  stream.scrollTop = stream.scrollHeight;
 }
 
 async function createNewChatSession() {
-  if (!window.currentChatId) return alert('请先选择一个聊天应用');
+  if (creatingChatSession) return;
+  var chatId = window.currentChatId;
+  if (!chatId) return alert('请先选择聊天应用');
   var name = prompt('请输入对话标题:', '新对话');
-  if (!name || !name.trim()) return;
-
-  var res = await fetch('/api.php?action=chat_session_create', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: window.currentChatId, name: name.trim() })
-  }).then(function(r) { return r.json(); });
-
-  if (res.code === 0 || res.code === 200) {
-    window.currentSessionId = res.data.id;
-    loadAppSessions(window.currentChatId);
-  } else {
-    alert('创建对话失败: ' + (res.message || '未知错误'));
-  }
+  if (!name?.trim()) return;
+  var version = chatViewVersion;
+  creatingChatSession = true;
+  try {
+    var data = await portalRequest('chat_session_create', { chat_id: chatId, name: name.trim() });
+    if (!data?.id) throw new Error('未返回会话 ID');
+    if (window.currentChatId !== chatId || version !== chatViewVersion) return;
+    await switchSession(data.id);
+    await loadAppSessions(chatId);
+  } catch (error) { alert('创建对话失败：' + error.message); }
+  finally { creatingChatSession = false; }
 }
 
 async function deleteSession(sessionId) {
-  if (!confirm('确定删除该对话吗？（将同步在 RAGFlow 中彻底删除）')) return;
-
-  var res = await fetch('/api.php?action=chat_session_delete', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: window.currentChatId, session_id: sessionId })
-  }).then(function(r) { return r.json(); });
-
-  if (res.code === 0 || res.code === 200) {
-    if (window.currentSessionId === sessionId) window.currentSessionId = '';
-    loadAppSessions(window.currentChatId);
-  } else {
-    alert('删除失败: ' + (res.message || '未知错误'));
-  }
+  var chatId = window.currentChatId;
+  if (chatPending.has(chatId + ':' + sessionId)) return alert('该会话正在回答，请等待完成后删除');
+  if (!confirm('确定删除该对话吗？')) return;
+  try {
+    await portalRequest('chat_session_delete', { chat_id: chatId, session_id: sessionId });
+    if (window.currentChatId !== chatId) return;
+    if (window.currentSessionId === sessionId) { window.currentSessionId = ''; chatViewVersion++; renderMessages([]); }
+    await loadAppSessions(chatId);
+  } catch (error) { alert('删除对话失败：' + error.message); }
 }
 
 async function sendChatMessage() {
-  var inputEl = document.getElementById('chatInputMessage');
-  var question = inputEl.value.trim();
-  if (!question || !window.currentChatId) return;
-
-  if (!window.currentSessionId) {
-    alert('请先新建或选择一个对话');
-    return;
-  }
-
-  var chatStream = document.getElementById('chatMessageStream');
-  chatStream.insertAdjacentHTML('beforeend', 
-    '<div class="message user">' +
-      '<div class="msg-avatar user-av">U</div>' +
-      '<div><div class="bubble">' + escapeHtml(question) + '</div></div>' +
-    '</div>' +
-    '<div class="message bot" id="loadingMsg">' +
-      '<div class="msg-avatar bot">V</div>' +
-      '<div><div class="bubble"><i class="fas fa-spinner fa-spin text-primary me-2"></i>思考中...</div></div>' +
-    '</div>'
-  );
-  
-  inputEl.value = '';
-  chatStream.scrollTop = chatStream.scrollHeight;
-
+  var input = document.getElementById('chatInputMessage');
+  var question = input.value.trim();
+  var chatId = window.currentChatId;
+  var sessionId = window.currentSessionId;
+  var version = chatViewVersion;
+  if (!question || !chatId) return;
+  if (!sessionId) return alert('请先新建或选择对话');
+  var key = chatId + ':' + sessionId;
+  if (chatPending.has(key)) return;
+  chatPending.add(key);
+  chatHistoryVersion++;
+  var stream = document.getElementById('chatMessageStream');
+  stream.insertAdjacentHTML('beforeend', chatMessageHTML({ role: 'user', content: question }));
+  var loading = document.createElement('div');
+  loading.className = 'text-muted p-3';
+  loading.textContent = '思考中...';
+  stream.appendChild(loading);
+  input.value = '';
   try {
-    var res = await fetch('/api.php?action=chat_send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: window.currentChatId,
-        session_id: window.currentSessionId,
-        question: question
-      })
-    }).then(function(r) { return r.json(); });
-
-    var loadingMsg = document.getElementById('loadingMsg');
-    if (loadingMsg) loadingMsg.remove();
-
-    var answer = '';
-    if (res.code === 0 || res.code === 200) {
-      if (typeof res.data === 'string') {
-        answer = res.data;
-      } else if (res.data?.answer) {
-        answer = res.data.answer;
-      } else if (res.data?.content) {
-        answer = res.data.content;
-      } else if (res.data?.response) {
-        answer = res.data.response;
-      }
-    } else if (res.message) {
-      answer = '请求出错: ' + res.message;
+    var data = await portalRequest('chat_send', { chat_id: chatId, session_id: sessionId, question: question });
+    if (!currentChatView(chatId, sessionId, version)) return;
+    var answer = typeof data === 'string' ? data : data?.answer;
+    if (!answer) throw new Error('未返回回答，请检查模型配置');
+    stream.insertAdjacentHTML('beforeend', chatMessageHTML({ role: 'assistant', content: answer, reference: data.reference }));
+  } catch (error) {
+    if (currentChatView(chatId, sessionId, version)) {
+      var message = document.createElement('div');
+      message.className = 'text-danger p-3';
+      message.textContent = '回答失败：' + error.message;
+      stream.appendChild(message);
+      if (!input.value) input.value = question;
     }
-
-    if (!answer) {
-      answer = '未能从 RAGFlow 获取回答，请检查模型配置。';
-    }
-
-    if (typeof cleanThinkProcess === 'function') answer = cleanThinkProcess(answer);
-
-    var parsedAnswer = renderSafeMarkdown(answer);
-
-    chatStream.insertAdjacentHTML('beforeend',
-      '<div class="message bot">' +
-        '<div class="msg-avatar bot">V</div>' +
-        '<div><div class="bubble">' + parsedAnswer + '</div></div>' +
-      '</div>'
-    );
-    chatStream.scrollTop = chatStream.scrollHeight;
-  } catch (e) {
-    var loadingMsg2 = document.getElementById('loadingMsg');
-    if (loadingMsg2) loadingMsg2.remove();
-    alert('通信异常: ' + e.message);
+  } finally {
+    chatPending.delete(key);
+    loading.remove();
+    if (currentChatView(chatId, sessionId, version)) stream.scrollTop = stream.scrollHeight;
+    else if (window.currentChatId === chatId && window.currentSessionId === sessionId) fetchSessionMessages(sessionId);
   }
 }

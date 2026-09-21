@@ -8,11 +8,11 @@ $currentUser = checkAuth();
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>VIVARILY · 我的知识库</title>
-  <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet" />
-  <link href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+  <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="/vendor/font-awesome/css/all.min.css" rel="stylesheet" />
   <link href="/css/style.css" rel="stylesheet" />
 </head>
-<body>
+<body data-portal-role="<?php echo htmlspecialchars($currentUser['role'], ENT_QUOTES); ?>">
   <div class="vivarly-frame">
     <div class="view-pane">
       <?php $page = 'dataset'; include __DIR__ . '/../../templates/navbar.php'; ?>
@@ -23,7 +23,7 @@ $currentUser = checkAuth();
           <span class="badge bg-light text-dark border"><i class="far fa-folder-open me-1"></i> 文档知识</span>
         </div>
         <div class="actions">
-          <span data-bs-toggle="modal" data-bs-target="#createDatasetModal"><i class="fas fa-plus me-1"></i> 新建</span>
+
           <span onclick="fetchDatasets()"><i class="fas fa-rotate me-1"></i> 刷新</span>
         </div>
       </div>
@@ -65,7 +65,7 @@ $currentUser = checkAuth();
   <?php include __DIR__ . '/../../templates/create_dataset_modal.php'; ?>
   <?php include __DIR__ . '/../../templates/preview_modal.php'; ?>
 
-  <script src="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+  <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
   <script src="/js/main.js"></script>
   <script src="/js/app.js"></script>
   <script src="/js/dataset.js"></script>

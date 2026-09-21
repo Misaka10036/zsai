@@ -8,8 +8,8 @@ $currentUser = checkAdmin();
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>VIVARILY · 用户账号管理</title>
-  <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet" />
-  <link href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+  <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="/vendor/font-awesome/css/all.min.css" rel="stylesheet" />
   <link href="/css/style.css" rel="stylesheet" />
   <style>
     /* 用户管理专用微调 */
@@ -17,7 +17,7 @@ $currentUser = checkAdmin();
     .file-table td .btn-sm i { font-size: 0.65rem; }
   </style>
 </head>
-<body>
+<body data-portal-role="<?php echo htmlspecialchars($currentUser['role'], ENT_QUOTES); ?>">
   <div class="vivarly-frame">
     <div class="view-pane">
       <?php $page = 'users'; include PROJECT_ROOT . '/templates/navbar.php'; ?>
@@ -86,7 +86,7 @@ $currentUser = checkAdmin();
     </div>
   </div>
 
-  <script src="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+  <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
   <script src="/js/main.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', loadUserList);
@@ -94,9 +94,8 @@ $currentUser = checkAdmin();
     async function loadUserList() {
       const tbody = document.getElementById('userTableBody');
       try {
-        const res = await fetch('/api.php?action=user_list').then(r => r.json());
-        if (res.code === 0) {
-          const list = res.data.list || [];
+        const list = await portalList('user_list', ['list']);
+        {
           tbody.innerHTML = list.map(u => `
             <tr>
               <td>${u.id}</td>
@@ -113,7 +112,7 @@ $currentUser = checkAdmin();
           `).join('');
         }
       } catch(e) {
-        tbody.innerHTML = `<tr><td colspan="7" class="text-danger text-center">加载失败: ${e.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="text-danger text-center">加载失败: ${escapeHtml(e.message)}</td></tr>`;
       }
     }
 
@@ -139,22 +138,14 @@ $currentUser = checkAdmin();
     }
 
     async function toggleStatus(id, status) {
-      await fetch('/api.php?action=user_update', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ id, status })
-      });
-      loadUserList();
+      try { await portalRequest('user_update', { id, status }); await loadUserList(); }
+      catch (error) { alert('更新失败：' + error.message); }
     }
 
     async function deleteUser(id) {
       if (!confirm('确定要删除该用户账号吗？')) return;
-      await fetch('/api.php?action=user_delete', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ id })
-      });
-      loadUserList();
+      try { await portalRequest('user_delete', { id }); await loadUserList(); }
+      catch (error) { alert('删除失败：' + error.message); }
     }
 
     function escapeHtml(text) {

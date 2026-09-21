@@ -16,6 +16,9 @@ var stepTimers = [];
 var logEntries = [];
 var rawGraphData = { nodes: [], edges: [] };
 var currentSessionId = null;
+var agentRun = null;
+var agentReady = false;
+var agentDetailVersion = 0;
 var allNodesMap = {};
 var treeChart = null;
 var treeStatus = 'idle';
@@ -76,46 +79,17 @@ document.addEventListener('DOMContentLoaded', function() {
 // Agent 列表管理
 // ============================================================
 
-function loadAgents() {
-    agentListEl.innerHTML = '<div class="text-center text-muted py-3 small"><i class="fas fa-spinner fa-spin me-1"></i>加载中...</div>';
-
-    fetch('/api.php?action=agent_list&page=1&page_size=50')
-        .then(function(r) {
-            if (!r.ok) throw new Error('HTTP ' + r.status);
-            return r.json();
-        })
-        .then(function(res) {
-            if (res.code === 0) {
-                var data = res.data || [];
-                if (Array.isArray(data)) currentAgents = data;
-                else if (data.canvas) currentAgents = data.canvas;
-                else if (data.list) currentAgents = data.list;
-                else currentAgents = [];
-                
-                renderAgentList();
-                if (currentAgents.length > 0 && !currentAgentId) {
-                    selectAgent(currentAgents[0].id);
-                } else if (currentAgents.length === 0) {
-                    showEmptyState();
-                }
-            } else {
-                useMockAgents();
-            }
-        })
-        .catch(function(e) {
-            useMockAgents();
-        });
-}
-
-function useMockAgents() {
-    currentAgents = [
-        { id: 'mock_1', title: '知识助手', description: '基于知识库的智能问答' },
-        { id: 'mock_2', title: '文档分析专家', description: '深度分析文档内容' },
-        { id: 'mock_3', title: '数据洞察师', description: '从数据中发现问题' }
-    ];
-    renderAgentList();
-    if (currentAgents.length > 0 && !currentAgentId) {
-        selectAgent(currentAgents[0].id);
+async function loadAgents() {
+    agentListEl.textContent = '加载中...';
+    try {
+        currentAgents = await portalList('agent_list', ['canvas', 'list']);
+        renderAgentList();
+        if (currentAgents.length && !currentAgentId) selectAgent(currentAgents[0].id);
+        else if (!currentAgents.length) showEmptyState();
+    } catch (error) {
+        agentListEl.textContent = 'Agent 加载失败：' + error.message;
+        agentReady = false;
+        btnRun.disabled = true;
     }
 }
 
@@ -157,11 +131,12 @@ function renderAgentList() {
 
 function selectAgent(agentId) {
     if (isRunning) {
-        if (!confirm('Agent 正在运行，切换将停止当前任务。是否继续？')) return;
-        stopAgent();
+        alert('请先停止任务并等待结束后再切换 Agent');
+        return;
     }
 
     currentAgentId = agentId;
+    currentSessionId = null;
     var agent = currentAgents.find(function(a) { return a.id === agentId; });
 
     var items = agentListEl.querySelectorAll('.agent-item');
@@ -186,28 +161,30 @@ function selectAgent(agentId) {
 // 加载 Agent 详情并解析 DSL
 // ============================================================
 
-function loadAgentDetail(agentId) {
-    fetch('/api.php?action=agent_detail&agent_id=' + encodeURIComponent(agentId))
-        .then(function(r) {
-            if (!r.ok) throw new Error('HTTP ' + r.status);
-            return r.json();
-        })
-        .then(function(res) {
-            if (res.code === 0 && res.data && res.data.dsl) {
-                parseDAGFromDSL(res.data.dsl);
-            } else {
-                useDefaultWorkflow();
-            }
-        })
-        .catch(function(e) {
-            useDefaultWorkflow();
-        });
+async function loadAgentDetail(agentId) {
+    var version = ++agentDetailVersion;
+    agentReady = false;
+    btnRun.disabled = true;
+    rawGraphData = { nodes: [], edges: [] };
+    if (treeChart) treeChart.clear();
+    try {
+        var data = await portalRequest('agent_detail&agent_id=' + encodeURIComponent(agentId));
+        if (version !== agentDetailVersion) return;
+        var dsl = typeof data.dsl === 'string' ? JSON.parse(data.dsl) : data.dsl;
+        parseDAGFromDSL(dsl);
+        agentReady = true;
+        btnRun.disabled = false;
+    } catch (error) {
+        if (version !== agentDetailVersion) return;
+        totalSteps.textContent = '0';
+        updateStatus('error');
+        addLog('error', '工作流加载失败：' + error.message);
+    }
 }
 
 function parseDAGFromDSL(dsl) {
     if (!dsl || !dsl.components) {
-        useDefaultWorkflow();
-        return;
+        throw new Error('工作流缺少 components');
     }
 
     var components = dsl.components;
@@ -273,43 +250,6 @@ function parseDAGFromDSL(dsl) {
     
     updateStatus('idle');
     addLog('info', '🔄 已加载 Agent 工作流，共 ' + rawGraphData.nodes.length + ' 个节点');
-}
-
-function useDefaultWorkflow() {
-    var defaultNodes = [
-        { id: 'start', name: 'Begin', fullName: 'Begin', type: 'Begin', desc: '初始化 Agent 会话' },
-        { id: 'retrieve', name: '知识检索', fullName: '知识检索', type: 'Retrieval', desc: '从知识库检索相关内容' },
-        { id: 'process', name: '信息处理', fullName: '信息处理', type: 'Agent', desc: '处理检索到的信息' },
-        { id: 'reason', name: '推理分析', fullName: '推理分析', type: 'Agent', desc: '基于信息进行推理分析' },
-        { id: 'generate', name: '生成回答', fullName: '生成回答', type: 'Agent', desc: '生成最终回答内容' },
-        { id: 'end', name: '结束', fullName: '结束', type: 'Message', desc: '完成 Agent 任务' }
-    ];
-
-    var defaultEdges = [
-        { source: 'start', target: 'retrieve' },
-        { source: 'retrieve', target: 'process' },
-        { source: 'process', target: 'reason' },
-        { source: 'reason', target: 'generate' },
-        { source: 'generate', target: 'end' }
-    ];
-
-    allNodesMap = {};
-    for (var i = 0; i < defaultNodes.length; i++) {
-        allNodesMap[defaultNodes[i].id] = defaultNodes[i];
-    }
-
-    rawGraphData = { nodes: defaultNodes, edges: defaultEdges };
-    totalSteps.textContent = defaultNodes.length;
-    
-    treeStatus = 'idle';
-    treeActiveId = null;
-    highlightedNodeId = null;
-    
-    stopForceLayout();
-    renderHierarchicalGraph(rawGraphData, treeStatus, treeActiveId);
-    
-    updateStatus('idle');
-    addLog('info', '🔄 已加载默认工作流，共 ' + defaultNodes.length + ' 个节点');
 }
 
 // ============================================================
@@ -906,65 +846,50 @@ function toggleRun() {
     else startAgent();
 }
 
-function startAgent() {
-    if (isRunning || !currentAgentId) {
-        if (!currentAgentId) alert('请先选择一个 Agent');
-        return;
-    }
-
+async function startAgent() {
+    if (isRunning || !currentAgentId || !agentReady) return;
+    var query = prompt('请输入您的提问:', '');
+    if (!query?.trim()) return;
+    var run = { agentId: currentAgentId, sessionId: currentSessionId, cancelled: false, cancelPromise: null };
+    agentRun = run;
     isRunning = true;
-    currentStep = -1;
-
-    btnRun.className = 'btn-run running';
-    btnText.textContent = '运行中';
-    btnRun.querySelector('i').className = 'fas fa-spinner fa-spin';
-
+    btnRun.disabled = true;
+    btnText.textContent = '准备会话...';
     updateStatus('running');
     clearLog();
-
-    var agent = currentAgents.find(function(a) { return a.id === currentAgentId; });
-    var agentName = agent ? (agent.title || agent.name || '未命名') : '未命名';
-    addLog('info', '🚀 Agent 开始执行: ' + agentName);
-
-    var query = prompt('请输入您的提问:', '生成 2026-07-27 至 2026-08-02 的研发周报');
-    if (!query || query.trim() === '') query = '请执行你的任务';
-    addLog('info', '📋 问题: ' + query);
-
-    if (rawGraphData.nodes.length > 0) {
-        treeStatus = 'running';
-        treeActiveId = rawGraphData.nodes[0].id;
-        highlightedNodeId = null;
-        stopForceLayout();
-        renderHierarchicalGraph(rawGraphData, treeStatus, treeActiveId);
-    }
-
-    fetch('/api.php?action=agent_converse', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            agent_id: currentAgentId,
-            query: query.trim(),
-            stream: false
-        })
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(res) {
-        if (res.code === 0) {
-            var data = res.data || {};
-            currentSessionId = data.session_id || null;
-            var result = data.data && data.data.content ? data.data.content : (data.answer || data.content || 'Agent 执行完成');
-            addLog('success', '✅ Agent 运行成功');
-            addLog('info', result);
-            finishAgent(true);
-        } else {
-            addLog('error', '❌ Agent 运行失败: ' + (res.message || '未知错误'));
-            finishAgent(false);
+    addLog('info', query);
+    try {
+        if (!run.sessionId) {
+            var session = await portalRequest('agent_session_create', { agent_id: run.agentId });
+            if (!session?.id) throw new Error('未返回 Agent 会话 ID');
+            run.sessionId = session.id;
+            currentSessionId = session.id;
         }
-    })
-    .catch(function(e) {
-        addLog('error', '❌ Agent 运行失败: ' + e.message);
-        finishAgent(false);
-    });
+        btnRun.disabled = false;
+        btnRun.className = 'btn-run running';
+        btnText.textContent = '停止';
+        var data = await portalRequest('agent_converse', { agent_id: run.agentId, session_id: run.sessionId, query: query.trim(), stream: false });
+        if (run.cancelPromise) await run.cancelPromise;
+        if (run.cancelled) return;
+        var result = data?.data?.content || data?.answer || data?.content;
+        if (result) addLog('info', result);
+        else addLog('info', '本轮结束，未返回文本内容');
+        finishAgent(true);
+    } catch (error) {
+        if (run.cancelPromise) await run.cancelPromise;
+        if (!run.cancelled) { addLog('error', '运行失败：' + error.message); finishAgent(false); }
+    } finally {
+        if (run.cancelled) {
+            currentSessionId = null;
+            isRunning = false;
+            btnText.textContent = '运行';
+            btnRun.className = 'btn-run';
+            updateStatus('idle');
+            addLog('warning', '取消请求已确认，本轮请求已结束');
+        }
+        agentRun = null;
+        btnRun.disabled = false;
+    }
 }
 
 function finishAgent(success) {
@@ -1002,19 +927,29 @@ function finishAgent(success) {
     }, 2500);
 }
 
-function stopAgent() {
-    isRunning = false;
-    for (var i = 0; i < stepTimers.length; i++) clearTimeout(stepTimers[i]);
-    stepTimers = [];
-
-    btnRun.className = 'btn-run error';
-    btnText.textContent = '已停止';
-    btnRun.querySelector('i').className = 'fas fa-stop';
-    updateStatus('error');
-    addLog('warning', '⛔ Agent 执行被用户停止');
+async function stopAgent() {
+    var run = agentRun;
+    if (!run || !run.sessionId || run.cancelPromise) return;
+    btnRun.disabled = true;
+    btnText.textContent = '取消中...';
+    run.cancelPromise = (async function() {
+        try {
+            await portalRequest('agent_cancel', { agent_id: run.agentId, session_id: run.sessionId });
+            run.cancelled = true;
+            btnText.textContent = '等待任务结束';
+            addLog('warning', '已向后端发送取消请求');
+        } catch (error) {
+            addLog('error', '取消失败：' + error.message);
+            btnText.textContent = '停止';
+            btnRun.disabled = false;
+        }
+    })();
+    await run.cancelPromise;
+    if (!run.cancelled) run.cancelPromise = null;
 }
 
 function deleteAgent(agentId) {
+    if (isRunning) return alert('请等待当前任务结束后再删除');
     if (!confirm('确定要删除该 Agent 吗？')) return;
     fetch('/api.php?action=agent_delete', {
         method: 'POST',
@@ -1068,6 +1003,12 @@ function confirmCreateAgent() {
 }
 
 function showEmptyState() {
+    currentAgentId = null;
+    currentSessionId = null;
+    agentReady = false;
+    btnRun.disabled = true;
+    rawGraphData = { nodes: [], edges: [] };
+    if (treeChart) treeChart.clear();
     agentAvatarSm.textContent = '?';
     agentNameSm.textContent = '无 Agent';
     agentDescSm.textContent = '请创建新的 Agent';
@@ -1083,5 +1024,3 @@ window.closeCreateModal = closeCreateModal;
 window.confirmCreateAgent = confirmCreateAgent;
 window.deleteAgent = deleteAgent;
 window.selectAgent = selectAgent;
-window.expandAllNodes = function() { /* 功能已剔除 */ };
-window.collapseAllNodes = function() { /* 功能已剔除 */ };

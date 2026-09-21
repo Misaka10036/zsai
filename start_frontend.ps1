@@ -129,9 +129,22 @@ try {
     Start-FrontendProcess -Name 'vite' -FilePath $node.Source -WorkingDirectory $webRoot `
         -Arguments @($vitePath, '--host', '--port', [string]$Port, '--strictPort') `
         -Environment @{ PORT = [string]$Port; API_PROXY_SCHEME = $ApiProxyScheme }
-    Start-FrontendProcess -Name 'zhisheng' -FilePath $PhpPath -WorkingDirectory $zhishengRoot `
-        -Arguments @('-d', 'display_errors=0', '-d', 'log_errors=1', '-d', 'upload_max_filesize=128M', '-d', 'post_max_size=128M', '-d', 'max_execution_time=300', '-S', "127.0.0.1:$ZhishengPort", '-t', $zhishengRoot) `
-        -Environment @{ RAGFLOW_BASE_URL = $BackendUrl.TrimEnd('/') }
+    $portalWorkerPorts = @()
+    for ($workerIndex = 0; $workerIndex -lt 3; $workerIndex++) {
+        do {
+            $portReservation = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0)
+            $portReservation.Start()
+            $workerPort = $portReservation.LocalEndpoint.Port
+            $portReservation.Stop()
+        } while ($workerPort -in $portalWorkerPorts -or $workerPort -eq $Port -or $workerPort -eq $ZhishengPort)
+        $portalWorkerPorts += $workerPort
+        Start-FrontendProcess -Name "zhisheng-php-$workerIndex" -FilePath $PhpPath -WorkingDirectory $zhishengRoot `
+            -Arguments @('-d', 'display_errors=0', '-d', 'log_errors=1', '-d', 'upload_max_filesize=128M', '-d', 'post_max_size=128M', '-d', 'max_execution_time=300', '-S', "127.0.0.1:$workerPort", '-t', $zhishengRoot) `
+            -Environment @{ RAGFLOW_BASE_URL = $BackendUrl.TrimEnd('/') }
+    }
+    Start-FrontendProcess -Name 'zhisheng' -FilePath $node.Source -WorkingDirectory $repoRoot `
+        -Arguments @((Join-Path $repoRoot 'tools/php-dev-proxy.cjs'), [string]$ZhishengPort, [string]($portalWorkerPorts[2]), [string]($portalWorkerPorts[0]), [string]($portalWorkerPorts[1])) `
+        -Environment @{}
 
     Write-Step "Vite: http://127.0.0.1:$Port (API proxy: $ApiProxyScheme)"
     Write-Step "Zhisheng: http://127.0.0.1:$ZhishengPort (backend: $BackendUrl)"

@@ -15,124 +15,9 @@ $currentUser = checkAdmin();
   <script src="/vendor/dompurify/purify.min.js"></script>
     <script src="/vendor/echarts/echarts.min.js"></script>
     <!-- PDF.js 用于PDF预览和高亮定位 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <style>
-        .pdf-viewer-container {
-            width: 100%;
-            height: 100%;
-            min-height: 600px;
-            overflow: auto;
-            background: #f1f4f9;
-            position: relative;
-        }
-        .pdf-viewer-container canvas {
-            display: block;
-            margin: 0 auto;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
-            background: white;
-        }
-        .pdf-viewer-container .pdf-controls {
-            position: sticky;
-            top: 0;
-            z-index: 10;
-            background: rgba(255,255,255,0.95);
-            padding: 0.5rem 1rem;
-            border-bottom: 1px solid var(--border-color, #e9edf2);
-            display: flex;
-            align-items: center;
-            gap: 0.8rem;
-            flex-wrap: wrap;
-        }
-        .pdf-viewer-container .pdf-controls .page-info {
-            font-size: 0.85rem;
-            color: var(--text-muted, #64748b);
-        }
-        .pdf-viewer-container .pdf-controls .btn-pdf {
-            padding: 0.15rem 0.8rem;
-            border-radius: var(--radius-full, 9999px);
-            border: 1px solid var(--border-color, #e9edf2);
-            background: var(--bg-card, #ffffff);
-            cursor: pointer;
-            font-size: 0.75rem;
-            transition: all 0.15s;
-        }
-        .pdf-viewer-container .pdf-controls .btn-pdf:hover {
-            background: var(--bg-hover, #f1f5f9);
-            border-color: #94a3b8;
-        }
-        .pdf-viewer-container .pdf-controls .btn-pdf.primary {
-            background: var(--dark, #1e293b);
-            color: var(--text-white, #f8fafc);
-            border-color: var(--dark, #1e293b);
-        }
-        .pdf-viewer-container .pdf-controls .btn-pdf.primary:hover {
-            background: var(--dark-hover, #0f172a);
-        }
-        .pdf-viewer-container .pdf-controls .search-highlight-info {
-            font-size: 0.75rem;
-            color: var(--blue, #3b82f6);
-            font-weight: 500;
-        }
-        .pdf-viewer-container .pdf-loading {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 400px;
-            color: var(--text-muted, #64748b);
-        }
-        .pdf-viewer-container .pdf-loading i {
-            font-size: 2.5rem;
-            margin-bottom: 1rem;
-            color: var(--blue, #3b82f6);
-        }
-        .text-highlight {
-            background: #fcd34d !important;
-            padding: 0.05rem 0.15rem !important;
-            border-radius: 3px !important;
-            font-weight: 600 !important;
-            box-shadow: 0 0 0 2px #fbbf24 !important;
-        }
-        .text-highlight.flash {
-            animation: previewFlash 2s ease;
-        }
-        @keyframes previewFlash {
-            0% { background: #fcd34d; box-shadow: 0 0 0 4px #fbbf24, 0 0 30px rgba(251, 191, 36, 0.3); transform: scale(1.02); }
-            30% { background: #fbbf24; box-shadow: 0 0 0 6px #f59e0b, 0 0 50px rgba(251, 191, 36, 0.5); transform: scale(1.05); }
-            70% { background: #fcd34d; box-shadow: 0 0 0 3px #fbbf24, 0 0 20px rgba(251, 191, 36, 0.2); transform: scale(1.02); }
-            100% { background: #fcd34d; box-shadow: 0 0 0 2px #fbbf24; transform: scale(1); }
-        }
-        .pdf-page-container {
-            position: relative;
-            margin-bottom: 0.5rem;
-        }
-        .pdf-page-container .page-label {
-            text-align: center;
-            font-size: 0.7rem;
-            color: var(--text-light, #94a3b8);
-            padding: 0.2rem 0;
-        }
-        .pdf-text-layer {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            overflow: hidden;
-            pointer-events: none;
-            opacity: 0.2;
-            line-height: 1;
-        }
-        .pdf-text-layer span {
-            color: transparent;
-            position: absolute;
-            white-space: pre;
-            cursor: text;
-            transform-origin: 0% 0%;
-        }
-    </style>
+    <script src="/vendor/pdfjs/pdf.min.js"></script>
 </head>
-<body>
+<body data-portal-role="<?php echo htmlspecialchars($currentUser['role'], ENT_QUOTES); ?>">
 <div class="vivarly-frame">
     <div class="view-pane">
         <?php $page = 'search'; include PROJECT_ROOT . '/templates/navbar.php'; ?>
@@ -189,7 +74,7 @@ $currentUser = checkAdmin();
     <div class="modal-dialog modal-sm">
         <div class="modal-content border-0 rounded-4 shadow">
             <div class="modal-header">
-                <h6 class="modal-title fw-bold"><i class="fas fa-plus-circle text-primary me-2"></i>新建搜索应用</h6>
+                <h6 id="searchConfigTitle" class="modal-title fw-bold"><i class="fas fa-plus-circle text-primary me-2"></i>新建搜索应用</h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
@@ -202,9 +87,14 @@ $currentUser = checkAdmin();
                     <textarea id="newAppDesc" class="form-control" rows="2" placeholder="简要描述..." style="border-radius:0.75rem;"></textarea>
                 </div>
             </div>
+            <div class="px-3 pb-3">
+                <label for="searchDatasetIds" class="form-label">关联知识库（可多选）</label>
+                <select id="searchDatasetIds" class="form-select" multiple size="5"></select>
+                <div id="searchConfigError" class="text-danger small mt-2" role="alert"></div>
+            </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">取消</button>
-                <button type="button" class="btn btn-dark rounded-pill px-3" onclick="confirmCreateApp()"><i class="fas fa-check me-1"></i>创建</button>
+                <button type="button" class="btn btn-dark rounded-pill px-3" id="saveSearchApp" onclick="confirmCreateApp()"><i class="fas fa-check me-1"></i>创建</button>
             </div>
         </div>
     </div>

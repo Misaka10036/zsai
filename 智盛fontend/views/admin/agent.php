@@ -8,12 +8,12 @@ $currentUser = checkAdmin();
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>VIVARILY · Agent 工作流</title>
-    <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet" />
-    <link href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="/vendor/font-awesome/css/all.min.css" rel="stylesheet" />
     <link href="/css/style.css" rel="stylesheet" />
-    <script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
+    <script src="/vendor/echarts/echarts.min.js"></script>
 </head>
-<body>
+<body data-portal-role="<?php echo htmlspecialchars($currentUser['role'], ENT_QUOTES); ?>">
 <div class="vivarly-frame">
     <div class="view-pane">
         <?php $page = 'agent'; include PROJECT_ROOT . '/templates/navbar.php'; ?>
@@ -89,8 +89,6 @@ $currentUser = checkAdmin();
                         <span><i class="fas fa-mouse-pointer"></i> 点击节点展开/收起</span>
                         <span><i class="fas fa-arrows-alt"></i> 拖拽移动</span>
                         <span><i class="fas fa-search-plus"></i> 滚轮缩放</span>
-                        <span><button class="btn-expand-all" onclick="expandAllNodes()"><i class="fas fa-expand"></i> 展开全部</button></span>
-                        <span><button class="btn-expand-all" onclick="collapseAllNodes()"><i class="fas fa-compress"></i> 收起全部</button></span>
                     </div>
                 </div>
 
@@ -140,7 +138,7 @@ $currentUser = checkAdmin();
     </div>
 </div>
 
-<script src="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+<script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
 <script src="/js/main.js"></script>
 <script src="/js/app.js"></script>
 <script src="/js/agent.js"></script>

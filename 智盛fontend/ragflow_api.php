@@ -317,8 +317,9 @@ class RAGFlowAPI {
         return $this->request("/api/v1/searches/{$searchId}", 'GET');
     }
 
-    public function createSearchApp($name, $description = '') {
-        $payload = ['name' => $name];
+    public function createSearchApp($name, $description = '', $datasetIds = []) {
+        if (!$datasetIds) return ['code' => 400, 'message' => '请选择至少一个知识库'];
+        $payload = ['name' => $name, 'search_config' => ['kb_ids' => array_values($datasetIds)]];
         if (!empty($description)) {
             $payload['description'] = $description;
         }
@@ -357,6 +358,7 @@ class RAGFlowAPI {
 
         $answer = '';
         $reference = [];
+        $mindmap = null;
         $done = false;
         foreach (preg_split('/\r?\n/', $raw) as $line) {
             if (!str_starts_with($line, 'data:')) continue;
@@ -370,12 +372,13 @@ class RAGFlowAPI {
             if (!is_array($data)) continue;
             $answer .= $data['answer'] ?? '';
             if (!empty($data['reference'])) $reference = $data['reference'];
+            if (isset($data['mindmap']) || isset($data['mind_map'])) $mindmap = $data['mindmap'] ?? $data['mind_map'];
         }
         if (!$done) return ['code' => 502, 'message' => 'Search response was interrupted'];
         foreach (['chunks', 'doc_aggs'] as $field) {
             $reference[$field] = array_values($reference[$field] ?? []);
         }
-        return ['code' => 0, 'data' => ['answer' => $answer, 'reference' => $reference]];
+        return ['code' => 0, 'data' => ['answer' => $answer, 'reference' => $reference, 'mindmap' => $mindmap]];
     }
 
     // ==================== 模型管理 API ====================
@@ -474,6 +477,25 @@ class RAGFlowAPI {
 
     public function getAgentSessions($agentId, $page = 1, $pageSize = 20) {
         return $this->request('/api/v1/agents/' . $agentId . '/sessions?' . http_build_query(['page' => $page, 'page_size' => $pageSize]));
+    }
+
+    public function createAgentSession($agentId) {
+        return $this->request('/api/v1/agents/' . $agentId . '/sessions', 'POST', []);
+    }
+
+    public function cancelAgentSession($agentId, $sessionId) {
+        $session = $this->request('/api/v1/agents/' . $agentId . '/sessions/' . $sessionId);
+        if (($session['code'] ?? 500) !== 0) return $session;
+        return $this->request('/api/v1/tasks/' . $sessionId . '/cancel', 'POST', []);
+    }
+
+    public function searchMindmap($searchId, $question) {
+        $app = $this->getSearchAppDetail($searchId);
+        if (($app['code'] ?? 500) !== 0) return $app;
+        $ids = $app['data']['search_config']['kb_ids'] ?? [];
+        if (!$ids) return ['code' => 400, 'message' => '搜索应用尚未绑定知识库'];
+        return $this->request('/api/v1/chat/mindmap', 'POST',
+            ['search_id' => $searchId, 'question' => $question, 'kb_ids' => $ids]);
     }
 
     public function deleteAgentSessions($agentId, $sessionIds = [], $deleteAll = false) {

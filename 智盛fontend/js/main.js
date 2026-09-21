@@ -77,25 +77,59 @@ function getCurrentTimeString() {
   return now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate()) + ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes());
 }
 
-// 状态徽章样式映射
-function getStatusBadgeText(status) {
-  if (status == '1' || status === 'DONE' || status === 'SUCCESS') return '解析完成';
-  if (status == '2' || status === 'RUNNING' || status === 'PROCESSING') return '解析中';
-  if (status == '3' || status === 'FAILED' || status === 'ERROR') return '解析失败';
-  return '未解析';
-}
-
-// 获取状态徽章样式类
-function getStatusBadgeClass(status) {
-  if (status == '1' || status === 'DONE' || status === 'SUCCESS') return 'bg-success-subtle text-success border';
-  if (status == '2' || status === 'RUNNING' || status === 'PROCESSING') return 'bg-warning-subtle text-warning border';
-  if (status == '3' || status === 'FAILED' || status === 'ERROR') return 'bg-danger-subtle text-danger border';
-  return 'bg-secondary-subtle text-secondary border';
-}
 // Fail closed if either optional rendering dependency is unavailable.
 function renderSafeMarkdown(text) {
   if (typeof DOMPurify === 'undefined' || typeof marked === 'undefined') {
     return escapeHtml(text).replace(/\n/g, '<br>');
   }
   return DOMPurify.sanitize(marked.parse(String(text || '')), { USE_PROFILES: { html: true } });
+}
+
+async function portalRequest(action, data, signal) {
+  var response = await fetch('/api.php?action=' + action, data === undefined
+    ? { signal: signal }
+    : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data), signal: signal });
+  var result;
+  try { result = await response.json(); }
+  catch (error) { throw new Error('服务器响应无效（HTTP ' + response.status + '）'); }
+  if (response.ok === false || !result || result.code !== 0) {
+    throw new Error(result?.message || '请求失败（HTTP ' + response.status + '）');
+  }
+  return result.data;
+}
+
+async function portalList(action, fields) {
+  var items = [];
+  var seen = new Set();
+  for (var page = 1; ; page++) {
+    var data = await portalRequest(action + '&page=' + page + '&page_size=50');
+    var batch = Array.isArray(data) ? data : fields.map(function(key) { return data?.[key]; }).find(Array.isArray);
+    if (!batch) throw new Error('服务器返回的列表格式无效');
+    for (var item of batch) {
+      if (seen.has(item.id)) throw new Error('列表分页返回了重复数据，请刷新重试');
+      seen.add(item.id);
+      items.push(item);
+    }
+    var total = Array.isArray(data) ? null : (data.total ?? data.total_datasets);
+    if (batch.length === 0 || (total != null && items.length >= total) || (total == null && batch.length < 50)) return items;
+  }
+}
+
+function portalIsAdmin() {
+  return document.body.dataset.portalRole === 'admin';
+}
+
+function renderChatReferences(reference) {
+  var chunks = reference?.chunks || [];
+  if (!Array.isArray(chunks)) chunks = Object.values(chunks);
+  if (!chunks.length) return '';
+  return '<details class="mt-2"><summary>引用来源（' + chunks.length + '）</summary>' + chunks.map(function(chunk) {
+    var title = chunk.document_name || chunk.docnm_kwd || '引用文档';
+    var kb = chunk.dataset_id || chunk.kb_id;
+    var doc = chunk.document_id || chunk.doc_id;
+    var href = '/api.php?action=file_preview&dataset_id=' + encodeURIComponent(kb) + '&doc_id=' + encodeURIComponent(doc);
+    return '<div class="border-top py-2">' + (kb && doc
+      ? '<a target="_blank" rel="noopener" href="' + escapeHtml(href) + '">' + escapeHtml(title) + '</a>'
+      : escapeHtml(title)) + '<div class="small">' + escapeHtml(chunk.content || chunk.content_with_weight || '') + '</div></div>';
+  }).join('') + '</details>';
 }

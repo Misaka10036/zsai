@@ -28,7 +28,7 @@ $currentUser = checkAdmin();
     }
   </style>
 </head>
-<body>
+<body data-portal-role="<?php echo htmlspecialchars($currentUser['role'], ENT_QUOTES); ?>">
   <div class="vivarly-frame">
     <div class="view-pane">
       <?php $page = 'chat'; include PROJECT_ROOT . '/templates/navbar.php'; ?>

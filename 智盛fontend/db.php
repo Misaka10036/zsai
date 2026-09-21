@@ -36,6 +36,12 @@ class UserManager {
         return $stmt->fetch();
     }
 
+    public function findById($id) {
+        $stmt = $this->db->prepare('SELECT * FROM users WHERE id = :id');
+        $stmt->execute([':id' => $id]);
+        return $stmt->fetch();
+    }
+
     public function findByEmail($email) {
         $stmt = $this->db->prepare("SELECT * FROM users WHERE email = :email LIMIT 1");
         $stmt->execute([':email' => $email]);
