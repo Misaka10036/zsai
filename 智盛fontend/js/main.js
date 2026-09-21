@@ -85,6 +85,56 @@ function renderSafeMarkdown(text) {
   return DOMPurify.sanitize(marked.parse(String(text || '')), { USE_PROFILES: { html: true } });
 }
 
+async function portalStream(action, data, onEvent) {
+  var response = await fetch('/api.php?action=' + action, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+    body: JSON.stringify(Object.assign({}, data, { stream: true }))
+  });
+  if (!response.ok || !(response.headers.get('Content-Type') || '').includes('text/event-stream')) {
+    var failure;
+    try { failure = await response.json(); } catch (_) { /* Non-JSON proxy failure. */ }
+    throw new Error(failure?.message || '服务器未返回流式响应（HTTP ' + response.status + '）');
+  }
+  if (!response.body) throw new Error('浏览器不支持流式响应');
+  var reader = response.body.getReader();
+  var decoder = new TextDecoder();
+  var pending = '', lines = [], done = false;
+  function line(value) {
+    if (value.endsWith('\r')) value = value.slice(0, -1);
+    if (value !== '') {
+      if (value.startsWith('data:')) lines.push(value.slice(5).replace(/^ /, ''));
+      return;
+    }
+    if (!lines.length) return;
+    var raw = lines.join('\n');
+    lines = [];
+    if (raw === '[DONE]') { done = true; return; }
+    var event;
+    try { event = JSON.parse(raw); } catch (_) { throw new Error('流式响应格式错误'); }
+    if (!event || typeof event !== 'object') throw new Error('流式响应格式错误');
+    if (event.code !== undefined && event.code !== 0) throw new Error(event.message || '后端执行失败');
+    if (event.error || event.event === 'error') throw new Error(event.message || event.error?.message || event.error || event.data?.message || '后端执行失败');
+    if (event.data === true && event.code === 0) { done = true; return; }
+    onEvent(event);
+  }
+  try {
+    while (!done) {
+      var chunk = await reader.read();
+      pending += decoder.decode(chunk.value, { stream: !chunk.done });
+      var end;
+      while (!done && (end = pending.indexOf('\n')) >= 0) {
+        line(pending.slice(0, end));
+        pending = pending.slice(end + 1);
+      }
+      if (chunk.done) break;
+    }
+    if (!done) throw new Error('回答连接中断，内容可能不完整，请检查历史记录后重试');
+  } finally {
+    await reader.cancel().catch(function() {});
+    reader.releaseLock();
+  }
+}
+
 async function portalRequest(action, data, signal) {
   var response = await fetch('/api.php?action=' + action, data === undefined
     ? { signal: signal }

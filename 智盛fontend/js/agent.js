@@ -868,13 +868,46 @@ async function startAgent() {
         btnRun.disabled = false;
         btnRun.className = 'btn-run running';
         btnText.textContent = '停止';
-        var data = await portalRequest('agent_converse', { agent_id: run.agentId, session_id: run.sessionId, query: query.trim(), stream: false });
+        var content = '', thinking = '', inThinking = false, reference = null;
+        var output = document.createElement('div');
+        output.className = 'log-entry';
+        var waitingForInput = false, workflowFinished = false;
+        await portalStream('agent_converse', { agent_id: run.agentId, session_id: run.sessionId, query: query.trim() }, function(event) {
+            if (run.cancelled) return;
+            var data = event.data || {};
+            if (event.event === 'message') {
+                if (data.start_to_think) inThinking = true;
+                if (data.end_to_think) inThinking = false;
+                if (inThinking) thinking += data.content || '';
+                else content += data.content || '';
+            }
+            if (data.reference) reference = data.reference;
+            if (event.event === 'message' || event.event === 'message_end') {
+                if (!output.parentNode) logBody.appendChild(output);
+                output.innerHTML = '<div class="log-msg">' +
+                    (thinking ? '<details><summary>思考过程</summary>' + renderSafeMarkdown(thinking) + '</details>' : '') +
+                    renderSafeMarkdown(content) + renderChatReferences(reference) + '</div>';
+                logBody.scrollTop = logBody.scrollHeight;
+            }
+            if (event.event === 'node_started' || event.event === 'node_finished') {
+                addLog(data.error ? 'warning' : 'info', (data.component_name || data.component_id || '节点') +
+                    (event.event === 'node_started' ? ' 开始执行' : ' 执行结束') + (data.error ? '：' + data.error : ''));
+                if (data.error) run.nodeError = String(data.error);
+            }
+            if (event.event === 'user_inputs') {
+                waitingForInput = true;
+                addLog('warning', '工作流等待补充输入：' + (data.tips || JSON.stringify(data.inputs || {})));
+            }
+            if (event.event === 'workflow_finished') {
+                workflowFinished = true;
+                if (data.outputs === 'Task has been canceled') run.cancelled = true;
+            }
+        });
         if (run.cancelPromise) await run.cancelPromise;
         if (run.cancelled) return;
-        var result = data?.data?.content || data?.answer || data?.content;
-        if (result) addLog('info', result);
-        else addLog('info', '本轮结束，未返回文本内容');
-        finishAgent(true);
+        if (run.nodeError && !workflowFinished && !waitingForInput) throw new Error(run.nodeError);
+        if (!content && !waitingForInput) addLog('info', '本轮结束，未返回文本内容');
+        finishAgent(true, waitingForInput);
     } catch (error) {
         if (run.cancelPromise) await run.cancelPromise;
         if (!run.cancelled) { addLog('error', '运行失败：' + error.message); finishAgent(false); }
@@ -892,7 +925,7 @@ async function startAgent() {
     }
 }
 
-function finishAgent(success) {
+function finishAgent(success, waitingForInput) {
     isRunning = false;
     for (var i = 0; i < stepTimers.length; i++) clearTimeout(stepTimers[i]);
     stepTimers = [];
@@ -902,7 +935,11 @@ function finishAgent(success) {
         btnText.textContent = '完成';
         btnRun.querySelector('i').className = 'fas fa-check';
         updateStatus('done');
-        addLog('success', '🎉 Agent 任务执行完成！');
+        if (waitingForInput) {
+            btnText.textContent = '继续';
+            statusText.textContent = '等待输入';
+            agentStatusSm.textContent = '● 等待输入';
+        } else addLog('success', '🎉 Agent 任务执行完成！');
     } else {
         btnRun.className = 'btn-run error';
         btnText.textContent = '错误';

@@ -214,12 +214,27 @@ async function sendChatMessage() {
   loading.textContent = '思考中...';
   stream.appendChild(loading);
   input.value = '';
+  var answer = '', thinking = '', reference = null, inThinking = false;
+  var output = document.createElement('div');
   try {
-    var data = await portalRequest('chat_send', { chat_id: chatId, session_id: sessionId, question: question });
+    await portalStream('chat_send', { chat_id: chatId, session_id: sessionId, question: question }, function(event) {
+      var data = event.data;
+      if (!data || typeof data !== 'object') return;
+      if (data.start_to_think) inThinking = true;
+      if (data.end_to_think) inThinking = false;
+      if (data.final) { if (typeof data.answer === 'string' && data.answer) answer = data.answer; }
+      else if (inThinking) thinking += data.answer || '';
+      else answer += data.answer || '';
+      if (data.reference) reference = data.reference;
+      if (!currentChatView(chatId, sessionId, version)) return;
+      loading.remove();
+      if (!output.parentNode) stream.appendChild(output);
+      output.innerHTML = (thinking ? '<details><summary>思考过程</summary>' + renderSafeMarkdown(thinking) + '</details>' : '') +
+        chatMessageHTML({ role: 'assistant', content: answer, reference: reference });
+      stream.scrollTop = stream.scrollHeight;
+    });
     if (!currentChatView(chatId, sessionId, version)) return;
-    var answer = typeof data === 'string' ? data : data?.answer;
     if (!answer) throw new Error('未返回回答，请检查模型配置');
-    stream.insertAdjacentHTML('beforeend', chatMessageHTML({ role: 'assistant', content: answer, reference: data.reference }));
   } catch (error) {
     if (currentChatView(chatId, sessionId, version)) {
       var message = document.createElement('div');

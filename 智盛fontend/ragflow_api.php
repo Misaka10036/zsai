@@ -59,6 +59,47 @@ class RAGFlowAPI {
         return ['code' => $httpCode >= 400 ? $httpCode : 502, 'message' => 'Backend returned a non-JSON response'];
     }
 
+    private function streamRequest($endpoint, $payload) {
+        // Session authorization is completed by api.php before any bytes are sent.
+        header('Content-Type: text/event-stream; charset=utf-8');
+        header('Cache-Control: no-cache, no-transform');
+        header('X-Accel-Buffering: no');
+        ini_set('zlib.output_compression', '0');
+        set_time_limit(0);
+        while (ob_get_level() > 0) ob_end_flush();
+        $otherBody = '';
+        $ch = curl_init($this->baseUrl . $endpoint);
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => json_encode($payload, JSON_THROW_ON_ERROR),
+            CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $this->apiKey, 'Content-Type: application/json', 'Accept: text/event-stream'],
+            CURLOPT_CONNECTTIMEOUT => 10,
+            CURLOPT_TIMEOUT => 300,
+            CURLOPT_WRITEFUNCTION => function ($curl, $bytes) use (&$otherBody) {
+                $status = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+                $type = curl_getinfo($curl, CURLINFO_CONTENT_TYPE) ?: '';
+                if ($status >= 200 && $status < 300 && stripos($type, 'text/event-stream') !== false) {
+                    echo $bytes;
+                    flush();
+                } else {
+                    $otherBody .= substr($bytes, 0, max(0, 1048576 - strlen($otherBody)));
+                }
+                return connection_aborted() ? 0 : strlen($bytes);
+            },
+        ]);
+        curl_exec($ch);
+        $error = curl_error($ch);
+        $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $type = curl_getinfo($ch, CURLINFO_CONTENT_TYPE) ?: '';
+        curl_close($ch);
+        if ($error || $status < 200 || $status >= 300 || stripos($type, 'text/event-stream') === false) {
+            $result = json_decode($otherBody, true);
+            $message = $error ? 'Backend connection failed: ' . $error : ($result['message'] ?? 'Backend did not return an event stream');
+            echo "\n\ndata:" . json_encode(['code' => 502, 'message' => $message], JSON_UNESCAPED_UNICODE) . "\n\n";
+            flush();
+        }
+    }
+
     // ==================== 知识库 API ====================
 
     public function getDatasetList($page = 1, $pageSize = 50, $keywords = '') {
@@ -434,8 +475,9 @@ class RAGFlowAPI {
             'chat_id' => $chatId,
             'messages' => [['role' => 'user', 'content' => $question]],
             'session_id' => $sessionId,
-            'stream' => false
+            'stream' => (bool)$stream
         ];
+        if ($stream) return $this->streamRequest('/api/v1/chat/completions', $payload);
         return $this->request('/api/v1/chat/completions', 'POST', $payload);
     }
 
@@ -463,15 +505,17 @@ class RAGFlowAPI {
     }
 
     public function converseAgent($agentId, $query, $stream = false, $sessionId = null) {
-        $payload = ['agent_id' => $agentId, 'query' => $query, 'stream' => false];
+        $payload = ['agent_id' => $agentId, 'query' => $query, 'stream' => (bool)$stream];
         if ($sessionId) $payload['session_id'] = $sessionId;
+        if ($stream) return $this->streamRequest('/api/v1/agents/chat/completions', $payload);
         return $this->request('/api/v1/agents/chat/completions', 'POST', $payload);
     }
 
     public function converseAgentOpenAI($agentId, $query, $stream = false, $sessionId = null) {
         $payload = ['agent_id' => $agentId, 'openai-compatible' => true,
-            'messages' => [['role' => 'user', 'content' => $query]], 'stream' => false];
+            'messages' => [['role' => 'user', 'content' => $query]], 'stream' => (bool)$stream];
         if ($sessionId) $payload['session_id'] = $sessionId;
+        if ($stream) return $this->streamRequest('/api/v1/agents/chat/completions', $payload);
         return $this->request('/api/v1/agents/chat/completions', 'POST', $payload);
     }
 

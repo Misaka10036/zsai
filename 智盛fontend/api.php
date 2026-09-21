@@ -788,7 +788,8 @@ try {
             }
 
             requirePortalSession($userManager, $currentUser, $chatId, $sessionId);
-            echo json_encode($ragflow->sendChatMessage($chatId, $sessionId, $question, $stream));
+            $result = $ragflow->sendChatMessage($chatId, $sessionId, $question, $stream);
+            if (!$stream) echo json_encode($result);
             break;
 
 // ==================== Agent 管理 API ====================
@@ -900,6 +901,7 @@ case 'agent_converse':
         $query = '请执行你的任务';
     }
     $result = $ragflow->converseAgent($agentId, $query, $stream, $sessionId);
+    if ($stream) break;
     if (!isset($result['code'])) {
         $result = ['code' => 0, 'data' => $result];
     }
@@ -922,6 +924,7 @@ case 'agent_converse_openai':
         $query = '请执行你的任务';
     }
     $result = $ragflow->converseAgentOpenAI($agentId, $query, $stream, $sessionId);
+    if ($stream) break;
     if (!isset($result['code'])) {
         $result = ['code' => 0, 'data' => $result];
     }

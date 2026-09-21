@@ -27,7 +27,10 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header('Content-Type', content_type)
         self.end_headers()
-        self.wfile.write(response.encode())
+        if callable(response):
+            response(self.wfile)
+        else:
+            self.wfile.write(response.encode())
 
     do_GET = do_POST = do_PUT = do_PATCH = do_DELETE = dispatch
 
@@ -105,6 +108,56 @@ class PortalContract(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         return json.loads(result.stdout)
 
+    def stream_process(self, method, args):
+        env = dict(os.environ, RAGFLOW_BASE_URL=f'http://127.0.0.1:{self.server.server_port}',
+                   RAGFLOW_API_KEY='contract-test-key', NO_PROXY='127.0.0.1', no_proxy='127.0.0.1')
+        code = 'require $argv[1]; (new RAGFlowAPI())->{$argv[2]}(...json_decode($argv[3], true));'
+        return subprocess.Popen(['php', '-r', code, str(PORTAL / 'ragflow_api.php'), method, json.dumps(args)],
+                                env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    def test_stream_forwards_first_event_before_backend_finishes(self):
+        for method, args in [('sendChatMessage', ['chat', 'session', 'hello', True]),
+                             ('converseAgent', ['agent', 'hello', True, 'session']),
+                             ('converseAgentOpenAI', ['agent', 'hello', True, 'session'])]:
+            with self.subTest(method=method):
+                release = threading.Event()
+                observed = threading.Event()
+                first = b'data:{"code":0,"data":{"answer":"hello"}}\n'
+                def produce(output):
+                    output.write(first + b'\n')
+                    output.flush()
+                    release.wait(5)
+                    output.write(b'data:[DONE]\n\n')
+                self.server.replies.append((200, 'text/event-stream', produce))
+                process = self.stream_process(method, args)
+                received = []
+                def read_first():
+                    received.append(process.stdout.readline())
+                    observed.set()
+                reader = threading.Thread(target=read_first)
+                reader.start()
+                try:
+                    self.assertTrue(observed.wait(3), 'PHP buffered the event until backend completion')
+                    self.assertEqual(received, [first])
+                finally:
+                    release.set()
+                    reader.join(6)
+                    rest, errors = process.communicate(timeout=10)
+                self.assertEqual(process.returncode, 0, errors)
+                self.assertIn(b'data:[DONE]', rest)
+                self.assertTrue(json.loads(self.server.requests[-1][3])['stream'])
+
+    def test_stream_http_and_business_errors_are_events(self):
+        for status in (200, 403):
+            self.server.replies.append((status, 'application/json', '{"code":403,"message":"denied"}'))
+            process = self.stream_process('sendChatMessage', ['chat', 'session', 'q', True])
+            output, errors = process.communicate(timeout=10)
+            self.assertEqual(process.returncode, 0, errors)
+            event = json.loads(output.decode().strip().removeprefix('data:'))
+            self.assertNotEqual(event['code'], 0)
+            self.assertEqual(event['message'], 'denied')
+            self.assertNotIn(b'[DONE]', output)
+
     def test_delete_dataset_collection(self):
         self.reply(True)
         self.assertEqual(self.call('deleteDataset', 'dataset')['code'], 0)
@@ -135,7 +188,7 @@ class PortalContract(unittest.TestCase):
 
     def test_chat_current_payload(self):
         self.reply({'answer': 'hello'})
-        self.call('sendChatMessage', 'chat', 'session', 'hello', True)
+        self.call('sendChatMessage', 'chat', 'session', 'hello', False)
         method, path, _, body = self.server.requests[0]
         self.assertEqual((method, path), ('POST', '/api/v1/chat/completions'))
         self.assertEqual(json.loads(body), {'chat_id': 'chat', 'session_id': 'session',

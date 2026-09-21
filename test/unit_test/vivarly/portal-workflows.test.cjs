@@ -21,6 +21,11 @@ async function page(html, scripts) {
   w.confirm = () => true;
   w.bootstrap = { Modal: { getInstance: () => ({ hide() {} }), getOrCreateInstance: () => ({ show() {} }) } };
   for (const script of ['js/main.js', ...scripts]) w.eval(fs.readFileSync(path.join(portal, script), 'utf8'));
+  // These cases isolate view lifecycle behavior; byte-level SSE is tested separately.
+  w.portalStream = async (action, data, onEvent) => {
+    const value = await w.portalRequest(action, { ...data, stream: true });
+    onEvent(action === 'chat_send' ? { code: 0, data: value } : { event: 'message', data: { content: value?.data?.content || '' } });
+  };
   return dom;
 }
 const template = name => fs.readFileSync(path.join(portal, 'views', name), 'utf8');

@@ -12,6 +12,8 @@ $currentUser = checkAdmin();
     <link href="/vendor/font-awesome/css/all.min.css" rel="stylesheet" />
     <link href="/css/style.css" rel="stylesheet" />
     <script src="/vendor/echarts/echarts.min.js"></script>
+    <script src="/vendor/marked/marked.min.js"></script>
+    <script src="/vendor/dompurify/purify.min.js"></script>
 </head>
 <body data-portal-role="<?php echo htmlspecialchars($currentUser['role'], ENT_QUOTES); ?>">
 <div class="vivarly-frame">

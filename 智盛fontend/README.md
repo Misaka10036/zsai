@@ -45,9 +45,11 @@ from Git and Docker build contexts. Keep `DEBUG_MODE=0` outside development.
 This repository's deployment initializes the portal schema through `schema.php`;
 an existing desktop installation can retain its own database initialization.
 
-The portal currently returns complete JSON answers, not browser-streamed chat.
-Search SSE is collected server-side, including references; interrupted or failed
-streams return errors. A new Agent starts with a valid Agent/Message canvas and
+Chat and Agent runs stream through PHP to the browser using the Python backend's
+SSE protocol. Text, reasoning and references update as events arrive; Agent node
+events appear in the execution log. Missing completion markers and backend errors
+are reported while preserving partial output. Search SSE is still collected
+server-side, including references. A new Agent starts with a valid Agent/Message canvas and
 uses the tenant's configured default chat model. Agent runs create a session first,
 reuse it across normal turns, and cancel through the Python task API. Protected
 requests refresh the portal user's account status and role.
@@ -68,6 +70,7 @@ From the repository root (PHP and Node must be on PATH):
 python test/unit_test/vivarly/test_portal_contract.py
 node test/unit_test/vivarly/portal-ui.test.cjs
 node test/unit_test/vivarly/portal-workflows.test.cjs
+node test/unit_test/vivarly/portal-streaming.test.cjs
 ```
 
 The contract suite uses a local mock HTTP server and never mutates live datasets.
