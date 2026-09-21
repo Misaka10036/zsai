@@ -320,19 +320,23 @@ function initGraphCanvas() {
 async function loadKnowledgeGraph(datasetId) {
   var container = document.getElementById('ragflowGraphCanvas');
   if (!datasetId || !container) return;
-  if (!window.graphChartInstance) initGraphCanvas();
-
-  window.graphChartInstance.showLoading({ 
-    text: '拓扑构建中...', 
-    color: '#3b82f6', 
-    textColor: '#64748b', 
-    maskColor: 'rgba(255, 255, 255, 0.85)' 
-  });
-
   try {
+    if (!window.graphChartInstance) initGraphCanvas();
+    if (!window.graphChartInstance) throw new Error('图谱组件未加载，请检查页面资源后重试');
+
+    window.graphChartInstance.showLoading({
+      text: '图谱加载中...',
+      color: '#3b82f6',
+      textColor: '#64748b',
+      maskColor: 'rgba(255, 255, 255, 0.85)'
+    });
+
     var response = await fetch('/api.php?action=dataset_graph&dataset_id=' + datasetId);
     var res = await response.json();
     if (window.graphChartInstance) window.graphChartInstance.hideLoading();
+    if (!response.ok || !res || res.code !== 0) {
+      throw new Error((res && res.message) || '请求失败（HTTP ' + response.status + '）');
+    }
 
     var rawGraph = res.code === 0 && res.data ? (res.data.graph || res.data) : null;
     window.rawRAGFlowGraph = rawGraph;
@@ -354,7 +358,9 @@ async function loadKnowledgeGraph(datasetId) {
     if (edgeCountEl) edgeCountEl.innerText = graphData.totalEdgeCount || graphData.links.length;
   } catch (err) {
     if (window.graphChartInstance) window.graphChartInstance.hideLoading();
-    showEmptyGraphGuide(datasetId, getSelectedKbName());
+    container.innerHTML = '<div class="text-danger text-center p-4">图谱加载失败：' + escapeHtml(err.message) + '</div>';
+    if (window.graphChartInstance) window.graphChartInstance.dispose();
+    window.graphChartInstance = null;
   }
 }
 
@@ -558,14 +564,26 @@ function showEmptyGraphGuide(datasetId, kbName) {
 
 async function triggerBuildGraphRAG(datasetId) {
   try {
-    await fetch('/api.php?action=dataset_run_graph', { 
+    var response = await fetch('/api.php?action=dataset_run_graph', {
       method: 'POST', 
       headers: { 'Content-Type': 'application/json' }, 
       body: JSON.stringify({ dataset_id: datasetId }) 
     });
-    alert('已成功发起 GraphRAG 构建任务！');
+    var result;
+    try {
+      result = await response.json();
+    } catch (err) {
+      throw new Error('服务器返回了无效响应（HTTP ' + response.status + '）');
+    }
+    if (!response.ok || !result || result.code !== 0) {
+      throw new Error((result && result.message) || '请求失败（HTTP ' + response.status + '）');
+    }
+    if (!result.data || !result.data.task_id) {
+      throw new Error('服务器未返回构建任务 ID，请刷新后确认任务状态');
+    }
+    alert('已提交 GraphRAG 构建任务，完成后请刷新图谱。');
   } catch (err) {
-    console.error(err);
+    alert('图谱构建失败：' + err.message);
   }
 }
 

@@ -1,16 +1,19 @@
 """Run with Python directly; exercises PHP cURL against a local mock, without RAGFlow/MySQL."""
+import ast
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import tempfile
 import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import urlsplit
 
 
 ROOT = Path(__file__).resolve().parents[3]
-PORTAL = ROOT / 'docker/vivarly'
+PORTAL = ROOT / '智盛fontend'
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -32,6 +35,18 @@ class Handler(BaseHTTPRequestHandler):
 class PortalContract(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        cls.routes = []
+        for source in (ROOT / 'api/apps/restful_apis').glob('*.py'):
+            tree = ast.parse(source.read_text(encoding='utf-8'))
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute) or node.func.attr != 'route':
+                    continue
+                if not node.args or not isinstance(node.args[0], ast.Constant):
+                    continue
+                route = '/api/v1' + node.args[0].value
+                pattern = re.sub(r'<[^>]+>', '[^/]+', route)
+                methods = next((ast.literal_eval(k.value) for k in node.keywords if k.arg == 'methods'), ['GET'])
+                cls.routes.append((re.compile('^' + pattern + '$'), methods))
         cls.server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
         cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
         cls.thread.start()
@@ -49,6 +64,35 @@ class PortalContract(unittest.TestCase):
     def reply(self, data=None, status=200, raw=None):
         self.server.replies.append((status, 'application/json' if raw is None else 'text/event-stream',
                                     json.dumps({'code': 0, 'data': data}) if raw is None else raw))
+
+    def tearDown(self):
+        for method, path, _, _ in self.server.requests:
+            self.assertTrue(any(pattern.fullmatch(urlsplit(path).path) and method in methods
+                                for pattern, methods in self.routes),
+                            f'No Python backend route: {method} {path}')
+
+    def test_portal_json_endpoints(self):
+        calls = [
+            ('getDatasetList', []), ('createDataset', ['name']), ('updateDataset', ['kb', 'name']),
+            ('getFileList', ['kb']), ('deleteDocuments', ['kb', ['doc']]),
+            ('parseDocuments', ['kb', ['doc']]), ('stopParsingDocuments', ['kb', ['doc']]),
+            ('ingestDocuments', [['doc']]), ('listFiles', []), ('createFolder', ['folder']),
+            ('deleteFiles', [['file']]), ('moveFiles', [['file'], 'folder']),
+            ('getParentFolder', ['file']), ('getAncestors', ['file']),
+            ('linkFilesToDatasets', [['file'], ['kb']]), ('getSearchApps', []),
+            ('getSearchAppDetail', ['search']), ('createSearchApp', ['name']),
+            ('updateSearchApp', ['search', {'name': 'name', 'search_config': {'kb_ids': ['kb']}}]),
+            ('deleteSearchApp', ['search']), ('getModels', []), ('getRerankModels', []),
+            ('getEmbeddingModels', []), ('getChatApps', []), ('getChatAppDetail', ['chat']),
+            ('getChatSessions', ['chat']), ('getChatSessionMessages', ['chat', 'session']),
+            ('getAgentList', []), ('getAgentDetail', ['agent']), ('updateAgent', ['agent', {'title': 'name'}]),
+            ('deleteAgent', ['agent']), ('converseAgent', ['agent', 'hello']),
+            ('getAgentSessions', ['agent']), ('deleteAgentSessions', ['agent', ['session']]),
+        ]
+        for method, args in calls:
+            with self.subTest(method=method):
+                self.reply({})
+                self.assertEqual(self.call(method, *args)['code'], 0)
 
     def call(self, method, *args):
         env = dict(os.environ, RAGFLOW_BASE_URL=f'http://127.0.0.1:{self.server.server_port}',
@@ -96,6 +140,17 @@ class PortalContract(unittest.TestCase):
         self.assertEqual((method, path), ('POST', '/api/v1/chat/completions'))
         self.assertEqual(json.loads(body), {'chat_id': 'chat', 'session_id': 'session',
                                           'messages': [{'role': 'user', 'content': 'hello'}], 'stream': False})
+
+    def test_graph_submission_result_and_failures(self):
+        for status, response in [
+            (200, {'code': 0, 'data': {'task_id': 'task1'}}),
+            (200, {'code': 102, 'message': 'No documents in Dataset kb'}),
+            (200, {'code': 109, 'message': 'no authorization'}),
+            (503, {'code': 503, 'message': 'Backend unavailable'}),
+        ]:
+            with self.subTest(status=status, response=response):
+                self.reply(status=status, raw=json.dumps(response))
+                self.assertEqual(self.call('runGraphRAG', 'kb'), response)
 
     def test_empty_session_payload_is_object(self):
         self.reply({'id': 'session'})
