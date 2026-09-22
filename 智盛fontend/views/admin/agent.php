@@ -61,7 +61,7 @@ $currentUser = checkAdmin();
                     <div class="workflow-header">
                         <span class="title"><i class="fas fa-sitemap text-primary me-1"></i> 执行流程</span>
                         <span class="step-indicator" id="stepIndicator">
-                            共 <span id="totalSteps">0</span> 个节点
+                            共 <span id="totalSteps">0</span> 个节点<span id="runProgress"></span>
                         </span>
                     </div>
 
@@ -82,8 +82,9 @@ $currentUser = checkAdmin();
                         </span>
                     </div>
 
-                    <!-- 树形图容器 -->
-                    <!-- 树形图容器 -->
+                    <div class="workflow-progress" id="workflowProgress" hidden>
+                        <div class="workflow-progress-fill" id="workflowProgressFill"></div>
+                    </div>
                     <div id="treeChart" style="min-height:500px;"></div>
 
                     <!-- 底部操作提示 -->

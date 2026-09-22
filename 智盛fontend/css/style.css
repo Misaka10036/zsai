@@ -2602,8 +2602,29 @@ body {
 }
 .agent-item .status-dot.running {
     background: #22c55e;
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
     animation: pulse-dot 1.2s infinite;
 }
+.agent-item .status-dot.done { background: #22c55e; }
+.agent-item .status-dot.error { background: #ef4444; }
+.agent-item.active .status-dot { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.45); }
+.workflow-progress {
+    height: 4px;
+    margin: 0 0.75rem 0.35rem;
+    border-radius: 999px;
+    background: #e2e8f0;
+    overflow: hidden;
+}
+.workflow-progress-fill {
+    height: 100%;
+    width: 0;
+    border-radius: inherit;
+    background: #3b82f6;
+    transition: width 0.25s ease;
+}
+.workflow-progress-fill.running { background: #22c55e; }
+.workflow-progress-fill.done { background: #22c55e; }
+.workflow-progress-fill.error { background: #ef4444; }
 .agent-item .agent-actions {
     display: flex;
     gap: 0.1rem;

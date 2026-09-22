@@ -24,6 +24,10 @@ var allNodesMap = {};
 var treeChart = null;
 var treeStatus = 'idle';
 var treeActiveId = null;
+var nodeRunState = {};
+var agentLogs = {};
+var agentCanvasState = {};
+var AGENT_VIEW_KEY = 'vivarly-agent-views';
 var containerId = 'treeChart';
 
 // 力导向/微动布局相关状态
@@ -59,6 +63,7 @@ var agentStatusSm = document.getElementById('agentStatusSm');
 // ============================================================
 
 document.addEventListener('DOMContentLoaded', function() {
+    loadAgentViews();
     loadAgents();
     addLog('info', '🟢 Agent 已就绪，点击"运行"开始执行');
     console.log('%c VIVARILY · Agent 工作流 v16.2 ', 'background:#f8fafc;color:#1e293b;font-size:14px;padding:6px 14px;border-radius:4px;border:1px solid #e9edf2;');
@@ -117,7 +122,7 @@ function renderAgentList() {
             html += '    <div class="desc">' + escapeHtml(agentDesc) + '</div>';
         }
         html += '  </div>';
-        html += '  <span class="status-dot"></span>';
+        html += '  <span class="status-dot' + listDotClass(agent.id) + '"></span>';
         html += '  <div class="agent-actions">';
         html += '    <button class="danger" onclick="event.stopPropagation();deleteAgent(\'' + agent.id + '\')" title="删除"><i class="fas fa-trash"></i></button>';
         html += '  </div>';
@@ -135,9 +140,12 @@ function selectAgent(agentId) {
         alert('请先停止任务并等待结束后再切换 Agent');
         return;
     }
+    if (agentId === currentAgentId) return;
 
+    persistAgentViews();
     currentAgentId = agentId;
     currentSessionId = null;
+    restoreAgentView(agentId);
     var agent = currentAgents.find(function(a) { return a.id === agentId; });
 
     var items = agentListEl.querySelectorAll('.agent-item');
@@ -150,11 +158,9 @@ function selectAgent(agentId) {
         agentAvatarSm.textContent = agentName.charAt(0).toUpperCase();
         agentNameSm.textContent = agentName;
         agentDescSm.textContent = agent.description || '点击运行执行任务';
-        agentStatusSm.textContent = '● 空闲';
-        agentStatusSm.style.color = '#94a3b8';
     }
 
-    resetAll();
+    renderAgentList();
     loadAgentDetail(agentId);
 }
 
@@ -270,9 +276,9 @@ function parseDAGFromDSL(dsl) {
     };
 
     totalSteps.textContent = rawGraphData.nodes.length;
-    treeStatus = 'idle';
     treeActiveId = null;
     highlightedNodeId = null;
+    updateProgress();
     
     stopForceLayout();
     renderHierarchicalGraph(rawGraphData, treeStatus, treeActiveId);
@@ -516,6 +522,8 @@ function renderHierarchicalGraph(data, status, activeId) {
 
 function renderEChartsGraph(layoutNodes, edges, status, activeId, width, height, isFirstInit) {
     if (!treeChart) return;
+    status = treeStatus || status;
+    activeId = treeActiveId;
 
     var typeStyles = {
         'Begin': { bg: '#1e293b', border: '#1e293b', textColor: '#ffffff', symbolSize: 52, isRoot: true },
@@ -545,7 +553,8 @@ function renderEChartsGraph(layoutNodes, edges, status, activeId, width, height,
     for (var i = 0; i < layoutNodes.length; i++) {
         var item = layoutNodes[i];
         var node = item.node;
-        var isActive = (node.id === activeId);
+        var runState = nodeRunState[node.id] || '';
+        var isActive = runState === 'running' || node.id === activeId;
         var isSelected = (node.id === highlightedNodeId);
         var isNeighbor = adjacentNodeSet.has(node.id) && !isSelected;
         
@@ -560,12 +569,22 @@ function renderEChartsGraph(layoutNodes, edges, status, activeId, width, height,
         var shadowColor = 'transparent';
         var borderWidth = style.isRoot ? 0 : 3;
 
-        if (isActive && status === 'running') {
+        if (runState === 'done') {
+            bgColor = '#dcfce7';
+            borderColor = '#22c55e';
+            borderWidth = 4;
+        } else if (runState === 'error') {
+            bgColor = '#fee2e2';
+            borderColor = '#ef4444';
+            borderWidth = 4;
+        }
+        if (isActive && (status === 'running' || runState === 'running')) {
             bgColor = '#3b82f6';
             borderColor = '#3b82f6';
             shadowBlur = 30;
             shadowColor = 'rgba(59,130,246,0.6)';
             symbolSize += 10;
+            borderWidth = 4;
         }
 
         if (isSelected) {
@@ -601,11 +620,13 @@ function renderEChartsGraph(layoutNodes, edges, status, activeId, width, height,
                 show: true,
                 position: 'bottom',
                 distance: 12,
-                color: isDimmed ? 'rgba(30, 41, 59, 0.2)' : (isSelected ? '#10b981' : '#1e293b'),
+                color: isDimmed ? 'rgba(30, 41, 59, 0.2)' : (runState === 'error' ? '#ef4444' : runState === 'done' ? '#15803d' : isActive ? '#1d4ed8' : isSelected ? '#10b981' : '#1e293b'),
                 fontSize: isSelected ? 13 : 12,
                 fontWeight: isSelected ? 700 : 500,
                 formatter: function(params) {
-                    return params.data.name;
+                    var state = nodeRunState[params.data.id];
+                    var mark = state === 'running' ? ' ●' : state === 'done' ? ' ✓' : state === 'error' ? ' !' : '';
+                    return params.data.name + mark;
                 }
             }
         });
@@ -617,14 +638,22 @@ function renderEChartsGraph(layoutNodes, edges, status, activeId, width, height,
         var edge = edges[j];
         var isConnected = highlightedNodeId && (edge.source === highlightedNodeId || edge.target === highlightedNodeId);
         var isEdgeDimmed = highlightedNodeId && !isConnected;
+        var srcState = nodeRunState[edge.source];
+        var tgtState = nodeRunState[edge.target];
+        var edgeColor = isConnected ? '#8b5cf6' : '#c8d0da';
+        var edgeWidth = isConnected ? 2.5 : 1.5;
+        if (!isConnected && srcState === 'done' && (tgtState === 'done' || tgtState === 'running' || tgtState === 'error')) {
+            edgeColor = tgtState === 'running' ? '#3b82f6' : tgtState === 'error' ? '#ef4444' : '#22c55e';
+            edgeWidth = 2.5;
+        }
 
         eLinks.push({
             source: edge.source,
             target: edge.target,
             lineStyle: {
-                color: isConnected ? '#8b5cf6' : '#c8d0da',
-                width: isConnected ? 2.5 : 1.5,
-                opacity: isEdgeDimmed ? 0.1 : (isConnected ? 0.8 : 0.4),
+                color: edgeColor,
+                width: edgeWidth,
+                opacity: isEdgeDimmed ? 0.1 : 0.9,
                 curveness: 0.15
             }
         });
@@ -639,7 +668,8 @@ function renderEChartsGraph(layoutNodes, edges, status, activeId, width, height,
                 if (params.dataType === 'node') {
                     return '<div style="font-weight:600;font-size:14px;color:#0f172a;margin-bottom:4px;">' + (params.data.fullName || params.data.name) + '</div>' +
                            '<div style="color:#3b82f6;font-size:12px;margin-bottom:2px;">类型: ' + (params.data.type || 'Unknown') + '</div>' +
-                           '<div style="color:#64748b;font-size:12px;max-width:240px;white-space:pre-wrap;">' + (params.data.desc || '无描述') + '</div>';
+                           '<div style="color:#64748b;font-size:12px;max-width:240px;white-space:pre-wrap;">' + (params.data.desc || '无描述') + '</div>' +
+                           '<div style="color:#0f172a;font-size:12px;margin-top:4px;">状态: ' + runStateLabel(nodeRunState[params.data.id]) + '</div>';
                 }
                 return '';
             },
@@ -782,7 +812,7 @@ function startFloatingAnimation(layoutNodes, nodePositions, data, status, active
         
         forceLayoutNodes = updatedNodes;
         // 增量渲染模式：传入 isFirstInit = false，保留当前的视口 zoom 和 center 偏移
-        renderEChartsGraph(updatedNodes, data.edges, status, activeId, width, height, false);
+        renderEChartsGraph(updatedNodes, data.edges, treeStatus, treeActiveId, width, height, false);
         
         animationFrameId = requestAnimationFrame(animate);
     }
@@ -809,6 +839,132 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+function loadAgentViews() {
+    try {
+        var raw = sessionStorage.getItem(AGENT_VIEW_KEY);
+        if (!raw) return;
+        var data = JSON.parse(raw);
+        agentLogs = data.logs || {};
+        agentCanvasState = data.canvas || {};
+    } catch (error) {
+        agentLogs = {};
+        agentCanvasState = {};
+    }
+}
+
+function persistAgentViews() {
+    if (currentAgentId) {
+        agentLogs[currentAgentId] = logEntries.slice();
+        agentCanvasState[currentAgentId] = {
+            nodeRunState: Object.assign({}, nodeRunState),
+            treeStatus: treeStatus
+        };
+    }
+    try {
+        sessionStorage.setItem(AGENT_VIEW_KEY, JSON.stringify({ logs: agentLogs, canvas: agentCanvasState }));
+    } catch (error) { /* 日志过大时放弃写入，内存中仍然保留。 */ }
+}
+
+function restoreAgentView(agentId) {
+    var saved = agentCanvasState[agentId] || {};
+    nodeRunState = Object.assign({}, saved.nodeRunState || {});
+    treeStatus = saved.treeStatus && saved.treeStatus !== 'running' ? saved.treeStatus : 'idle';
+    treeActiveId = null;
+    logEntries = (agentLogs[agentId] || []).slice();
+    paintLog();
+    updateStatus(treeStatus === 'error' ? 'error' : treeStatus === 'done' ? 'done' : 'idle');
+    updateProgress();
+}
+
+function listDotState(agentId) {
+    if (isRunning && agentId === currentAgentId) return 'running';
+    var saved = agentId === currentAgentId
+        ? { nodeRunState: nodeRunState, treeStatus: treeStatus }
+        : (agentCanvasState[agentId] || {});
+    if (saved.treeStatus === 'error') return 'error';
+    var states = saved.nodeRunState || {};
+    var anyDone = false;
+    for (var key in states) {
+        if (states[key] === 'error') return 'error';
+        if (states[key] === 'done') anyDone = true;
+    }
+    if (saved.treeStatus === 'done' || anyDone) return 'done';
+    return 'idle';
+}
+
+function listDotClass(agentId) {
+    var state = listDotState(agentId);
+    return state === 'idle' ? '' : ' ' + state;
+}
+
+function syncListDots() {
+    if (!agentListEl) return;
+    var items = agentListEl.querySelectorAll('.agent-item');
+    for (var i = 0; i < items.length; i++) {
+        var dot = items[i].querySelector('.status-dot');
+        if (!dot) continue;
+        var state = listDotState(items[i].getAttribute('data-id'));
+        dot.className = 'status-dot' + (state === 'idle' ? '' : ' ' + state);
+    }
+}
+
+function runStateLabel(state) {
+    if (state === 'running') return '执行中';
+    if (state === 'done') return '已完成';
+    if (state === 'error') return '失败';
+    return '未开始';
+}
+
+function updateProgress() {
+    var nodes = rawGraphData.nodes || [];
+    var done = 0;
+    var running = 0;
+    var failed = 0;
+    var runningName = '';
+    for (var i = 0; i < nodes.length; i++) {
+        var state = nodeRunState[nodes[i].id];
+        if (state === 'done') done++;
+        else if (state === 'error') failed++;
+        else if (state === 'running') {
+            running++;
+            runningName = nodes[i].name || nodes[i].fullName || nodes[i].id;
+        }
+    }
+    var text = document.getElementById('runProgress');
+    var bar = document.getElementById('workflowProgress');
+    var fill = document.getElementById('workflowProgressFill');
+    var total = nodes.length;
+    var active = done + running + failed;
+    if (text) {
+        text.textContent = active
+            ? ' · 已完成 ' + done + '/' + total + (runningName ? ' · 当前 ' + runningName : '') + (failed ? ' · 失败 ' + failed : '')
+            : '';
+    }
+    if (bar && fill) {
+        bar.hidden = !active;
+        fill.style.width = total ? Math.min(100, ((done + failed + running * 0.45) / total) * 100) + '%' : '0';
+        fill.className = 'workflow-progress-fill' + (failed ? ' error' : running ? ' running' : ' done');
+    }
+}
+
+function noteNodeEvent(kind, data) {
+    var id = data.component_id;
+    if (!id) return;
+    if (kind === 'node_started') {
+        nodeRunState[id] = 'running';
+        treeStatus = 'running';
+        treeActiveId = id;
+    } else {
+        nodeRunState[id] = data.error ? 'error' : 'done';
+        treeActiveId = null;
+        for (var key in nodeRunState) {
+            if (nodeRunState[key] === 'running') treeActiveId = key;
+        }
+    }
+    updateProgress();
+    syncListDots();
+}
+
 function updateStatus(status) {
     var statusMap = {
         'idle': { dot: 'idle', text: '空闲', color: '#94a3b8' },
@@ -824,9 +980,51 @@ function updateStatus(status) {
     agentStatusSm.style.color = info.color;
 }
 
+function upsertAnswerLog(text) {
+    var index = -1;
+    for (var i = logEntries.length - 1; i >= 0; i--) {
+        if (logEntries[i].kind === 'answer') {
+            index = i;
+            break;
+        }
+    }
+    var item = {
+        time: index >= 0 ? logEntries[index].time : new Date().toLocaleTimeString(),
+        level: 'info',
+        kind: 'answer',
+        message: text
+    };
+    if (index >= 0) logEntries[index] = item;
+    else logEntries.push(item);
+    if (currentAgentId) agentLogs[currentAgentId] = logEntries.slice();
+}
+
+function paintLog() {
+    if (!logBody) return;
+    logBody.innerHTML = '';
+    if (!logEntries.length) {
+        logBody.innerHTML = '<div class="log-empty"><i class="fas fa-terminal"></i><span>等待执行...</span></div>';
+        logCount.textContent = '0 条';
+        return;
+    }
+    for (var i = 0; i < logEntries.length; i++) {
+        var item = logEntries[i];
+        var entry = document.createElement('div');
+        entry.className = 'log-entry ' + item.level;
+        entry.innerHTML =
+            '<span class="log-time">[' + escapeHtml(item.time) + ']</span>' +
+            '<span class="log-level">' + escapeHtml(item.level) + '</span>' +
+            '<span class="log-msg">' + escapeHtml(String(item.message)) + '</span>';
+        logBody.appendChild(entry);
+    }
+    logBody.scrollTop = logBody.scrollHeight;
+    logCount.textContent = logEntries.length + ' 条';
+}
+
 function addLog(level, message) {
     var time = new Date().toLocaleTimeString();
     logEntries.push({ time: time, level: level, message: message });
+    if (currentAgentId) agentLogs[currentAgentId] = logEntries.slice();
 
     var empty = logBody.querySelector('.log-empty');
     if (empty) empty.remove();
@@ -845,8 +1043,8 @@ function addLog(level, message) {
 
 function clearLog() {
     logEntries = [];
-    logBody.innerHTML = '<div class="log-empty"><i class="fas fa-terminal"></i><span>等待执行...</span></div>';
-    logCount.textContent = '0 条';
+    if (currentAgentId) agentLogs[currentAgentId] = [];
+    paintLog();
 }
 
 function resetAll() {
@@ -886,9 +1084,14 @@ async function startAgent() {
     var run = { agentId: currentAgentId, sessionId: currentSessionId, cancelled: false, cancelPromise: null };
     agentRun = run;
     isRunning = true;
+    nodeRunState = {};
+    treeStatus = 'running';
+    treeActiveId = null;
     btnRun.disabled = true;
     btnText.textContent = '准备会话...';
     updateStatus('running');
+    updateProgress();
+    syncListDots();
     clearLog();
     addLog('info', query || '开始执行任务');
     try {
@@ -916,6 +1119,8 @@ async function startAgent() {
             }
             if (data.reference) reference = data.reference;
             if (event.event === 'message' || event.event === 'message_end') {
+                if (content) upsertAnswerLog(content);
+                if (event.event === 'message_end') persistAgentViews();
                 if (!output.parentNode) logBody.appendChild(output);
                 output.innerHTML = '<div class="log-msg">' +
                     (thinking ? '<details><summary>思考过程</summary>' + renderSafeMarkdown(thinking) + '</details>' : '') +
@@ -923,6 +1128,7 @@ async function startAgent() {
                 logBody.scrollTop = logBody.scrollHeight;
             }
             if (event.event === 'node_started' || event.event === 'node_finished') {
+                noteNodeEvent(event.event, data);
                 addLog(data.error ? 'warning' : 'info', (data.component_name || data.component_id || '节点') +
                     (event.event === 'node_started' ? ' 开始执行' : ' 执行结束') + (data.error ? '：' + data.error : ''));
                 if (data.error) run.nodeError = String(data.error);
@@ -933,7 +1139,11 @@ async function startAgent() {
             }
             if (event.event === 'workflow_finished') {
                 workflowFinished = true;
+                treeActiveId = null;
+                treeStatus = data.outputs === 'Task has been canceled' ? 'idle' : 'done';
                 if (data.outputs === 'Task has been canceled') run.cancelled = true;
+                updateProgress();
+                syncListDots();
             }
         });
         if (run.cancelPromise) await run.cancelPromise;
@@ -960,8 +1170,13 @@ async function startAgent() {
 
 function finishAgent(success, waitingForInput) {
     isRunning = false;
+    treeActiveId = null;
     for (var i = 0; i < stepTimers.length; i++) clearTimeout(stepTimers[i]);
     stepTimers = [];
+    if (!success) treeStatus = 'error';
+    else if (!waitingForInput) treeStatus = 'done';
+    updateProgress();
+    syncListDots();
 
     if (success) {
         btnRun.className = 'btn-run done';
@@ -979,20 +1194,13 @@ function finishAgent(success, waitingForInput) {
         btnRun.querySelector('i').className = 'fas fa-exclamation-circle';
         updateStatus('error');
     }
+    persistAgentViews();
 
     setTimeout(function() {
         if (!isRunning) {
             btnRun.className = 'btn-run';
-            btnText.textContent = '运行';
+            btnText.textContent = waitingForInput ? '继续' : '运行';
             btnRun.querySelector('i').className = 'fas fa-play';
-            updateStatus('idle');
-            treeStatus = 'idle';
-            treeActiveId = null;
-            highlightedNodeId = null;
-            if (rawGraphData.nodes.length > 0) {
-                stopForceLayout();
-                renderHierarchicalGraph(rawGraphData, treeStatus, treeActiveId);
-            }
         }
     }, 2500);
 }
@@ -1029,10 +1237,14 @@ function deleteAgent(agentId) {
     .then(function(r) { return r.json(); })
     .then(function(res) {
         if (res.code === 0) {
+            var wasCurrent = currentAgentId === agentId;
+            delete agentLogs[agentId];
+            delete agentCanvasState[agentId];
             currentAgents = currentAgents.filter(function(a) { return a.id !== agentId; });
+            if (wasCurrent) currentAgentId = null;
+            persistAgentViews();
             renderAgentList();
-            if (currentAgentId === agentId) {
-                currentAgentId = null;
+            if (wasCurrent) {
                 resetAll();
                 if (currentAgents.length > 0) selectAgent(currentAgents[0].id);
                 else showEmptyState();
