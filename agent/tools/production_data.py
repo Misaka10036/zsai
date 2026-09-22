@@ -24,6 +24,10 @@ logger = logging.getLogger(__name__)
 DEFAULT_SNAPSHOT_REGEX = r".*\.sql(?:\.gz)?$"
 
 
+class SnapshotNotFound(ValueError):
+    """No snapshot file matched the configured library, directory, and filename pattern."""
+
+
 class ProductionDataParam(ToolParamBase):
     def __init__(self):
         self.meta: ToolMeta = {
@@ -40,9 +44,11 @@ class ProductionDataParam(ToolParamBase):
         self.timezone = "Asia/Shanghai"
         self.download_hosts: list[str] = []
         self.sample_limit = 8
+        self.skip_if_missing = False
 
     def check(self):
         self.check_positive_integer(self.sample_limit, "Sample limit")
+        self.check_boolean(self.skip_if_missing, "Skip when no snapshot file")
         try:
             re.compile(self.filename_regex or DEFAULT_SNAPSHOT_REGEX)
         except re.error as exc:
@@ -90,7 +96,7 @@ class ProductionData(Seafile, ABC):
                 found = self._walk_snapshots(client, repo_id, "/")
             files.extend(found)
         if not files:
-            raise ValueError("配置的 Seafile 目录中没有匹配的 .sql 或 .sql.gz PostgreSQL 镜像。")
+            raise SnapshotNotFound("配置的 Seafile 目录中没有匹配的 .sql 或 .sql.gz PostgreSQL 镜像。")
         return max(files, key=lambda item: (item["mtime"], item["name"]))
 
     def _read_snapshot(self, client, item: dict[str, Any], window) -> dict:
@@ -123,16 +129,31 @@ class ProductionData(Seafile, ABC):
                 week_mode=self._param.week_mode or "this_week",
                 query=self._canvas.get_variable_value("sys.query") or "",
             )
-            snapshot = self._latest_snapshot(client, scope)
-            payload = self._read_snapshot(client, snapshot, window)
-            payload["snapshot"] = {
-                "repo_id": snapshot["repo_id"],
-                "path": snapshot["path"],
-                "name": snapshot["name"],
-                "size": snapshot["size"],
-                "mtime": snapshot["mtime"].isoformat(),
-            }
-            payload["coverage_status"] = "complete" if payload["weekly_rows"] else "empty"
+            try:
+                snapshot = self._latest_snapshot(client, scope)
+            except SnapshotNotFound as exc:
+                if not self._param.skip_if_missing:
+                    raise
+                logger.info("ProductionData skipped because no snapshot file was found: %s", exc)
+                payload = {
+                    "coverage_status": "skipped",
+                    "weekly_rows": 0,
+                    "tables": [],
+                    "week_id": window.week_id,
+                    "start": window.start.isoformat(),
+                    "end": window.end.isoformat(),
+                    "skipped": True,
+                }
+            else:
+                payload = self._read_snapshot(client, snapshot, window)
+                payload["snapshot"] = {
+                    "repo_id": snapshot["repo_id"],
+                    "path": snapshot["path"],
+                    "name": snapshot["name"],
+                    "size": snapshot["size"],
+                    "mtime": snapshot["mtime"].isoformat(),
+                }
+                payload["coverage_status"] = "complete" if payload["weekly_rows"] else "empty"
         except Exception as exc:
             logger.exception("ProductionData failed")
             payload = {"coverage_status": "error", "weekly_rows": 0, "tables": [], "week_id": "", "error": str(exc)}

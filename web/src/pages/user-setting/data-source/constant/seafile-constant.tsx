@@ -16,6 +16,11 @@
 
 import { FilterFormField, FormFieldType } from '@/components/dynamic-form';
 import { TFunction } from 'i18next';
+import { ControllerRenderProps, FieldValues } from 'react-hook-form';
+import {
+  DataSourceSeafileDirectory,
+  DataSourceSeafileLibrary,
+} from '../component/seafile-browser';
 
 export const seafileConstant = (t: TFunction) => [
   {
@@ -155,14 +160,19 @@ export const seafileConstant = (t: TFunction) => [
   {
     label: t('setting.dataSourceFieldLibraryId'),
     name: 'config.repo_id',
-    type: FormFieldType.Text,
+    type: FormFieldType.Custom,
     required: false,
-    placeholder: 'e.g. 7a9e1b3c-4d5f-6a7b-8c9d-0e1f2a3b4c5d',
     tooltip: t('setting.seafileRepoIdTip'),
     shouldRender: (formValues: any) => {
       const scope = formValues?.config?.sync_scope;
       return scope === 'library' || scope === 'directory';
     },
+    render: (fieldProps: ControllerRenderProps<FieldValues, string>) => (
+      <DataSourceSeafileLibrary
+        value={fieldProps.value}
+        onChange={fieldProps.onChange}
+      />
+    ),
     customValidate: (val: string, formValues: any) => {
       const scope = formValues?.config?.sync_scope;
       if (!val && (scope === 'library' || scope === 'directory')) {
@@ -175,15 +185,24 @@ export const seafileConstant = (t: TFunction) => [
   {
     label: t('setting.dataSourceFieldDirectoryPath'),
     name: 'config.sync_path',
-    type: FormFieldType.Text,
+    type: FormFieldType.Custom,
     required: false,
-    placeholder: '/Documents/Reports',
     tooltip: t('setting.seafileSyncPathTip'),
     shouldRender: (formValues: any) => {
       return formValues?.config?.sync_scope === 'directory';
     },
+    render: (fieldProps: ControllerRenderProps<FieldValues, string>) => (
+      <DataSourceSeafileDirectory
+        value={fieldProps.value}
+        onChange={fieldProps.onChange}
+      />
+    ),
     customValidate: (val: string, formValues: any) => {
-      if (!val && formValues?.config?.sync_scope === 'directory') {
+      const scope = formValues?.config?.sync_scope;
+      if (scope !== 'directory') {
+        return true;
+      }
+      if (!val || val === '/') {
         return t('setting.seafileValidationDirectoryPathRequired');
       }
       return true;
@@ -213,20 +232,7 @@ export const seafileConstant = (t: TFunction) => [
     required: false,
     hidden: true,
   },
-  {
-    label: t('setting.dataSourceFieldLibraryId'),
-    name: 'config.repo_id',
-    type: FormFieldType.Text,
-    required: false,
-    hidden: true,
-  },
-  {
-    label: t('setting.dataSourceFieldDirectoryPath'),
-    name: 'config.sync_path',
-    type: FormFieldType.Text,
-    required: false,
-    hidden: true,
-  },
+
   {
     label: t('setting.dataSourceFieldIncludeSharedLibraries'),
     name: 'config.include_shared',

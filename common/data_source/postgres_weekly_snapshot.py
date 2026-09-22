@@ -217,6 +217,9 @@ def format_weekly_mes_data(payload: dict) -> str:
         f"统计周期：{payload.get('start', '')} 至 {payload.get('end', '')}",
         f"匹配生产记录：{payload.get('weekly_rows', 0)} 条",
     ]
+    if payload.get("coverage_status") == "skipped":
+        lines.append("未找到匹配的数据库镜像，已跳过生产数据。")
+        return "\n".join(lines)
     if payload.get("error"):
         lines.append(f"数据库镜像读取失败：{payload['error']}")
     for table in payload.get("tables") or []:

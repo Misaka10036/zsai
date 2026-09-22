@@ -14,9 +14,30 @@ from common.data_source.seafile_week import (
 )
 from common.data_source.utils import rl_requests
 
-__all__ = ["SeafileClient", "host_of", "normalise_path", "parse_mtime"]
+__all__ = ["SeafileClient", "host_of", "normalise_path", "open_seafile_client", "parse_mtime"]
 
 logger = logging.getLogger(__name__)
+
+
+def open_seafile_client(config: dict) -> "SeafileClient":
+    """Build a client that can browse libraries and directories.
+
+    An account token wins over a repo token so the picker can open any library
+    the account can see. A repo token alone stays limited to that library.
+    """
+    if not isinstance(config, dict):
+        raise ValueError("config must be an object")
+    url = str(config.get("seafile_url") or "").strip()
+    credentials = config.get("credentials") or {}
+    if not isinstance(credentials, dict):
+        credentials = {}
+    token = str(credentials.get("seafile_token") or "").strip()
+    repo_token = str(credentials.get("repo_token") or "").strip()
+    if not url:
+        raise ValueError("Seafile URL is required.")
+    if not token and not repo_token:
+        raise ValueError("Seafile token is required.")
+    return SeafileClient(url, token=token or None, repo_token=None if token else repo_token)
 
 
 class SeafileClient:

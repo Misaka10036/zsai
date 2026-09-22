@@ -51,6 +51,74 @@ def test_path_in_scope_directory_jail():
     assert not week.path_in_scope("/日报备份/a.md", "/日报")
 
 
+class _FakeSeafile:
+    def __init__(self, libraries=None, entries=None, info=None, repo_token=False):
+        self.libraries = libraries or []
+        self.entries = entries or []
+        self.info = info or {}
+        self.use_repo_token = repo_token
+        self.token = None if repo_token else "account"
+        self.calls = []
+
+    def list_libraries(self):
+        self.calls.append("libraries")
+        return self.libraries
+
+    def get_repo_info(self):
+        self.calls.append("info")
+        return self.info
+
+    def list_dir(self, repo_id, path):
+        self.calls.append((repo_id, path))
+        return self.entries
+
+
+def test_browse_lists_libraries_by_name():
+    client = _FakeSeafile(
+        libraries=[
+            {"id": "b", "name": "周报"},
+            {"id": "a", "name": "日报"},
+            {"id": "", "name": "skip"},
+        ]
+    )
+    result = week.browse_seafile_with_client(client)
+    assert [item["name"] for item in result["libraries"]] == ["周报", "日报"]
+    assert result["entries"] == []
+
+
+def test_browse_repo_token_returns_only_its_library():
+    client = _FakeSeafile(info={"repo_id": "lib-1", "repo_name": "日报"}, repo_token=True)
+    result = week.browse_seafile_with_client(client)
+    assert result["libraries"] == [{"id": "lib-1", "name": "日报"}]
+    assert client.calls == ["info"]
+
+
+def test_browse_directory_sorts_folders_first():
+    client = _FakeSeafile(
+        entries=[
+            {"name": "b.sql", "type": "file"},
+            {"name": "子目录", "type": "dir"},
+            {"name": ".", "type": "dir"},
+        ]
+    )
+    result = week.browse_seafile_with_client(client, "lib-1", "/数据库镜像")
+    assert result["entries"] == [
+        {"name": "子目录", "path": "/数据库镜像/子目录", "type": "dir"},
+        {"name": "b.sql", "path": "/数据库镜像/b.sql", "type": "file"},
+    ]
+    assert client.calls == [("lib-1", "/数据库镜像")]
+
+
+def test_merge_browse_config_keeps_saved_token_when_form_token_is_blank():
+    merged = week.merge_seafile_browse_config(
+        {"seafile_url": "http://old", "credentials": {"seafile_token": "saved", "repo_token": "repo"}},
+        {"seafile_url": "http://new", "credentials": {"seafile_token": "  ", "repo_token": ""}},
+    )
+    assert merged["seafile_url"] == "http://new"
+    assert merged["credentials"]["seafile_token"] == "saved"
+    assert merged["credentials"]["repo_token"] == "repo"
+
+
 def test_resolve_week_this_week_includes_today():
     now = datetime(2026, 8, 14, 10, 0, tzinfo=timezone.utc)
     window = week.resolve_week(now=now, timezone_name="Asia/Shanghai", week_mode="this_week")

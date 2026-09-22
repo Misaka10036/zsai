@@ -89,6 +89,7 @@ export function useAgentToolInitialValues() {
             'week_mode',
             'timezone',
             'sample_limit',
+            'skip_if_missing',
           );
         case Operator.DatasetWrite:
           return pick(

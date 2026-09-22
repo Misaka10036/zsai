@@ -1441,8 +1441,20 @@ NER：使用 spaCy NER 和基于规则的关键词提取来抽取 Entities 和 R
       dataSourceFieldAccountApiToken: '账户 API 令牌',
       dataSourceFieldIncludeSharedLibraries: '包含共享资料库',
       dataSourceFieldLibraryToken: '资料库令牌',
-      dataSourceFieldLibraryId: '资料库 ID',
-      dataSourceFieldDirectoryPath: '目录路径',
+      dataSourceFieldLibraryId: '资料库',
+      dataSourceFieldDirectoryPath: '目录',
+      seafileBrowseNeedCredential:
+        '先填写服务器地址和令牌，或选择一个已经保存的 Seafile 数据源。',
+      seafileBrowseLoading: '正在读取 Seafile…',
+      seafileBrowseLibraryPlaceholder: '选择资料库',
+      seafileBrowseEmptyLibraries: '这个账号下没有资料库',
+      seafileBrowseRoot: '资料库根目录',
+      seafileBrowseEmptyFolders: '没有子目录',
+      seafileBrowseNeedLibrary: '先选择资料库，再展开目录。',
+      seafileBrowseSavedValue: '当前选择：{{value}}',
+      seafileRepoIdTip: '连接成功后从列表里选择资料库。单库或指定目录同步时必选。',
+      seafileSyncPathTip:
+        '在选中的资料库里选择一个子目录。资料库根目录不能作为「指定目录」的同步范围。',
       dataSourceFieldBitbucketAccountEmail: 'Bitbucket 账户邮箱',
       dataSourceFieldBitbucketApiToken: 'Bitbucket API 令牌',
       dataSourceFieldWorkspace: '工作区',
@@ -2655,7 +2667,7 @@ NER：使用 spaCy NER 和基于规则的关键词提取来抽取 Entities 和 R
       seafileConnectorPlaceholder: '请选择 Seafile 数据源',
       seafilePath: '日报目录',
       seafilePathTip:
-        '资料库内的起始目录。填 / 从根目录往下扫。若「日报」本身是一个资料库而不是文件夹，请填 /，并在「指定资料库 ID」里填该库；也可以直接填资料库名称（例如 /日报），系统会按库名匹配并从该库根目录扫描。账号范围且未指定资料库时，会对每个资料库都从该路径开始找；路径不存在时会回退到根目录。',
+        '在选中的资料库里点选目录。选「资料库根目录」会从该库的根开始扫描。',
       seafilePathPlaceholder: '/ 或资料库名',
       seafileWeekMode: '统计周期',
       seafileWeekModeTip:
@@ -2671,10 +2683,10 @@ NER：使用 spaCy NER 和基于规则的关键词提取来抽取 Entities 和 R
         '用正则从路径或文件名里取出作者和日期。默认匹配「作者-年-月-日.md/docx/txt」，例如 张三-2026-08-11.md 或 张三-2026-8-14.md；没有作者前缀时用上一级文件夹名。作者会写进周报「按人进展」。',
       seafileFilenameRegexPlaceholder:
         '(?:(?P<author>[^/]+)-)?(?P<date>\\d{4}[-./]\\d{1,2}[-./]\\d{1,2}).*\\.(md|docx|txt)$',
-      seafileDefaultRepo: '指定资料库 ID（可选）',
+      seafileDefaultRepo: '资料库',
       seafileDefaultRepoTip:
-        '账号范围的数据源可以留空：将扫描该账号下全部资料库。如果只想扫某一个库，填 Seafile 资料库 UUID（打开资料库时浏览器地址栏里的那一串）。目录/单库范围的数据源会忽略此项，以数据源里的库为准。',
-      seafileDefaultRepoPlaceholder: '留空=扫描全部资料库',
+        '从已连接的 Seafile 账号里选择资料库，例如「日报」。留空则扫描该账号下全部资料库。单库或目录范围的数据源以数据源里的库为准。',
+      seafileDefaultRepoPlaceholder: '选择资料库',
       seafileRequireComplete: '缺人则不发布',
       seafileRequireCompleteTip:
         '打开后，如果配置了应到人员且有人缺交日报，本周不会写入周报资料库。默认关闭：缺人只写在周报「覆盖与缺交」里，仍会发布。',
@@ -2682,14 +2694,19 @@ NER：使用 spaCy NER 和基于规则的关键词提取来抽取 Entities 和 R
       productionDataDescription: '从 Seafile 中最新的 PostgreSQL 数据库镜像提取本周 MES 生产数据。',
       productionDataConnector: '数据库镜像数据源',
       productionDataConnectorTip: '选择保存数据库镜像的 Seafile 数据源；数据库密码不会放在画布中。',
-      productionDataRepo: '镜像资料库 ID（可选）',
-      productionDataRepoTip: '账号范围的数据源可填写数据库镜像所在的 Seafile 资料库 UUID；留空时在可访问资料库中查找。',
+      productionDataRepo: '镜像资料库',
+      productionDataRepoTip:
+        '选择存放数据库镜像的 Seafile 资料库。留空时会在可访问的资料库里查找。',
       productionDataPath: '镜像目录',
-      productionDataPathTip: '数据库镜像所在目录，例如 /。控件会递归选择修改时间最新的匹配文件。',
+      productionDataPathTip:
+        '在镜像资料库里选择目录。选根目录会在该库中查找修改时间最新的匹配文件。',
       productionDataFilename: '镜像文件名规则',
       productionDataFilenameTip: '匹配 PostgreSQL plain pg_dump 文件，默认支持 .sql 和 .sql.gz。镜像中的 SQL 只解析，不执行。',
       productionDataSampleLimit: '每表样例数',
       productionDataSampleLimitTip: '除统计汇总外，最多提供给周报主编的每表明细样例数。',
+      productionDataSkipIfMissing: '找不到镜像时跳过',
+      productionDataSkipIfMissingTip:
+        '打开后，配置的目录里没有匹配的 .sql 或 .sql.gz 时不读取生产数据，周报继续生成。连接失败或文件损坏仍会报错。关闭时，找不到文件会中断本次运行。',
       datasetWrite: '写入周报资料库',
       datasetWriteDescription: '把生成的周报写入周报资料库，也可同时保存到 Seafile。',
       datasetWriteKb: '周报资料库',
@@ -2725,12 +2742,12 @@ NER：使用 spaCy NER 和基于规则的关键词提取来抽取 Entities 和 R
       datasetWriteSeafileConnectorPlaceholder: '不选则不强制指定数据源',
       datasetWriteSeafileRepo: 'Seafile 资料库（可选）',
       datasetWriteSeafileRepoTip:
-        '周报要写入的 Seafile 资料库，可填资料库名称（例如 周报）或 UUID。与路径都留空则只写入 RAGFlow 资料库，不写 Seafile。',
-      datasetWriteSeafileRepoPlaceholder: '例如 周报，留空则不保存到 Seafile',
+        '选择周报要写入的 Seafile 资料库。与目录都留空则只写入 RAGFlow 资料库，不写 Seafile。',
+      datasetWriteSeafileRepoPlaceholder: '选择资料库',
       datasetWriteSeafilePath: 'Seafile 目录（可选）',
       datasetWriteSeafilePathTip:
-        '资料库内的目录，例如 / 表示根目录。与资料库都填写才会上传；任一为空都不写 Seafile。同一周再次运行会覆盖同名文件 weekly-report-{周次}.md。',
-      datasetWriteSeafilePathPlaceholder: '例如 / ，留空则不保存到 Seafile',
+        '在资料库里选择目录。选根目录表示写到库的根上。资料库和目录都选中才会上传。同一周再次运行会覆盖同名文件 weekly-report-{周次}.md。',
+      datasetWriteSeafilePathPlaceholder: '选择目录',
       yahooFinanceDescription: '该组件根据提供的股票代码查询有关公司的信息。',
       crawler: '网页爬虫',
       crawlerDescription: '该组件可用于从指定 URL 爬取 HTML 源码。',

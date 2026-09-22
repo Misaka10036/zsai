@@ -1445,8 +1445,17 @@ This auto-tagging feature enhances retrieval by adding another layer of domain-s
       dataSourceFieldAccountApiToken: 'Account API Token',
       dataSourceFieldIncludeSharedLibraries: 'Include Shared Libraries',
       dataSourceFieldLibraryToken: 'Library Token',
-      dataSourceFieldLibraryId: 'Library ID',
-      dataSourceFieldDirectoryPath: 'Directory Path',
+      dataSourceFieldLibraryId: 'Library',
+      dataSourceFieldDirectoryPath: 'Directory',
+      seafileBrowseNeedCredential:
+        'Enter the server URL and a token, or choose a saved Seafile data source.',
+      seafileBrowseLoading: 'Reading Seafile…',
+      seafileBrowseLibraryPlaceholder: 'Select a library',
+      seafileBrowseEmptyLibraries: 'No libraries on this account',
+      seafileBrowseRoot: 'Library root',
+      seafileBrowseEmptyFolders: 'No subfolders',
+      seafileBrowseNeedLibrary: 'Select a library before expanding folders.',
+      seafileBrowseSavedValue: 'Current selection: {{value}}',
       dataSourceFieldBitbucketAccountEmail: 'Bitbucket Account Email',
       dataSourceFieldBitbucketApiToken: 'Bitbucket API Token',
       dataSourceFieldWorkspace: 'Workspace',
@@ -1667,18 +1676,9 @@ Example: Virtual Hosted Style`,
         'A library-scoped API token that only grants access to one specific library. ' +
         'Can be used instead of the Account API Token for "Single Library" and "Specific Directory" sync scopes.',
       seafileRepoIdTip:
-        'The unique identifier (UUID) of the SeaFile library you want to synchronise. ' +
-        'You can find it in your browser address bar when you open the library in the SeaFile web interface. ' +
-        'Example: 7a9e1b3c-4d5f-6a7b-8c9d-0e1f2a3b4c5d. ' +
-        'Required when sync scope is "Single Library" or "Specific Directory".',
+        'Choose the Seafile library after the connection succeeds. Required for single-library and directory sync.',
       seafileSyncPathTip:
-        'The absolute path of the folder to synchronise within the library specified by the Library ID above. ' +
-        'Must start with a forward slash. ' +
-        'All files and subfolders under this path will be included recursively. ' +
-        'Example: /Documents/Reports. ' +
-        'Important: The folder must exist inside the specified library. ' +
-        'Paths outside the library are not supported. ' +
-        'Only used when sync scope is "Specific Directory".',
+        'Choose a folder inside the selected library. The library root is not a directory sync target.',
       seafileIncludeSharedTip:
         'When enabled, libraries that other users have shared with you are included in the synchronisation. ' +
         'When disabled, only libraries owned by your account are synchronised. ' +
@@ -3034,7 +3034,7 @@ Best for: Documents with flowing, contextually connected content — such as boo
       seafileConnectorPlaceholder: 'Select a Seafile data source',
       seafilePath: 'Daily-report folder',
       seafilePathTip:
-        'Directory to start listing from. Use / for the library root. If 日报 is a library name rather than a folder, use / and set the library ID, or put the library name as the path (for example /日报). Missing folders fall back to the library root.',
+        'Pick a folder inside the selected library. Library root scans that library from the top.',
       seafilePathPlaceholder: '/ or a library name',
       seafileWeekMode: 'Week window',
       seafileWeekModeTip:
@@ -3050,10 +3050,10 @@ Best for: Documents with flowing, contextually connected content — such as boo
         'Regex to extract author and date from the path or filename. Default matches 张三-2026-08-11.md and 张三-2026-8-14.md. If the author group is missing, the parent folder name is used.',
       seafileFilenameRegexPlaceholder:
         '(?:(?P<author>[^/]+)-)?(?P<date>\\d{4}[-./]\\d{1,2}[-./]\\d{1,2}).*\\.(md|docx|txt)$',
-      seafileDefaultRepo: 'Library ID (optional)',
+      seafileDefaultRepo: 'Library',
       seafileDefaultRepoTip:
-        'Leave empty on an account-scoped source to scan all libraries. Fill a Seafile library UUID to restrict to one library.',
-      seafileDefaultRepoPlaceholder: 'Empty = all libraries',
+        'Choose a library from the connected Seafile account, for example the daily-report library. Leave empty to scan every library. Library- or directory-scoped connectors keep the library configured on the data source.',
+      seafileDefaultRepoPlaceholder: 'Select a library',
       seafileRequireComplete: 'Block publish if anyone is missing',
       seafileRequireCompleteTip:
         'When on, a missing expected author blocks writing the weekly dataset. Off (default): missing people are only listed in the report.',
@@ -3063,18 +3063,21 @@ Best for: Documents with flowing, contextually connected content — such as boo
       productionDataConnector: 'Database snapshot source',
       productionDataConnectorTip:
         'Select the Seafile data source that stores database snapshots. Database credentials are not stored on the canvas.',
-      productionDataRepo: 'Snapshot library ID (optional)',
+      productionDataRepo: 'Snapshot library',
       productionDataRepoTip:
-        'For an account-scoped source, optionally restrict lookup to one Seafile library UUID.',
+        'Choose the Seafile library that stores database snapshots. Leave empty to search every accessible library.',
       productionDataPath: 'Snapshot folder',
       productionDataPathTip:
-        'Folder containing snapshots. The most recently modified matching file is selected recursively.',
+        'Choose a folder in the snapshot library. The library root uses the newest matching file in that library.',
       productionDataFilename: 'Snapshot filename pattern',
       productionDataFilenameTip:
         'Matches plain PostgreSQL pg_dump files. .sql and .sql.gz are supported; SQL is parsed and never executed.',
       productionDataSampleLimit: 'Samples per table',
       productionDataSampleLimitTip:
         'Maximum detail samples supplied to the report editor in addition to aggregates.',
+      productionDataSkipIfMissing: 'Skip when no snapshot file',
+      productionDataSkipIfMissingTip:
+        'When on, a directory with no matching .sql or .sql.gz skips production data and the weekly report continues. Connection failures and unreadable files still stop the run. When off, a missing file stops the run.',
       datasetWrite: 'Write weekly report',
       datasetWriteDescription:
         'Write the generated weekly report into a knowledge base dataset, and optionally into Seafile.',
@@ -3111,12 +3114,12 @@ Best for: Documents with flowing, contextually connected content — such as boo
       datasetWriteSeafileConnectorPlaceholder: 'Optional connector',
       datasetWriteSeafileRepo: 'Seafile library (optional)',
       datasetWriteSeafileRepoTip:
-        'Destination Seafile library name or UUID. Leave this and the path empty to write only the RAGFlow dataset.',
-      datasetWriteSeafileRepoPlaceholder: 'e.g. 周报; empty = skip Seafile',
+        'Choose the Seafile library that receives the weekly report. Leave both library and folder empty to write only the RAGFlow dataset.',
+      datasetWriteSeafileRepoPlaceholder: 'Select a library',
       datasetWriteSeafilePath: 'Seafile folder (optional)',
       datasetWriteSeafilePathTip:
-        'Folder inside the library. Use / for the library root. Both library and path must be set to upload. Re-running the same week overwrites weekly-report-{week}.md.',
-      datasetWriteSeafilePathPlaceholder: 'e.g. / ; empty = skip Seafile',
+        'Choose a folder in that library. Library root writes at the top of the library. Both must be selected to upload. Re-running the same week overwrites weekly-report-{week}.md.',
+      datasetWriteSeafilePathPlaceholder: 'Select a folder',
       crawler: 'Web crawler',
       crawlerDescription:
         'A component that crawls HTML source code from a specified URL.',

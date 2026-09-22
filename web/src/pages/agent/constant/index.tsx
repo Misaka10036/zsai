@@ -478,6 +478,7 @@ export const initialProductionDataValues = {
   week_mode: 'this_week',
   timezone: 'Asia/Shanghai',
   sample_limit: 8,
+  skip_if_missing: false,
   outputs: {
     json: { type: 'object', value: {} },
     formalized_content: { type: 'string', value: '' },

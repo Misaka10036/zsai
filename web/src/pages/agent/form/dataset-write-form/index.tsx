@@ -8,14 +8,17 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
+import {
+  SeafileDirectoryTree,
+  SeafileLibrarySelect,
+} from '@/pages/user-setting/data-source/component/seafile-browser';
 import { FormTooltip } from '@/components/ui/tooltip';
 import { useFetchKnowledgeList } from '@/hooks/use-knowledge-request';
 import { DataSourceKey } from '@/pages/user-setting/data-source/constant';
 import { useListDataSource } from '@/pages/user-setting/data-source/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { memo, useMemo } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { initialDatasetWriteValues } from '../../constant';
@@ -57,6 +60,11 @@ function DatasetWriteForm({ node }: INextOperatorForm) {
     mode: 'onChange',
   });
   useWatchFormChange(node?.id, form);
+  const connectorId = useWatch({
+    control: form.control,
+    name: 'seafile_connector_id',
+  });
+  const repoId = useWatch({ control: form.control, name: 'seafile_repo_id' });
 
   const datasetOptions = useMemo(
     () =>
@@ -181,9 +189,20 @@ function DatasetWriteForm({ node }: INextOperatorForm) {
                   tip={t('flow.datasetWriteSeafileRepoTip')}
                 />
                 <FormControl>
-                  <Input
-                    {...field}
-                    placeholder={t('flow.datasetWriteSeafileRepoPlaceholder')}
+                  <SeafileLibrarySelect
+                    connectorId={connectorId}
+                    value={field.value}
+                    allowClear
+                    onChange={(next) => {
+                      const previous = field.value || '';
+                      field.onChange(next);
+                      if (next !== previous) {
+                        form.setValue('seafile_path', next ? '/' : '', {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        });
+                      }
+                    }}
                   />
                 </FormControl>
                 <FormMessage />
@@ -200,9 +219,11 @@ function DatasetWriteForm({ node }: INextOperatorForm) {
                   tip={t('flow.datasetWriteSeafilePathTip')}
                 />
                 <FormControl>
-                  <Input
-                    {...field}
-                    placeholder={t('flow.datasetWriteSeafilePathPlaceholder')}
+                  <SeafileDirectoryTree
+                    connectorId={connectorId}
+                    repoId={repoId}
+                    value={field.value}
+                    onChange={field.onChange}
                   />
                 </FormControl>
                 <FormMessage />

@@ -224,6 +224,59 @@ async def test_connector(connector_id):
     return get_json_result(data=True)
 
 
+def _seafile_browse_failure(exc: Exception) -> str:
+    response = getattr(exc, "response", None)
+    status = getattr(response, "status_code", None)
+    body = ""
+    if response is not None:
+        body = str(getattr(response, "text", "") or "")[:200]
+    detail = body or str(exc)
+    if status:
+        return f"Seafile {status}: {detail}"
+    return detail
+
+
+@manager.route("/connectors/<connector_id>/browse", methods=["POST"])  # noqa: F821
+@login_required
+async def browse_connector(connector_id):
+    """List Seafile libraries or one directory for a saved or in-progress connector."""
+    from common.data_source.seafile_client import open_seafile_client
+    from common.data_source.seafile_week import browse_seafile_with_client, merge_seafile_browse_config
+
+    unsaved = connector_id == FileSource.SEAFILE.value
+    if not unsaved and not ConnectorService.accessible(connector_id, current_user.id):
+        return _connector_auth_error(connector_id, current_user.id)
+
+    req = await get_request_json()
+    supplied = req.get("config") if isinstance(req, dict) else None
+    repo_id = str((req or {}).get("repo_id") or "")
+    path = str((req or {}).get("path") or "/")
+    stored = None
+    if not unsaved:
+        ok, conn = ConnectorService.get_by_id(connector_id)
+        if not ok:
+            return get_data_error_result(message="Can't find this Connector!")
+        if (getattr(conn, "source", "") or "").lower() != FileSource.SEAFILE.value:
+            return get_json_result(code=RetCode.ARGUMENT_ERROR, message="Only Seafile connectors can be browsed.", data=False)
+        stored = conn.config or {}
+        if isinstance(stored, str):
+            stored = json.loads(stored)
+
+    def _browse():
+        config = merge_seafile_browse_config(stored, supplied)
+        client = open_seafile_client(config)
+        return browse_seafile_with_client(client, repo_id, path)
+
+    try:
+        payload = await asyncio.to_thread(_browse)
+    except ValueError as exc:
+        return get_json_result(code=RetCode.ARGUMENT_ERROR, message=str(exc), data=False)
+    except Exception as exc:
+        logging.exception("Seafile browse failed for %s", connector_id)
+        return get_json_result(code=RetCode.SERVER_ERROR, message=_seafile_browse_failure(exc), data=False)
+    return get_json_result(data=payload)
+
+
 WEB_FLOW_TTL_SECS = 15 * 60
 
 

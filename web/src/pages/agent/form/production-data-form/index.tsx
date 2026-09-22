@@ -11,12 +11,17 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
+import {
+  SeafileDirectoryTree,
+  SeafileLibrarySelect,
+} from '@/pages/user-setting/data-source/component/seafile-browser';
 import { FormTooltip } from '@/components/ui/tooltip';
 import { DataSourceKey } from '@/pages/user-setting/data-source/constant';
 import { useListDataSource } from '@/pages/user-setting/data-source/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { memo, useEffect, useMemo } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { initialProductionDataValues } from '../../constant';
@@ -33,6 +38,7 @@ const schema = z.object({
   week_mode: z.string(),
   timezone: z.string().min(1),
   sample_limit: z.number().int().positive(),
+  skip_if_missing: z.boolean().optional(),
 });
 
 function Label({ label, tip }: { label: string; tip: string }) {
@@ -54,6 +60,8 @@ function ProductionDataForm({ node }: INextOperatorForm) {
     mode: 'onChange',
   });
   useWatchFormChange(node?.id, form);
+  const connectorId = useWatch({ control: form.control, name: 'connector_id' });
+  const repoId = useWatch({ control: form.control, name: 'default_repo_id' });
   const options = useMemo(
     () =>
       (list || [])
@@ -95,20 +103,57 @@ function ProductionDataForm({ node }: INextOperatorForm) {
               </FormItem>
             )}
           />
-          <RAGFlowFormItem
+          <FormField
+            control={form.control}
             name="default_repo_id"
-            label={t('flow.productionDataRepo')}
-            tooltip={t('flow.productionDataRepoTip')}
-          >
-            <Input />
-          </RAGFlowFormItem>
-          <RAGFlowFormItem
+            render={({ field }) => (
+              <FormItem>
+                <Label
+                  label={t('flow.productionDataRepo')}
+                  tip={t('flow.productionDataRepoTip')}
+                />
+                <FormControl>
+                  <SeafileLibrarySelect
+                    connectorId={connectorId}
+                    value={field.value}
+                    allowClear
+                    onChange={(next) => {
+                      const previous = field.value || '';
+                      field.onChange(next);
+                      if (next !== previous) {
+                        form.setValue('path', '/', {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        });
+                      }
+                    }}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
             name="path"
-            label={t('flow.productionDataPath')}
-            tooltip={t('flow.productionDataPathTip')}
-          >
-            <Input />
-          </RAGFlowFormItem>
+            render={({ field }) => (
+              <FormItem>
+                <Label
+                  label={t('flow.productionDataPath')}
+                  tip={t('flow.productionDataPathTip')}
+                />
+                <FormControl>
+                  <SeafileDirectoryTree
+                    connectorId={connectorId}
+                    repoId={repoId}
+                    value={field.value}
+                    onChange={field.onChange}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
           <RAGFlowFormItem
             name="filename_regex"
             label={t('flow.productionDataFilename')}
@@ -159,6 +204,25 @@ function ProductionDataForm({ node }: INextOperatorForm) {
           >
             <NumberInput className="w-full" />
           </RAGFlowFormItem>
+          <FormField
+            control={form.control}
+            name="skip_if_missing"
+            render={({ field }) => (
+              <FormItem>
+                <Label
+                  label={t('flow.productionDataSkipIfMissing')}
+                  tip={t('flow.productionDataSkipIfMissingTip')}
+                />
+                <FormControl>
+                  <Switch
+                    checked={!!field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </FormContainer>
       </FormWrapper>
     </Form>

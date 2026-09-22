@@ -364,3 +364,71 @@ def search_roots_for_libraries(libraries: list[dict], requested_path: str) -> li
         else:
             roots.append((lib_id, path))
     return named or roots
+
+
+def seafile_library_rows(libraries: list[dict] | None) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for lib in libraries or []:
+        lib_id = str(lib.get("id") or lib.get("repo_id") or "").strip()
+        if not lib_id or lib_id in seen:
+            continue
+        seen.add(lib_id)
+        name = str(lib.get("name") or lib.get("repo_name") or lib_id).strip() or lib_id
+        rows.append({"id": lib_id, "name": name})
+    rows.sort(key=lambda item: item["name"].lower())
+    return rows
+
+
+def seafile_directory_rows(path: str, entries: list[dict] | None) -> list[dict[str, str]]:
+    base = normalise_path(path)
+    rows: list[dict[str, str]] = []
+    for item in entries or []:
+        name = str(item.get("name") or "").strip()
+        if not name or name in {".", ".."}:
+            continue
+        kind = str(item.get("type") or "file")
+        rows.append({"name": name, "path": normalise_path(f"{base}/{name}"), "type": kind})
+    rows.sort(key=lambda item: (item["type"] != "dir", item["name"].lower()))
+    return rows
+
+
+def merge_seafile_browse_config(stored: dict | None, supplied: dict | None) -> dict:
+    """Overlay a form config onto a saved connector without dropping a blank token."""
+    if supplied is not None and not isinstance(supplied, dict):
+        raise ValueError("config must be an object")
+    base = dict(stored or {})
+    incoming = supplied or {}
+    url = str(incoming.get("seafile_url") or "").strip()
+    if url:
+        base["seafile_url"] = url
+    if "include_shared" in incoming:
+        base["include_shared"] = incoming.get("include_shared")
+    incoming_credentials = incoming.get("credentials") or {}
+    if incoming_credentials and not isinstance(incoming_credentials, dict):
+        raise ValueError("credentials must be an object")
+    credentials = dict(base.get("credentials") or {})
+    for key in ("seafile_token", "repo_token"):
+        value = str((incoming_credentials or {}).get(key) or "").strip()
+        if value:
+            credentials[key] = value
+    base["credentials"] = credentials
+    return base
+
+
+def browse_seafile_with_client(client, repo_id: str = "", path: str = "/") -> dict:
+    """List libraries, or one directory inside a library.
+
+    An account token lists every visible library. A repo token that is the only
+    credential can only see its own library.
+    """
+    repo_id = (repo_id or "").strip()
+    if not repo_id:
+        if getattr(client, "use_repo_token", False) and not getattr(client, "token", None):
+            info = client.get_repo_info() or {}
+            libraries = seafile_library_rows([info])
+        else:
+            libraries = seafile_library_rows(client.list_libraries())
+        return {"libraries": libraries, "entries": []}
+    entries = seafile_directory_rows(path, client.list_dir(repo_id, normalise_path(path)))
+    return {"libraries": [], "entries": entries}

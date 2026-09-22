@@ -18,6 +18,7 @@ var rawGraphData = { nodes: [], edges: [] };
 var currentSessionId = null;
 var agentRun = null;
 var agentReady = false;
+var agentDialogueMode = 'conversational';
 var agentDetailVersion = 0;
 var allNodesMap = {};
 var treeChart = null;
@@ -161,9 +162,36 @@ function selectAgent(agentId) {
 // 加载 Agent 详情并解析 DSL
 // ============================================================
 
+function readDialogueMode(dsl) {
+    var components = (dsl && dsl.components) || {};
+    var params = components.begin && components.begin.obj && components.begin.obj.params;
+    if (!params) {
+        for (var key in components) {
+            var obj = components[key] && components[key].obj;
+            if (obj && obj.component_name === 'Begin') {
+                params = obj.params;
+                break;
+            }
+        }
+    }
+    var mode = params && params.mode;
+    if (!mode && dsl && dsl.graph && dsl.graph.nodes) {
+        for (var i = 0; i < dsl.graph.nodes.length; i++) {
+            var node = dsl.graph.nodes[i];
+            var data = node.data || {};
+            if (node.id === 'begin' || data.label === 'Begin') {
+                mode = data.form && data.form.mode;
+                break;
+            }
+        }
+    }
+    return mode || 'conversational';
+}
+
 async function loadAgentDetail(agentId) {
     var version = ++agentDetailVersion;
     agentReady = false;
+    agentDialogueMode = 'conversational';
     btnRun.disabled = true;
     rawGraphData = { nodes: [], edges: [] };
     if (treeChart) treeChart.clear();
@@ -235,6 +263,7 @@ function parseDAGFromDSL(dsl) {
         }
     }
 
+    agentDialogueMode = readDialogueMode(dsl);
     rawGraphData = {
         nodes: Object.values(allNodesMap),
         edges: edges
@@ -848,8 +877,12 @@ function toggleRun() {
 
 async function startAgent() {
     if (isRunning || !currentAgentId || !agentReady) return;
-    var query = prompt('请输入您的提问:', '');
-    if (!query?.trim()) return;
+    var query = '';
+    if (agentDialogueMode === 'conversational') {
+        var entered = prompt('请输入您的提问:', '');
+        if (!entered || !entered.trim()) return;
+        query = entered.trim();
+    }
     var run = { agentId: currentAgentId, sessionId: currentSessionId, cancelled: false, cancelPromise: null };
     agentRun = run;
     isRunning = true;
@@ -857,7 +890,7 @@ async function startAgent() {
     btnText.textContent = '准备会话...';
     updateStatus('running');
     clearLog();
-    addLog('info', query);
+    addLog('info', query || '开始执行任务');
     try {
         if (!run.sessionId) {
             var session = await portalRequest('agent_session_create', { agent_id: run.agentId });

@@ -897,9 +897,6 @@ case 'agent_converse':
         echo json_encode(['code' => 400, 'message' => '请指定 Agent ID']);
         exit;
     }
-    if (empty($query)) {
-        $query = '请执行你的任务';
-    }
     $result = $ragflow->converseAgent($agentId, $query, $stream, $sessionId);
     if ($stream) break;
     if (!isset($result['code'])) {
@@ -919,9 +916,6 @@ case 'agent_converse_openai':
     if (empty($agentId)) {
         echo json_encode(['code' => 400, 'message' => '请指定 Agent ID']);
         exit;
-    }
-    if (empty($query)) {
-        $query = '请执行你的任务';
     }
     $result = $ragflow->converseAgentOpenAI($agentId, $query, $stream, $sessionId);
     if ($stream) break;

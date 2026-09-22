@@ -9,13 +9,17 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import {
+  SeafileDirectoryTree,
+  SeafileLibrarySelect,
+} from '@/pages/user-setting/data-source/component/seafile-browser';
 import { Switch } from '@/components/ui/switch';
 import { FormTooltip } from '@/components/ui/tooltip';
 import { DataSourceKey } from '@/pages/user-setting/data-source/constant';
 import { useListDataSource } from '@/pages/user-setting/data-source/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { memo, useEffect, useMemo } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { initialSeafileValues } from '../../constant';
@@ -59,6 +63,8 @@ function SeafileForm({ node }: INextOperatorForm) {
     mode: 'onChange',
   });
   useWatchFormChange(node?.id, form);
+  const connectorId = useWatch({ control: form.control, name: 'connector_id' });
+  const repoId = useWatch({ control: form.control, name: 'default_repo_id' });
 
   const seafileOptions = useMemo(() => {
     return (list || [])
@@ -113,6 +119,36 @@ function SeafileForm({ node }: INextOperatorForm) {
           />
           <FormField
             control={form.control}
+            name="default_repo_id"
+            render={({ field }) => (
+              <FormItem>
+                <FieldTip
+                  label={t('flow.seafileDefaultRepo')}
+                  tip={t('flow.seafileDefaultRepoTip')}
+                />
+                <FormControl>
+                  <SeafileLibrarySelect
+                    connectorId={connectorId}
+                    value={field.value}
+                    allowClear
+                    onChange={(next) => {
+                      const previous = field.value || '';
+                      field.onChange(next);
+                      if (next !== previous) {
+                        form.setValue('path', next ? '/' : '', {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        });
+                      }
+                    }}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
             name="path"
             render={({ field }) => (
               <FormItem>
@@ -121,9 +157,11 @@ function SeafileForm({ node }: INextOperatorForm) {
                   tip={t('flow.seafilePathTip')}
                 />
                 <FormControl>
-                  <Input
-                    {...field}
-                    placeholder={t('flow.seafilePathPlaceholder')}
+                  <SeafileDirectoryTree
+                    connectorId={connectorId}
+                    repoId={repoId}
+                    value={field.value}
+                    onChange={field.onChange}
                   />
                 </FormControl>
                 <FormMessage />
@@ -197,25 +235,7 @@ function SeafileForm({ node }: INextOperatorForm) {
               </FormItem>
             )}
           />
-          <FormField
-            control={form.control}
-            name="default_repo_id"
-            render={({ field }) => (
-              <FormItem>
-                <FieldTip
-                  label={t('flow.seafileDefaultRepo')}
-                  tip={t('flow.seafileDefaultRepoTip')}
-                />
-                <FormControl>
-                  <Input
-                    {...field}
-                    placeholder={t('flow.seafileDefaultRepoPlaceholder')}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+
           <FormField
             control={form.control}
             name="require_complete"

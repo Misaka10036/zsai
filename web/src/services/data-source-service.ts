@@ -55,6 +55,33 @@ export const testDataSource = (
   data: { source: string; config?: Record<string, unknown> },
 ) => request.post(api.dataSourceTest(id), { data });
 
+export type SeafileLibrary = { id: string; name: string };
+export type SeafileEntry = { name: string; path: string; type: string };
+export type SeafileBrowseResult = {
+  libraries: SeafileLibrary[];
+  entries: SeafileEntry[];
+};
+
+export const browseSeafile = async (
+  connectorId: string,
+  data: {
+    repo_id?: string;
+    path?: string;
+    config?: Record<string, unknown>;
+  },
+): Promise<SeafileBrowseResult> => {
+  const { data: body } = await request.post(api.dataSourceBrowse(connectorId), {
+    data,
+  });
+  if (body?.code !== 0) {
+    throw new Error(body?.message || 'Seafile browse failed');
+  }
+  return {
+    libraries: body?.data?.libraries || [],
+    entries: body?.data?.entries || [],
+  };
+};
+
 export const startGoogleDriveWebAuth = (payload: {
   credentials: string;
   redirect_uri?: string;
