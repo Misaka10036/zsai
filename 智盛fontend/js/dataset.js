@@ -8,6 +8,13 @@ var currentPage = 1;
 var documentListVersion = 0;
 var documentPollTimer = null;
 
+function documentProgressPercent(progress) {
+    var value = Number(progress);
+    if (!isFinite(value) || value < 0) return null;
+    if (value > 1) value = 1;
+    return Math.round(value * 100);
+}
+
 
 
 function selectDataset(id, name) {
@@ -102,9 +109,11 @@ function fetchFileList(page) {
                 var chunkTokenNum = parserConfig.chunk_token_num || 128;
                 var layoutRecognize = parserConfig.layout_recognize !== false;
 
+                var percent = isRunning ? documentProgressPercent(file.progress) : null;
+                if (percent !== null) statusText += ' ' + percent + '%';
                 var progressHtml = '';
-                if (file.progress !== undefined && file.progress > 0 && isRunning) {
-                    progressHtml = ' <span class="parse-progress"><span class="bar" style="width:' + (file.progress * 100) + '%;"></span></span>';
+                if (percent !== null) {
+                    progressHtml = ' <span class="parse-progress" title="' + percent + '%"><span class="bar" style="width:' + percent + '%;"></span></span>';
                 }
 
                 rowsHtml += '<tr>';
