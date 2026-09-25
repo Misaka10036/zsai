@@ -41,9 +41,10 @@ RUN --mount=type=cache,id=ragflow_apt,target=/var/cache/apt,sharing=locked \
         # CI runners may inject a proxy whose TLS certificate is not trusted inside
         # the fresh Ubuntu base image yet. Keep the Ubuntu mirror on HTTP here so
         # the mirror switch remains usable before the full CA store is available.
-        sed -i 's|http://archive.ubuntu.com/ubuntu|http://mirrors.aliyun.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources; \
-        sed -i 's|http://security.ubuntu.com/ubuntu|http://mirrors.aliyun.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources; \
+        sed -i 's|http://archive.ubuntu.com/ubuntu|http://mirrors.tuna.tsinghua.edu.cn/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources; \
+        sed -i 's|http://security.ubuntu.com/ubuntu|http://mirrors.tuna.tsinghua.edu.cn/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources; \
     fi; \
+    echo 'Acquire::Retries "8";' > /etc/apt/apt.conf.d/80-retries && \
     rm -f /etc/apt/apt.conf.d/docker-clean && \
     echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache && \
     chmod 1777 /tmp && \
@@ -296,3 +297,46 @@ COPY --from=builder /ragflow/VERSION /ragflow/VERSION
 ENV HF_ENDPOINT=https://hf-mirror.com
 
 ENTRYPOINT ["./entrypoint.sh"]
+
+# ---------------------------------------------------------------------------
+# all-in-one stage
+#
+# The production image plus the 智盛 PHP portal served by Apache on :8080.
+# Nginx keeps :80 for the compiled React frontend and the API proxy. The portal
+# is reached at http://<host>:18080/views/login.php; because it stays at its own
+# document root, none of its absolute asset paths need to change.
+#
+# Ubuntu 24.04 (noble) ships PHP 8.3, so the apt mirror switch performed in the
+# base stage (NEED_MIRROR=1 -> mirrors.tuna.tsinghua.edu.cn) covers PHP too.
+# Apache is installed on :8080 to leave the nginx.org nginx on :80 untouched.
+# ---------------------------------------------------------------------------
+FROM production AS all-in-one
+USER root
+
+# apache2's postinst calls invoke-rc.d; there is no init system during build.
+RUN --mount=type=cache,id=ragflow_apt,target=/var/cache/apt,sharing=locked \
+    printf '#!/bin/sh\nexit 101\n' > /usr/sbin/policy-rc.d && \
+    chmod +x /usr/sbin/policy-rc.d && \
+    apt update && \
+    apt --no-install-recommends install -y \
+    apache2 libapache2-mod-php8.3 \
+    php8.3-mysql php8.3-curl php8.3-mbstring php8.3-xml php8.3-gd php8.3-zip && \
+    rm -f /usr/sbin/policy-rc.d && \
+    a2enmod rewrite headers php8.3 && \
+    a2dissite 000-default && \
+    printf 'Listen 8080\n' > /etc/apache2/ports.conf && \
+    printf '\nServerName localhost\n' >> /etc/apache2/apache2.conf
+
+# Portal vhost on :8080, sharing the document root layout of the standalone
+# docker/vivarly image.
+COPY docker/all-in-one/portal.conf /etc/apache2/sites-available/portal.conf
+# Reuse the standalone portal's php.ini verbatim so the two paths cannot drift.
+COPY docker/vivarly/php.ini /etc/php/8.3/apache2/conf.d/99-portal.ini
+RUN a2ensite portal
+
+# The portal sources, taken straight from the build context. `.dockerignore`
+# removes config.local.php, so no host-specific credentials are baked in; the
+# portal reads its configuration from the container environment instead.
+COPY --chown=www-data:www-data 智盛fontend/ /var/www/html/
+
+EXPOSE 80 8080

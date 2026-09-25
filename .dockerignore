@@ -57,6 +57,11 @@ htmlcov/
 # ── Docker env (contains secrets) ───────────────────────────────────────────
 docker/.env
 
+# ── Portal host-specific configuration (contains DB credentials) ────────────
+# Matches both docker/vivarly/config.local.php and 智盛fontend/config.local.php.
+# The glob form avoids writing a non-ASCII path into this file.
+**/config.local.php
+
 # ── Local build artifacts (not needed inside the image) ─────────────────────
 dist/
 .agents/

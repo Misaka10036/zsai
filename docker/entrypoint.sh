@@ -12,6 +12,7 @@ function usage() {
     echo "Usage: $0 [OPTIONS]"
     echo
     echo "  --disable-webserver                     Disables the web server (nginx + ragflow_server)."
+    echo "  --disable-portal                        Disables the 智盛 PHP portal (all-in-one image only)."
     echo "  --disable-taskexecutor                  Disables task executor workers."
     echo "  --disable-datasync                      Disables synchronization of datasource workers."
     echo "  --enable-mcpserver                      Enables the MCP server."
@@ -45,6 +46,7 @@ function usage() {
 }
 
 ENABLE_WEBSERVER=1 # Default to enable web server
+ENABLE_PORTAL=1  # Default to enable the 智盛 PHP portal when present in the image
 ENABLE_TASKEXECUTOR=1  # Default to enable task executor
 ENABLE_DATASYNC=1
 ENABLE_MCP_SERVER=0
@@ -65,6 +67,10 @@ MCP_TRANSPORT_SSE_FLAG="--transport-sse-enabled"
 MCP_TRANSPORT_STREAMABLE_HTTP_FLAG="--transport-streamable-http-enabled"
 MCP_JSON_RESPONSE_FLAG="--json-response"
 
+# Port Apache serves the 智盛 portal on inside the all-in-one image. Compose
+# publishes this as VIVARLY_PORT (18080 by default) on the host.
+PORTAL_HTTP_PORT="${PORTAL_HTTP_PORT:-8080}"
+
 # -----------------------------------------------------------------------------
 # Host ID logic:
 #   1. By default, use the system hostname if length <= 32
@@ -84,6 +90,11 @@ for arg in "$@"; do
   case $arg in
     --disable-webserver)
       ENABLE_WEBSERVER=0
+      ENABLE_PORTAL=0
+      shift
+      ;;
+    --disable-portal)
+      ENABLE_PORTAL=0
       shift
       ;;
     --disable-taskexecutor)
@@ -318,6 +329,20 @@ if [[ "${ENABLE_WEBSERVER}" -eq 1 ]]; then
     if [[ "${API_PROXY_SCHEME}" == "hybrid" ]] || [[ "${API_PROXY_SCHEME}" == "go" ]]; then
         echo "Starting RAGFlow go server..."
         run_with_restart "RAGFlow go server" bin/ragflow_server --api &
+    fi
+fi
+
+# The 智盛 PHP portal, present only in the all-in-one image target. Apache runs
+# in the foreground under the same restart loop as the other services, on a
+# port of its own so nginx keeps :80 for the React frontend and the API proxy.
+if [[ "${ENABLE_PORTAL}" -eq 1 ]]; then
+    if [[ -f /var/www/html/views/login.php ]]; then
+        echo "Starting 智盛 portal on port ${PORTAL_HTTP_PORT}..."
+        run_with_restart "智盛 portal" \
+            env APACHE_RUN_USER=www-data APACHE_RUN_GROUP=www-data \
+            apache2ctl -D FOREGROUND &
+    else
+        echo "Portal document root not present in this image; skipping 智盛 portal."
     fi
 fi
 
