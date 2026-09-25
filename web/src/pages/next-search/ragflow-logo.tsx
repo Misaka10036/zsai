@@ -68,10 +68,10 @@ export function RAGFlowLogo({
       <h1
         onClick={onClick}
         className={cn(
-          'text-4xl font-bold bg-gradient-to-l from-[#40EBE3] to-[#4A51FF] bg-clip-text',
+          'text-2xl md:text-4xl font-bold whitespace-nowrap bg-gradient-to-l from-[#40EBE3] to-[#4A51FF] bg-clip-text',
         )}
       >
-        RAGFlow
+        智盛AI综合平台
       </h1>
       {showEmbedIcon && <EmbedIcon></EmbedIcon>}
     </div>
