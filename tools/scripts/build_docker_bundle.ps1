@@ -7,6 +7,8 @@ param(
     [string]$DocEngine = "elasticsearch",
     [ValidateSet("cpu", "gpu")]
     [string]$Device = "cpu",
+    [ValidateSet("production", "all-in-one")]
+    [string]$Target = "production",
     [string[]]$ExtraProfiles = @(),
     [ValidateSet("linux/amd64", "linux/arm64")]
     [string]$Platform = "linux/amd64",
@@ -131,10 +133,16 @@ if (-not $safeVersion) {
 }
 
 $profiles = @($DocEngine, $Device) + @($ExtraProfiles) |
+    ForEach-Object { $_ -split ',' } |
     Where-Object { $_ -and $_.Trim() } |
     ForEach-Object { $_.Trim() } |
     Select-Object -Unique
 $profileCsv = $profiles -join ","
+
+if ($Target -eq "all-in-one" -and $profiles -contains "vivarly") {
+    throw "-Target all-in-one already serves the portal inside the application image. Drop 'vivarly' from -ExtraProfiles, or build -Target production to keep the standalone portal container."
+}
+
 $applicationImage = "${ImageRepository}:${safeVersion}"
 $architecture = ($Platform -split "/", 2)[1]
 $bundleName = "ragflow-docker-bundle-${safeVersion}-${architecture}"
@@ -151,11 +159,15 @@ if ($bundleFull -eq $projectRoot -or $bundleFull -eq $driveRoot -or $bundleFull.
 Write-Step "Build plan"
 Write-Host "Project:       $projectRoot"
 Write-Host "Application:   $applicationImage"
+Write-Host "Target:        $Target"
 Write-Host "Platform:      $Platform"
 Write-Host "Profiles:      $profileCsv"
 Write-Host "Bundle:        $archivePath"
 Write-Host "Configuration: $resolvedEnvFile"
 Write-Warning "The selected .env file is copied into the bundle. Review its passwords and secrets before distributing the archive."
+if (-not $PSBoundParameters.ContainsKey("Version")) {
+    Write-Warning "The version defaults to the current commit, so a second target built from the same commit reuses the image tag and overwrites the existing archive. Pass -Version <commit>-<suffix> to keep both."
+}
 
 if ($DryRun) {
     Write-Host "`nDry run complete. No image was built and no output was written." -ForegroundColor Green
@@ -164,6 +176,17 @@ if ($DryRun) {
 
 Require-Command "docker"
 Require-Command "tar"
+# Prefer the Windows system tar. GNU tar, which shadows it on PATH when this
+# script is launched from Git-Bash or MSYS, reads "C:\..." as a remote
+# host:path and fails with "Cannot connect to C: resolve failed" at the final
+# compress step.
+$tarExecutable = "tar"
+if ($env:OS -eq "Windows_NT") {
+    $systemTar = Join-Path $env:SystemRoot "System32\tar.exe"
+    if (Test-Path -LiteralPath $systemTar -PathType Leaf) {
+        $tarExecutable = $systemTar
+    }
+}
 Invoke-Native -Executable "docker" -Arguments @("version")
 Invoke-Native -Executable "docker" -Arguments @("compose", "version")
 Invoke-Native -Executable "docker" -Arguments @("buildx", "version")
@@ -183,12 +206,12 @@ if ($SkipAppBuild) {
     Write-Step "Reuse the existing application image $applicationImage"
     Invoke-Native -Executable "docker" -Arguments @("image", "inspect", $applicationImage)
 } else {
-    Write-Step "Build the combined frontend and backend application image"
+    Write-Step "Build the combined frontend and backend application image ($Target)"
     $mirrorValue = if ($NeedMirror) { "1" } else { "0" }
     $buildArguments = @(
         "buildx", "build",
         "--platform", $Platform,
-        "--target", "production",
+        "--target", $Target,
         "--load",
         "--tag", $applicationImage,
         "--build-arg", "NEED_MIRROR=$mirrorValue",
@@ -237,7 +260,7 @@ foreach ($relativeFile in $deploymentFiles) {
         Copy-Item -LiteralPath $source -Destination (Join-Path $bundleDirectory "docker/$relativeFile") -Force
     }
 }
-foreach ($relativeDirectory in @("nginx", "oceanbase/init.d", "seafile", "vivarly")) {
+foreach ($relativeDirectory in @("nginx", "oceanbase/init.d", "seafile", "vivarly", "all-in-one")) {
     $source = Join-Path $sourceDockerDirectory $relativeDirectory
     if (Test-Path -LiteralPath $source -PathType Container) {
         $destination = Join-Path $bundleDirectory "docker/$relativeDirectory"
@@ -252,6 +275,8 @@ $envContent = Set-EnvValue -Content $envContent -Name "DOC_ENGINE" -Value $DocEn
 $envContent = Set-EnvValue -Content $envContent -Name "DEVICE" -Value $Device
 $envContent = Set-EnvValue -Content $envContent -Name "COMPOSE_PROFILES" -Value $profileCsv
 $envContent = Set-EnvValue -Content $envContent -Name "RAGFLOW_IMAGE" -Value $applicationImage
+$envContent = Set-EnvValue -Content $envContent -Name "EXPOSE_MYSQL_PORT" -Value "3307"
+$envContent = Set-EnvValue -Content $envContent -Name "SEAFILE_SERVER_HOSTNAME" -Value "172.20.1.131:8082"
 $vivarlyImage = "ragflow-vivarly:${safeVersion}"
 if ($profiles -contains "vivarly") {
     $envContent = Set-EnvValue -Content $envContent -Name "VIVARLY_IMAGE" -Value $vivarlyImage
@@ -260,8 +285,31 @@ $bundleEnvFile = Join-Path $bundleDirectory "docker/.env"
 [System.IO.File]::WriteAllText($bundleEnvFile, $envContent, [System.Text.UTF8Encoding]::new($false))
 
 if ($profiles -contains "vivarly") {
-    Write-Step "Build the VIVARILY user frontend image $vivarlyImage"
-    $vivarlyDockerfile = Join-Path $sourceDockerDirectory "vivarly/Dockerfile"
+    Write-Step "Build the VIVARILY user frontend image $vivarlyImage from the maintained portal directory"
+    $portalSource = Get-ChildItem -LiteralPath $projectRoot -Directory |
+        Where-Object {
+            (Test-Path -LiteralPath (Join-Path $_.FullName "views\admin\agent.php")) -and
+            (Test-Path -LiteralPath (Join-Path $_.FullName "ragflow_api.php"))
+        } |
+        Select-Object -First 1 -ExpandProperty FullName
+    $portalInfra = Join-Path $sourceDockerDirectory "vivarly"
+    if (-not $portalSource) {
+        throw "Could not find the maintained portal directory (views/admin/agent.php and ragflow_api.php) under $projectRoot"
+    }
+    $vivarlyContext = Join-Path $bundleDirectory "docker/vivarly"
+    if (Test-Path -LiteralPath $vivarlyContext) {
+        Remove-Item -LiteralPath $vivarlyContext -Recurse -Force
+    }
+    New-Item -ItemType Directory -Path $vivarlyContext -Force | Out-Null
+    Copy-Item -LiteralPath (Join-Path $portalSource "*") -Destination $vivarlyContext -Recurse -Force
+    foreach ($infraFile in @("Dockerfile", "apache.conf", "php.ini", ".dockerignore")) {
+        Copy-Item -LiteralPath (Join-Path $portalInfra $infraFile) -Destination (Join-Path $vivarlyContext $infraFile) -Force
+    }
+    $localPortalConfig = Join-Path $vivarlyContext "config.local.php"
+    if (Test-Path -LiteralPath $localPortalConfig) {
+        Remove-Item -LiteralPath $localPortalConfig -Force
+    }
+    $vivarlyDockerfile = Join-Path $vivarlyContext "Dockerfile"
     $vivarlyBuildArgs = @(
         "build",
         "--platform", $Platform,
@@ -271,10 +319,15 @@ if ($profiles -contains "vivarly") {
     if ($NeedMirror) {
         $phpMirror = Get-DockerHubMirrorImage -Image "php:8.2-apache" -MirrorPrefix $dockerHubMirror
         if ($phpMirror) {
-            $vivarlyBuildArgs += @("--build-arg", "PHP_IMAGE=$phpMirror")
+            & docker pull --platform $Platform $phpMirror
+            if ($LASTEXITCODE -eq 0) {
+                $vivarlyBuildArgs += @("--build-arg", "PHP_IMAGE=$phpMirror")
+            } else {
+                Write-Warning "Mirror image $phpMirror is unavailable. Using php:8.2-apache."
+            }
         }
     }
-    $vivarlyBuildArgs += (Join-Path $sourceDockerDirectory "vivarly")
+    $vivarlyBuildArgs += $vivarlyContext
     Invoke-Native -Executable "docker" -Arguments $vivarlyBuildArgs
 }
 
@@ -316,9 +369,17 @@ foreach ($image in $images) {
                 $pullImage = $mirrorImage
             }
         }
-        Invoke-Native -Executable "docker" -Arguments @("pull", "--platform", $Platform, $pullImage)
-        if ($pullImage -ne $image) {
-            Invoke-Native -Executable "docker" -Arguments @("tag", $pullImage, $image)
+        & docker pull --platform $Platform $pullImage
+        if ($LASTEXITCODE -eq 0) {
+            if ($pullImage -ne $image) {
+                Invoke-Native -Executable "docker" -Arguments @("tag", $pullImage, $image)
+            }
+        } else {
+            & docker image inspect $image | Out-Null
+            if ($LASTEXITCODE -ne 0) {
+                throw "Unable to pull $pullImage and $image is not present locally."
+            }
+            Write-Warning "Could not pull $pullImage. Using the local image $image."
         }
     }
     Invoke-Native -Executable "docker" -Arguments @("image", "inspect", $image)
@@ -336,6 +397,7 @@ $manifest = [ordered]@{
     source_commit = $commit
     source_dirty = $dirty
     application_image = $applicationImage
+    application_target = $Target
     platform = $Platform
     doc_engine = $DocEngine
     device = $Device
@@ -354,9 +416,12 @@ if command -v sha256sum >/dev/null 2>&1; then
 fi
 docker image load --input images/ragflow-images.tar
 cd docker
-docker compose --env-file .env up -d
+# Recreate containers whose images changed. Named volumes are kept.
+# Never pass -v / --volumes: that deletes MySQL, MinIO, and Elasticsearch data.
+docker compose --env-file .env up -d --pull never
 docker compose --env-file .env ps
 echo "RAGFlow is starting. Open http://localhost after the health checks pass."
+echo "Existing database volumes were not deleted."
 '@
 [System.IO.File]::WriteAllText((Join-Path $bundleDirectory "load-and-run.sh"), ($startSh -replace "`r`n", "`n"), [System.Text.UTF8Encoding]::new($false))
 
@@ -367,7 +432,7 @@ Set-Location $root
 docker image load --input "images/ragflow-images.tar"
 if ($LASTEXITCODE -ne 0) { throw "docker image load failed" }
 Set-Location "docker"
-docker compose --env-file ".env" up -d
+docker compose --env-file ".env" up -d --pull never
 if ($LASTEXITCODE -ne 0) { throw "docker compose up failed" }
 docker compose --env-file ".env" ps
 Write-Host "RAGFlow is starting. Open http://localhost after the health checks pass."
@@ -397,7 +462,19 @@ Windows PowerShell:
   powershell -ExecutionPolicy Bypass -File .\load-and-run.ps1
 
 Before production use, edit docker/.env and replace all default passwords.
-Data is stored in Docker named volumes; docker compose down does not delete it.
+Data is stored in Docker named volumes. docker compose up -d replaces containers
+and code images only. Do not run docker compose down -v; that deletes MySQL,
+MinIO, Elasticsearch, and Seafile data.
+
+To update an existing server without replacing its database:
+  1. Keep that server's docker/.env (passwords must still match the old MySQL volume).
+  2. Load this bundle's images: docker image load --input images/ragflow-images.tar
+  3. In the existing deployment directory, set RAGFLOW_IMAGE and VIVARLY_IMAGE
+     in .env to the tags in manifest.json, or retag the loaded images to the
+     names already in that .env.
+  4. docker compose --env-file .env up -d --pull never
+  5. Do not copy this bundle's docker/.env over the server file if the server
+     already has its own passwords and API key.
 
 If this bundle includes the seafile profile:
   Seafile UI:     http://localhost:8082
@@ -426,7 +503,7 @@ $checksumLines = foreach ($file in $checksumFiles) {
 
 Write-Step "Compress the portable bundle"
 New-Item -ItemType Directory -Path $outputFull -Force | Out-Null
-Invoke-Native -Executable "tar" -Arguments @(
+Invoke-Native -Executable $tarExecutable -Arguments @(
     "-czf", $archivePath,
     "-C", $resolvedOutputDirectory,
     $bundleName
