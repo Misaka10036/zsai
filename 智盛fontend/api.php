@@ -214,6 +214,16 @@ try {
             echo json_encode($ragflow->runGraphRAG($datasetId));
             break;
 
+        case 'dataset_graph_trace':
+            header('Content-Type: application/json; charset=utf-8');
+            $datasetId = $_GET['dataset_id'] ?? '';
+            if (empty($datasetId)) {
+                echo json_encode(['code' => 400, 'message' => '未指定 dataset_id']);
+                exit;
+            }
+            echo json_encode($ragflow->traceGraph($datasetId));
+            break;
+
         // ==================== 知识库内文件管理 API ====================
         case 'file_list':
             header('Content-Type: application/json; charset=utf-8');

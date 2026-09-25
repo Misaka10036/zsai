@@ -109,11 +109,88 @@ class RAGFlowAPI {
     }
 
     public function getDatasetGraph($datasetId) {
+        $datasetId = rawurlencode($datasetId);
+        $structure = $this->request("/api/v1/datasets/{$datasetId}/artifacts/structure?kind=graph", 'GET');
+        if (($structure['code'] ?? 500) !== 0) {
+            return $structure;
+        }
+        $graph = $this->normalizeStructureGraph($structure['data'] ?? null);
+        if ($graph['nodes']) {
+            return ['code' => 0, 'data' => ['graph' => $graph, 'mind_map' => new stdClass()]];
+        }
         return $this->request("/api/v1/datasets/{$datasetId}/graph", 'GET');
     }
 
+    private function graphNameKey($name) {
+        $name = trim((string)$name);
+        return function_exists('mb_strtolower') ? mb_strtolower($name, 'UTF-8') : strtolower($name);
+    }
+
+    private function canonicalGraphName($name, $nameByKey) {
+        $name = trim((string)$name);
+        if ($name === '') return '';
+        $key = $this->graphNameKey($name);
+        return $nameByKey[$key] ?? $name;
+    }
+
+    private function normalizeStructureGraph($data) {
+        $templates = is_array($data) ? ($data['templates'] ?? []) : [];
+        if (!is_array($templates)) $templates = [];
+
+        $nodes = [];
+        $nameByKey = [];
+        foreach ($templates as $template) {
+            if (!is_array($template)) continue;
+            foreach (($template['entities'] ?? []) as $entity) {
+                if (!is_array($entity)) continue;
+                $name = trim((string)($entity['name'] ?? $entity['id'] ?? ''));
+                if ($name === '') continue;
+                $key = $this->graphNameKey($name);
+                if (isset($nameByKey[$key])) continue;
+                $nameByKey[$key] = $name;
+                $mention = $entity['mention_count'] ?? 0;
+                if (!is_numeric($mention)) $mention = 0;
+                $nodes[] = [
+                    'id' => $name,
+                    'name' => $name,
+                    'entity_type' => trim((string)($entity['type'] ?? '')),
+                    'description' => trim((string)($entity['description'] ?? '')),
+                    'pagerank' => 0 + $mention,
+                    'rank' => 0 + $mention,
+                ];
+            }
+        }
+
+        $edges = [];
+        $seenEdges = [];
+        foreach ($templates as $template) {
+            if (!is_array($template)) continue;
+            foreach (($template['relations'] ?? []) as $relation) {
+                if (!is_array($relation)) continue;
+                $source = $this->canonicalGraphName($relation['from'] ?? $relation['source'] ?? '', $nameByKey);
+                $target = $this->canonicalGraphName($relation['to'] ?? $relation['target'] ?? '', $nameByKey);
+                if ($source === '' || $target === '' || $this->graphNameKey($source) === $this->graphNameKey($target)) continue;
+                $edgeKey = $this->graphNameKey($source) . "\0" . $this->graphNameKey($target);
+                if (isset($seenEdges[$edgeKey])) continue;
+                $seenEdges[$edgeKey] = true;
+                $edges[] = [
+                    'source' => $source,
+                    'target' => $target,
+                    'description' => trim((string)($relation['type'] ?? '')),
+                ];
+            }
+        }
+        return ['nodes' => $nodes, 'edges' => $edges];
+    }
+
     public function runGraphRAG($datasetId) {
-        return $this->request("/api/v1/datasets/{$datasetId}/index?type=graph", 'POST');
+        $datasetId = rawurlencode($datasetId);
+        return $this->request("/api/v1/datasets/{$datasetId}/index?type=graphrag", 'POST');
+    }
+
+    public function traceGraph($datasetId) {
+        $datasetId = rawurlencode($datasetId);
+        return $this->request("/api/v1/datasets/{$datasetId}/index?type=graphrag", 'GET');
     }
 
     public function createDataset($name, $description = '', $permission = 'me') {

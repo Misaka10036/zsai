@@ -179,12 +179,61 @@ class PortalContract(unittest.TestCase):
         self.assertEqual(self.server.requests[0][:2], ('PATCH', '/api/v1/datasets/kb/documents/doc'))
 
     def test_graph_current_routes(self):
-        self.reply({})
+        self.reply({'kind': 'graph', 'templates': []})
+        self.reply({'graph': {}, 'mind_map': {}})
         self.call('getDatasetGraph', 'kb')
         self.reply({})
         self.call('runGraphRAG', 'kb')
-        self.assertEqual([r[:2] for r in self.server.requests],
-                         [('GET', '/api/v1/datasets/kb/graph'), ('POST', '/api/v1/datasets/kb/index?type=graph')])
+        self.assertEqual([r[:2] for r in self.server.requests], [
+            ('GET', '/api/v1/datasets/kb/artifacts/structure?kind=graph'),
+            ('GET', '/api/v1/datasets/kb/graph'),
+            ('POST', '/api/v1/datasets/kb/index?type=graphrag'),
+        ])
+
+    def test_graph_structure_is_normalized(self):
+        self.reply({
+            'kind': 'graph',
+            'templates': [
+                {
+                    'entities': [
+                        {'name': 'Alpha', 'type': 'org', 'description': 'A', 'mention_count': 3},
+                        {'name': 'alpha', 'type': 'dup', 'description': 'skip'},
+                        {'name': 'Beta', 'type': 'person', 'mention_count': 1},
+                    ],
+                    'relations': [
+                        {'from': 'alpha', 'to': 'Beta', 'type': 'owns'},
+                        {'from': 'Alpha', 'to': 'Beta', 'type': 'owns'},
+                    ],
+                },
+                {
+                    'entities': [{'name': 'Gamma', 'type': 'event', 'description': 'G', 'mention_count': 2}],
+                    'relations': [{'from': 'Beta', 'to': 'Gamma', 'type': 'attended'}],
+                },
+            ],
+        })
+        result = self.call('getDatasetGraph', 'kb')
+        self.assertEqual(len(self.server.requests), 1)
+        self.assertEqual(self.server.requests[0][:2], ('GET', '/api/v1/datasets/kb/artifacts/structure?kind=graph'))
+        graph = result['data']['graph']
+        self.assertEqual([node['id'] for node in graph['nodes']], ['Alpha', 'Beta', 'Gamma'])
+        self.assertEqual(graph['nodes'][0]['entity_type'], 'org')
+        self.assertEqual(graph['nodes'][0]['pagerank'], 3)
+        self.assertEqual([(edge['source'], edge['target'], edge['description']) for edge in graph['edges']],
+                         [('Alpha', 'Beta', 'owns'), ('Beta', 'Gamma', 'attended')])
+        self.assertEqual(result['data']['mind_map'], {})
+
+    def test_graph_trace_route(self):
+        self.reply({'id': 'task1', 'progress': 0.25, 'progress_msg': 'building'})
+        result = self.call('traceGraph', 'kb')
+        self.assertEqual(self.server.requests[0][:2], ('GET', '/api/v1/datasets/kb/index?type=graphrag'))
+        self.assertEqual(result['data']['progress'], 0.25)
+
+    def test_graph_structure_error_does_not_fall_back(self):
+        self.reply(status=200, raw=json.dumps({'code': 102, 'message': 'no authorization'}))
+        result = self.call('getDatasetGraph', 'kb')
+        self.assertEqual(result, {'code': 102, 'message': 'no authorization'})
+        self.assertEqual([request[:2] for request in self.server.requests],
+                         [('GET', '/api/v1/datasets/kb/artifacts/structure?kind=graph')])
 
     def test_chat_current_payload(self):
         self.reply({'answer': 'hello'})

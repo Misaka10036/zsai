@@ -1084,6 +1084,85 @@ body {
   outline: none;
 }
 
+.graph-build-status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.7rem;
+  margin: -0.2rem 0 0.7rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: 0.7rem;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e3a8a;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+
+.graph-build-status[hidden] {
+  display: none !important;
+}
+
+.graph-build-status.failed {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
+.graph-build-label {
+  font-weight: 600;
+}
+
+.graph-build-percent {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.graph-build-track {
+  flex: 1 1 120px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.graph-build-bar {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: #3b82f6;
+}
+
+.graph-build-status.failed .graph-build-bar {
+  background: #ef4444;
+}
+
+.graph-build-msg {
+  flex: 1 1 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.85;
+}
+
+.parse-progress {
+  width: 80px;
+  height: 4px;
+  background: #e9edf2;
+  border-radius: 4px;
+  overflow: hidden;
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 0.35rem;
+}
+
+.parse-progress .bar {
+  height: 100%;
+  background: #3b82f6;
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
 /* 图谱画布 - 占据剩余空间 */
 .graph-canvas {
   width: 100%;

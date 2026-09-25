@@ -12,6 +12,10 @@ window.activeGraphNodes = [];
 window.activeGraphLinks = [];
 window.expandedNodeNames = new Set();
 var graphLoadVersion = 0;
+var graphTraceTimer = null;
+var graphTraceToken = 0;
+var graphFinishedNote = '';
+var graphEmptyKind = '';
 
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -199,6 +203,8 @@ function initGraphCanvas() {
 async function loadKnowledgeGraph(datasetId) {
   var container = document.getElementById('ragflowGraphCanvas');
   if (!datasetId || !container) return;
+  stopGraphTrace();
+  hideGraphBuildStatus();
   var version = ++graphLoadVersion;
   try {
     if (!window.graphChartInstance) initGraphCanvas();
@@ -226,9 +232,12 @@ async function loadKnowledgeGraph(datasetId) {
     var graphData = parseRAGFlowGraphArtistic(rawGraph, getSelectedKbName());
     if (!graphData.nodes || graphData.nodes.length <= 1) {
       showEmptyGraphGuide(datasetId, getSelectedKbName());
+      if (version === graphLoadVersion) watchGraphBuild(datasetId, false);
       return;
     }
 
+    graphFinishedNote = '';
+    graphEmptyKind = '';
     window.activeGraphNodes = graphData.nodes;
     window.activeGraphLinks = graphData.links;
     renderArtisticGraphChart(window.activeGraphNodes, window.activeGraphLinks);
@@ -237,6 +246,7 @@ async function loadKnowledgeGraph(datasetId) {
     var edgeCountEl = document.getElementById('edgeCount');
     if (nodeCountEl) nodeCountEl.innerText = graphData.totalNodeCount || graphData.nodes.length;
     if (edgeCountEl) edgeCountEl.innerText = graphData.totalEdgeCount || graphData.links.length;
+    if (version === graphLoadVersion) watchGraphBuild(datasetId, false);
   } catch (err) {
     if (version !== graphLoadVersion) return;
     if (window.graphChartInstance) window.graphChartInstance.hideLoading();
@@ -376,6 +386,7 @@ function renderArtisticGraphChart(nodes, links) {
     var isExpanded = window.expandedNodeNames.has(node.name);
     formattedNodes.push({
       name: node.name,
+      isCenter: !!isCenter,
       symbolSize: isCenter ? 96 : (node.isExpandedSub ? 56 : 68),
       draggable: true,
       itemStyle: {
@@ -432,6 +443,171 @@ function renderArtisticGraphChart(nodes, links) {
   });
 }
 
+function stopGraphTrace() {
+  if (graphTraceTimer) {
+    clearInterval(graphTraceTimer);
+    graphTraceTimer = null;
+  }
+  graphTraceToken++;
+}
+
+function graphBuildState(task) {
+  if (!task || Array.isArray(task) || !task.id) return 'idle';
+  var progress = Number(task.progress);
+  if (!isFinite(progress)) return 'running';
+  if (progress < 0) return 'failed';
+  if (progress >= 1) return 'done';
+  return 'running';
+}
+
+function graphBuildPercent(task) {
+  var progress = Number(task && task.progress);
+  if (!isFinite(progress) || progress < 0) return 0;
+  if (progress > 1) progress = 1;
+  return Math.round(progress * 100);
+}
+
+function latestProgressLine(message) {
+  var lines = String(message || '').split(/\r?\n/).filter(function(line) { return line.trim(); });
+  var line = lines.length ? lines[lines.length - 1].trim() : '';
+  if (line.length > 160) line = line.slice(0, 160) + '…';
+  return line;
+}
+
+function ensureGraphBuildStatus() {
+  var el = document.getElementById('graphBuildStatus');
+  if (el) return el;
+  el = document.createElement('div');
+  el.id = 'graphBuildStatus';
+  el.className = 'graph-build-status';
+  el.hidden = true;
+  el.innerHTML = '<strong class="graph-build-label"></strong>' +
+    '<span class="graph-build-percent"></span>' +
+    '<span class="graph-build-track"><span class="graph-build-bar"></span></span>' +
+    '<span class="graph-build-msg"></span>';
+  var header = document.querySelector('.graph-header');
+  if (header && header.parentNode) header.parentNode.insertBefore(el, header.nextSibling);
+  else document.body.appendChild(el);
+  return el;
+}
+
+function hideGraphBuildStatus() {
+  var el = document.getElementById('graphBuildStatus');
+  if (el) el.hidden = true;
+}
+
+function builtEmptyDetail(message) {
+  var line = latestProgressLine(message);
+  var detail = '构建已经完成，但没有抽出可显示的实体或关系。';
+  if (!line || /task done/i.test(line)) return detail;
+  return detail + line;
+}
+
+function applyEmptyGraphCopy(kind) {
+  var title = document.getElementById('graphEmptyTitle');
+  if (!title) return;
+  var name = getSelectedKbName();
+  var note = document.getElementById('graphEmptyNote');
+  var button = document.getElementById('graphEmptyBuild');
+  if (kind === 'building') {
+    title.textContent = '"' + name + '" 正在构建知识图谱';
+    if (note) note.textContent = '完成后将自动刷新。';
+    if (button) button.hidden = true;
+    return;
+  }
+  if (kind === 'built-empty') {
+    title.textContent = '"' + name + '" 已构建，没有节点';
+    if (note) note.textContent = graphFinishedNote || builtEmptyDetail('');
+    if (button) {
+      button.hidden = false;
+      button.innerHTML = '<i class="fas fa-play me-1"></i> 重新构建';
+    }
+    return;
+  }
+  title.textContent = '"' + name + '" 尚未构建知识图谱';
+  if (note) note.textContent = '构建会从已解析的文档抽取实体和关系。知识库里还没有文本块时，这里不会出现节点。';
+  if (button) {
+    button.hidden = false;
+    button.innerHTML = '<i class="fas fa-play me-1"></i> 立即构建';
+  }
+}
+
+function noteGraphBuilding(building) {
+  applyEmptyGraphCopy(building ? 'building' : graphEmptyKind);
+}
+
+function showGraphBuildStatus(task, state) {
+  var el = ensureGraphBuildStatus();
+  var failed = state === 'failed';
+  el.hidden = false;
+  el.className = 'graph-build-status' + (failed ? ' failed' : ' running');
+  var percent = failed ? 100 : graphBuildPercent(task);
+  el.querySelector('.graph-build-label').textContent = failed ? '构建失败' : '正在构建';
+  el.querySelector('.graph-build-percent').textContent = percent + '%';
+  el.querySelector('.graph-build-bar').style.width = percent + '%';
+  el.querySelector('.graph-build-msg').textContent = latestProgressLine(task && task.progress_msg);
+  noteGraphBuilding(!failed);
+}
+
+function watchGraphBuild(datasetId, expectTask, submittedTaskId) {
+  stopGraphTrace();
+  var token = graphTraceToken;
+  var sawRunning = false;
+  var idlePolls = 0;
+
+  async function tick() {
+    if (token !== graphTraceToken || window.currentGraphKbId !== datasetId) return 'stale';
+    var task = {};
+    try {
+      var response = await fetch('/api.php?action=dataset_graph_trace&dataset_id=' + encodeURIComponent(datasetId));
+      var res = await response.json();
+      if (token !== graphTraceToken || window.currentGraphKbId !== datasetId) return 'stale';
+      if (!response.ok || !res || res.code !== 0) return (expectTask || sawRunning) ? 'retry' : 'error';
+      task = (res.data && typeof res.data === 'object' && !Array.isArray(res.data)) ? res.data : {};
+    } catch (err) {
+      return (expectTask || sawRunning) ? 'retry' : 'error';
+    }
+
+    var state = graphBuildState(task);
+    if (state === 'running') {
+      sawRunning = true;
+      idlePolls = 0;
+      showGraphBuildStatus(task, 'running');
+      return 'running';
+    }
+    if (state === 'failed') {
+      showGraphBuildStatus(task, 'failed');
+      return 'failed';
+    }
+    if (submittedTaskId && task.id && task.id !== submittedTaskId) return 'retry';
+    if (state === 'idle' && expectTask && idlePolls < 3) {
+      idlePolls++;
+      return 'retry';
+    }
+    if (state === 'done' && (sawRunning || expectTask)) {
+      graphFinishedNote = builtEmptyDetail(task.progress_msg);
+      stopGraphTrace();
+      loadKnowledgeGraph(datasetId);
+      return 'done';
+    }
+    if (state === 'done') {
+      graphEmptyKind = 'built-empty';
+      graphFinishedNote = builtEmptyDetail(task.progress_msg);
+      applyEmptyGraphCopy('built-empty');
+      graphFinishedNote = '';
+    }
+    hideGraphBuildStatus();
+    return state;
+  }
+
+  return tick().then(function(state) {
+    if (token !== graphTraceToken) return;
+    if (state === 'running' || state === 'retry') {
+      graphTraceTimer = setInterval(tick, 5000);
+    }
+  });
+}
+
 function showEmptyGraphGuide(datasetId, kbName) {
   if (window.graphChartInstance) window.graphChartInstance.dispose();
   window.graphChartInstance = null;
@@ -439,13 +615,20 @@ function showEmptyGraphGuide(datasetId, kbName) {
     var count = document.getElementById(id);
     if (count) count.textContent = '0';
   }
+  var finished = graphFinishedNote;
+  graphFinishedNote = '';
+  graphEmptyKind = finished ? 'built-empty' : '';
   var container = document.getElementById('ragflowGraphCanvas');
   if (container) {
     container.innerHTML = '<div class="d-flex flex-column align-items-center justify-content-center h-100 text-center p-4">' +
       '<i class="fas fa-project-diagram text-primary mb-3" style="font-size: 2.5rem; opacity: 0.5;"></i>' +
-      '<h6 class="fw-bold text-dark mb-1">"' + escapeHtml(kbName) + '" 尚未构建知识图谱</h6>' +
-      (portalIsAdmin() ? '<button class="btn btn-primary rounded-pill px-4 btn-sm mt-2" onclick="triggerBuildGraphRAG(\'' + escapeHtml(datasetId) + '\')"><i class="fas fa-play me-1"></i> 立即构建</button>' : '<div class="text-muted mt-2">请联系管理员构建图谱</div>') +
+      '<h6 id="graphEmptyTitle" class="fw-bold text-dark mb-1"></h6>' +
+      '<p id="graphEmptyNote" class="text-muted small mb-0"></p>' +
+      (portalIsAdmin() ? '<button id="graphEmptyBuild" class="btn btn-primary rounded-pill px-4 btn-sm mt-2" onclick="triggerBuildGraphRAG(\'' + escapeHtml(datasetId) + '\')"></button>' : '<div class="text-muted mt-2">请联系管理员构建图谱</div>') +
       '</div>';
+    if (finished) graphFinishedNote = finished;
+    applyEmptyGraphCopy(graphEmptyKind);
+    graphFinishedNote = '';
   }
 }
 
@@ -468,7 +651,9 @@ async function triggerBuildGraphRAG(datasetId) {
     if (!result.data || !result.data.task_id) {
       throw new Error('服务器未返回构建任务 ID，请刷新后确认任务状态');
     }
-    alert('已提交 GraphRAG 构建任务，完成后请刷新图谱。');
+    window.currentGraphKbId = datasetId;
+    showGraphBuildStatus({ progress: 0, progress_msg: '任务已提交' }, 'running');
+    await watchGraphBuild(datasetId, true, result.data.task_id);
   } catch (err) {
     alert('图谱构建失败：' + err.message);
   }
