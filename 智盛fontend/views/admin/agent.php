@@ -7,7 +7,7 @@ $currentUser = checkAdmin();
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>VIVARILY · Agent 工作流</title>
+    <title>智盛AI综合平台 · Agent 工作流</title>
     <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
     <link href="/vendor/font-awesome/css/all.min.css" rel="stylesheet" />
     <link href="/css/style.css" rel="stylesheet" />

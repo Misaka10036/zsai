@@ -7,7 +7,7 @@ $currentUser = checkAuth(); // 登录基础拦截
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>VIVARILY · 个人知识中心</title>
+  <title>智盛AI综合平台 · 个人知识中心</title>
   <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
   <link href="/vendor/font-awesome/css/all.min.css" rel="stylesheet" />
   <link href="/css/style.css" rel="stylesheet" />

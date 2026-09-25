@@ -1,6 +1,23 @@
 <?php
+ob_start();
+
 require_once __DIR__ . '/ragflow_api.php';
 require_once __DIR__ . '/db.php';
+
+register_shutdown_function(function () {
+    $err = error_get_last();
+    if (!$err || !in_array($err['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
+        return;
+    }
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+    if (!headers_sent()) {
+        http_response_code(500);
+        header('Content-Type: application/json; charset=utf-8');
+    }
+    echo json_encode(['code' => 500, 'message' => '服务器内部错误: ' . $err['message']], JSON_UNESCAPED_UNICODE);
+});
 
 $action = $_GET['action'] ?? '';
 $ragflow = new RAGFlowAPI();
@@ -985,6 +1002,15 @@ case 'agent_sessions_delete':
     break;
     }
 } catch (Throwable $e) {
-    header('Content-Type: application/json; charset=utf-8');
-    echo json_encode(['code' => 500, 'message' => $e->getMessage()]);
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+    if (!headers_sent()) {
+        header('Content-Type: application/json; charset=utf-8');
+    }
+    echo json_encode(['code' => 500, 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+}
+
+if (ob_get_level() > 0) {
+    ob_end_flush();
 }

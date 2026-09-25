@@ -10,6 +10,10 @@ class RAGFlowAPI {
         $this->apiKey = RAGFLOW_API_KEY;
     }
 
+    private function curlTimeout() {
+        return defined('RAGFLOW_CURL_TIMEOUT') ? (int)RAGFLOW_CURL_TIMEOUT : 600;
+    }
+
     private function request($endpoint, $method = 'GET', $data = null, $isMultipart = false) {
         $url = $this->baseUrl . $endpoint;
         $ch = curl_init();
@@ -36,7 +40,7 @@ class RAGFlowAPI {
 
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 300);
+        curl_setopt($ch, CURLOPT_TIMEOUT, $this->curlTimeout());
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
 
         $response = curl_exec($ch);
@@ -47,16 +51,22 @@ class RAGFlowAPI {
         if ($error) {
             return ['code' => 500, 'message' => 'cURL Error: ' . $error];
         }
+        if ($response === false || trim((string)$response) === '') {
+            return ['code' => $httpCode ?: 502, 'message' => "RAGFlow 返回空响应 (HTTP {$httpCode})"];
+        }
 
-        // 尝试解析JSON
         $resData = json_decode($response, true);
         if (is_array($resData)) {
             if ($httpCode >= 400) return ['code' => $httpCode, 'message' => $resData['message'] ?? 'Backend request failed'];
             return isset($resData['code']) ? $resData : ['code' => 0, 'data' => $resData];
         }
-        
-        // 如果不是JSON，返回原始响应
-        return ['code' => $httpCode >= 400 ? $httpCode : 502, 'message' => 'Backend returned a non-JSON response'];
+
+        $text = trim(preg_replace('/\s+/', ' ', strip_tags((string)$response)));
+        $text = function_exists('mb_substr') ? mb_substr($text, 0, 300) : substr($text, 0, 300);
+        $message = $text !== ''
+            ? "RAGFlow 接口返回异常 (HTTP {$httpCode}): {$text}"
+            : 'Backend returned a non-JSON response';
+        return ['code' => $httpCode >= 400 ? $httpCode : 502, 'message' => $message];
     }
 
     private function streamRequest($endpoint, $payload) {
@@ -74,7 +84,7 @@ class RAGFlowAPI {
             CURLOPT_POSTFIELDS => json_encode($payload, JSON_THROW_ON_ERROR),
             CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $this->apiKey, 'Content-Type: application/json', 'Accept: text/event-stream'],
             CURLOPT_CONNECTTIMEOUT => 10,
-            CURLOPT_TIMEOUT => 300,
+            CURLOPT_TIMEOUT => $this->curlTimeout(),
             CURLOPT_WRITEFUNCTION => function ($curl, $bytes) use (&$otherBody) {
                 $status = curl_getinfo($curl, CURLINFO_HTTP_CODE);
                 $type = curl_getinfo($curl, CURLINFO_CONTENT_TYPE) ?: '';
@@ -282,7 +292,7 @@ class RAGFlowAPI {
             'Authorization: Bearer ' . $this->apiKey
         ]);
         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 300);
+        curl_setopt($ch, CURLOPT_TIMEOUT, $this->curlTimeout());
 
         $data = curl_exec($ch);
         $contentType = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
@@ -381,7 +391,7 @@ class RAGFlowAPI {
             'Authorization: Bearer ' . $this->apiKey
         ]);
         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 300);
+        curl_setopt($ch, CURLOPT_TIMEOUT, $this->curlTimeout());
 
         $data = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -459,11 +469,11 @@ class RAGFlowAPI {
         $ch = curl_init($this->baseUrl . "/api/v1/searches/{$searchId}/completions");
         curl_setopt_array($ch, [
             CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => json_encode(['question' => $question], JSON_THROW_ON_ERROR),
+            CURLOPT_POSTFIELDS => json_encode(['question' => $question, 'stream' => false], JSON_THROW_ON_ERROR),
             CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $this->apiKey, 'Content-Type: application/json'],
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_CONNECTTIMEOUT => 10,
-            CURLOPT_TIMEOUT => 300,
+            CURLOPT_TIMEOUT => $this->curlTimeout(),
         ]);
         $raw = curl_exec($ch);
         $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);

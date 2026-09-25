@@ -7,7 +7,7 @@ $currentUser = checkAuth(); // 普通用户权限拦截
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>VIVARILY · 智能对话</title>
+  <title>智盛AI综合平台 · 智能对话</title>
   <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
   <link href="/vendor/font-awesome/css/all.min.css" rel="stylesheet" />
   <script src="/vendor/marked/marked.min.js"></script>

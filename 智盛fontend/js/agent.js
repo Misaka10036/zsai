@@ -66,7 +66,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loadAgentViews();
     loadAgents();
     addLog('info', '🟢 Agent 已就绪，点击"运行"开始执行');
-    console.log('%c VIVARILY · Agent 工作流 v16.2 ', 'background:#f8fafc;color:#1e293b;font-size:14px;padding:6px 14px;border-radius:4px;border:1px solid #e9edf2;');
+    console.log('%c 智盛AI综合平台 · Agent 工作流 v16.2 ', 'background:#f8fafc;color:#1e293b;font-size:14px;padding:6px 14px;border-radius:4px;border:1px solid #e9edf2;');
     
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Enter' || e.key === ' ') {

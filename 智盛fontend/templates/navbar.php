@@ -7,8 +7,7 @@ $basePath = ($currentUser['role'] ?? '') === 'admin' ? '/views/admin' : '/views/
 ?>
 <nav class="navbar">
   <div class="logo-area" onclick="window.location.href='<?php echo $basePath; ?>/index.php'">
-    <div class="brand-icon">V</div>
-    <div class="brand-name">VIVARILY <span>· <?php echo $isAdminView ? '管理后台' : '知识引擎'; ?></span></div>
+    <div class="brand-name">智盛AI综合平台 <span>· <?php echo $isAdminView ? '管理后台' : '知识引擎'; ?></span></div>
   </div>
   <div class="nav-links">
     <a href="<?php echo $basePath; ?>/index.php" class="<?php echo $page === 'home' ? 'active' : ''; ?>"><i class="fas fa-project-diagram"></i> 首页</a>

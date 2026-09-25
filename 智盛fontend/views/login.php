@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>VIVARILY · 用户登录与注册</title>
+  <title>智盛AI综合平台 · 用户登录与注册</title>
   <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
   <link href="/vendor/font-awesome/css/all.min.css" rel="stylesheet" />
   <link href="/css/style.css" rel="stylesheet" />
@@ -16,8 +16,8 @@
 <body class="d-flex align-items-center justify-content-center min-vh-100 bg-light">
   <div class="card border-0 shadow-lg auth-card p-4">
     <div class="text-center mb-3">
-      <div class="brand-icon mx-auto mb-2" style="width: 52px; height: 52px; font-size: 1.6rem; background: #0f172a; color: #ffffff; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-weight: 700;">V</div>
-      <h4 class="fw-bold text-dark mt-2 mb-1">VIVARILY 知识引擎</h4>
+      <div class="brand-icon mx-auto mb-2" style="width: 52px; height: 52px; font-size: 1.6rem; background: #0f172a; color: #ffffff; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-weight: 700;">智</div>
+      <h4 class="fw-bold text-dark mt-2 mb-1">智盛铁路设备 AI综合平台</h4>
       <p class="text-muted small">欢迎体验企业级智能问答与检索</p>
     </div>
 
