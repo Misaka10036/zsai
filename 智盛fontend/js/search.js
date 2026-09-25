@@ -74,7 +74,7 @@ function renderAppList(apps) {
         }
         html += '  </div>';
         html += '  <div class="app-actions">';
-        html += '<button onclick="event.stopPropagation();editSearchApp(\'' + app.id + '\')" title="设置知识库"><i class="fas fa-cog"></i></button>';
+        html += '<button onclick="event.stopPropagation();editSearchApp(\'' + app.id + '\')" title="设置知识库与模型"><i class="fas fa-cog"></i></button>';
         html += '    <button class="danger" onclick="event.stopPropagation();deleteApp(\'' + app.id + '\')" title="删除"><i class="fas fa-trash"></i></button>';
         html += '  </div>';
         html += '</div>';
@@ -134,13 +134,15 @@ async function executeSearch() {
     try {
         var data = await portalRequest('search_app_exec', { search_id: searchId, question: question });
         if (version !== searchVersion || searchId !== currentSearchId) return;
+        var answer = cleanThinkProcess(data.answer || '');
+        if (/AUTH_ERROR|Invalid API Key|Unauthorized/i.test(answer)) throw new Error(answer);
         var chunks = Object.values(data.reference?.chunks || []);
         var docs = Object.values(data.reference?.doc_aggs || []);
         lastSearchQuestion = question;
         currentChunks = chunks;
-        renderSearchResult(cleanThinkProcess(data.answer || '未找到匹配结果'), chunks, data.mindmap, docs);
+        renderSearchResult(answer || '未找到匹配结果', chunks, data.mindmap, docs);
     } catch (error) {
-        if (version === searchVersion) area.textContent = '检索失败：' + error.message;
+        if (version === searchVersion) area.textContent = '检索失败：' + explainSearchFailure(error.message);
     } finally {
         if (version === searchVersion) searchBusy = false;
     }
@@ -158,8 +160,16 @@ async function generateSearchMindmap(button) {
         button.replaceWith(box);
         renderMindmapWithECharts(data);
     } catch (error) {
-        if (version === searchVersion) { button.disabled = false; button.textContent = '生成失败，点击重试：' + error.message; }
+        if (version === searchVersion) { button.disabled = false; button.textContent = '生成失败，点击重试：' + explainSearchFailure(error.message); }
     }
+}
+
+function explainSearchFailure(message) {
+    var text = String(message || '');
+    if (/Unauthorized|AUTH_ERROR|Invalid API Key/i.test(text)) {
+        return '所选对话模型不可用（鉴权失败），请检查模型配置';
+    }
+    return text;
 }
 
 function fillSearchQuery(text) {
@@ -869,7 +879,7 @@ async function showCreateAppModal() {
     editingSearchId = null;
     document.getElementById('newAppName').value = '';
     document.getElementById('newAppDesc').value = '';
-    await openSearchConfig([]);
+    await openSearchConfig(null);
 }
 
 async function editSearchApp(id) {
@@ -878,24 +888,57 @@ async function editSearchApp(id) {
         editingSearchId = id;
         document.getElementById('newAppName').value = app.name || '';
         document.getElementById('newAppDesc').value = app.description || '';
-        await openSearchConfig(app.search_config?.kb_ids || []);
+        await openSearchConfig(app.search_config || {});
     } catch (error) { alert('读取应用失败：' + error.message); }
 }
 
-async function openSearchConfig(selected) {
+async function openSearchConfig(searchConfig) {
+    var selected = searchConfig?.kb_ids || [];
+    var savedModel = searchConfig?.chat_id || '';
     var button = document.getElementById('saveSearchApp');
     button.disabled = true;
     button.textContent = editingSearchId ? '保存配置' : '创建';
     document.getElementById('searchConfigTitle').textContent = editingSearchId ? '编辑搜索应用' : '新建搜索应用';
     var selector = document.getElementById('searchDatasetIds');
+    var modelSelect = document.getElementById('searchChatModel');
     selector.replaceChildren();
+    if (modelSelect) modelSelect.replaceChildren();
     bootstrap.Modal.getOrCreateInstance(document.getElementById('createAppModal')).show();
+    var datasets = [];
+    var models = [];
+    var defaultModel = '';
+    var errors = [];
     try {
-        var datasets = await portalList('dataset_list', ['datasets', 'list']);
-        selector.replaceChildren(...datasets.map(dataset => new Option(dataset.name, dataset.id, false, selected.includes(dataset.id))));
-        document.getElementById('searchConfigError').textContent = datasets.length ? '' : '请先创建知识库';
-        button.disabled = !datasets.length;
-    } catch (error) { document.getElementById('searchConfigError').textContent = '知识库加载失败：' + error.message; }
+        datasets = await portalList('dataset_list', ['datasets', 'list']);
+    } catch (error) {
+        errors.push('知识库加载失败：' + error.message);
+    }
+    try {
+        var listed = await portalRequest('model_list');
+        models = listed?.models || [];
+        defaultModel = listed?.default_chat_id || '';
+    } catch (error) {
+        errors.push('模型加载失败：' + error.message);
+    }
+    selector.replaceChildren(...datasets.map(dataset => new Option(dataset.name, dataset.id, false, selected.includes(dataset.id))));
+    if (modelSelect) {
+        modelSelect.replaceChildren(...models.map(function(model) {
+            var label = model.name || model.model_id;
+            if (model.provider_name) {
+                label += '（' + model.provider_name + (model.instance_name ? ' / ' + model.instance_name : '') + '）';
+            }
+            return new Option(label, model.model_id);
+        }));
+        var chosen = savedModel || defaultModel;
+        if (chosen && !Array.from(modelSelect.options).some(function(option) { return option.value === chosen; })) {
+            modelSelect.add(new Option(chosen, chosen));
+        }
+        if (chosen) modelSelect.value = chosen;
+    }
+    if (!datasets.length) errors.push('请先创建知识库');
+    if (modelSelect && !modelSelect.value) errors.push('请先配置对话模型');
+    document.getElementById('searchConfigError').textContent = errors.join(' ');
+    button.disabled = !datasets.length || !!(modelSelect && !modelSelect.value);
 }
 
 async function confirmCreateApp() {
@@ -903,15 +946,16 @@ async function confirmCreateApp() {
     var name = document.getElementById('newAppName').value.trim();
     var description = document.getElementById('newAppDesc').value.trim();
     var ids = Array.from(document.getElementById('searchDatasetIds').selectedOptions, option => option.value);
-    if (!name || !ids.length) return alert('请输入应用名称并选择至少一个知识库');
+    var chatId = document.getElementById('searchChatModel')?.value || '';
+    if (!name || !ids.length || !chatId) return alert('请输入应用名称、选择知识库和对话模型');
     savingSearch = true;
     var button = document.getElementById('saveSearchApp');
     button.disabled = true;
     try {
         var id = editingSearchId;
         var data = await portalRequest(id ? 'search_app_update' : 'search_app_create', id
-            ? { search_id: id, name: name, description: description, search_config: { kb_ids: ids } }
-            : { name: name, description: description, kb_ids: ids });
+            ? { search_id: id, name: name, description: description, search_config: { kb_ids: ids, chat_id: chatId } }
+            : { name: name, description: description, kb_ids: ids, chat_id: chatId });
         bootstrap.Modal.getInstance(document.getElementById('createAppModal')).hide();
         await loadSearchApps(id || data.search_id);
     } catch (error) { document.getElementById('searchConfigError').textContent = '保存失败：' + error.message; }

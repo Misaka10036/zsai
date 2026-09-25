@@ -104,25 +104,44 @@ async function chatIsolation() {
   dom.window.close();
 }
 
+const chatModels = {
+  models: [
+    { model_id: 'mimo', name: 'mimo-v2.5-pro', provider_name: 'OpenAI-API-Compatible', instance_name: 'default' },
+    { model_id: 'deepseek', name: 'deepseek-v4-flash', provider_name: 'DeepSeek', instance_name: 'default' },
+  ],
+  default_chat_id: 'deepseek',
+};
+
 async function searchConfigurationAndIsolation() {
   const dom = await page(template('admin/search.php'), ['js/search.js']);
   const w = dom.window;
   w.portalList = async () => [{ id: 'kb', name: 'Knowledge' }];
+  w.portalRequest = async (action) => {
+    if (action === 'model_list') return chatModels;
+    throw new Error(action);
+  };
   await w.showCreateAppModal();
   w.document.getElementById('newAppName').value = 'Search';
   w.document.getElementById('searchDatasetIds').options[0].selected = true;
+  assert.equal(w.document.getElementById('searchChatModel').value, 'deepseek');
   let saved;
   w.portalRequest = async (action, data) => { saved = { action, data }; return { search_id: 'created' }; };
   w.loadSearchApps = async () => {};
   await w.confirmCreateApp();
   assert.equal(saved.action, 'search_app_create');
   assert.deepEqual(Array.from(saved.data.kb_ids), ['kb']);
-  w.portalRequest = async () => ({ name: 'Existing', search_config: { kb_ids: ['kb'] } });
+  assert.equal(saved.data.chat_id, 'deepseek');
+  w.portalRequest = async (action) => {
+    if (action === 'model_list') return chatModels;
+    return { name: 'Existing', search_config: { kb_ids: ['kb'], chat_id: 'mimo' } };
+  };
   await w.editSearchApp('existing');
+  assert.equal(w.document.getElementById('searchChatModel').value, 'mimo');
   w.portalRequest = async (action, data) => { saved = { action, data }; return {}; };
   await w.confirmCreateApp();
   assert.equal(saved.action, 'search_app_update');
   assert.deepEqual(Array.from(saved.data.search_config.kb_ids), ['kb']);
+  assert.equal(saved.data.search_config.chat_id, 'mimo');
 
   const response = deferred();
   let count = 0;

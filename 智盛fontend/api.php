@@ -572,6 +572,12 @@ try {
             break;
 
         // ==================== 搜索应用管理 API ====================
+        case 'model_list':
+            header('Content-Type: application/json; charset=utf-8');
+            requireAdmin();
+            echo json_encode($ragflow->listChatModels());
+            break;
+
         case 'search_app_list':
             header('Content-Type: application/json; charset=utf-8');
             $page = intval($_GET['page'] ?? 1);
@@ -606,7 +612,12 @@ try {
                 echo json_encode(['code' => 400, 'message' => '请选择至少一个知识库']);
                 exit;
             }
-            echo json_encode($ragflow->createSearchApp($name, $description, $datasetIds));
+            $chatId = trim(is_scalar($input['chat_id'] ?? null) ? (string)$input['chat_id'] : '');
+            if ($chatId === '') {
+                echo json_encode(['code' => 400, 'message' => '请选择对话模型']);
+                exit;
+            }
+            echo json_encode($ragflow->createSearchApp($name, $description, $datasetIds, $chatId));
             break;
 
         case 'search_app_update':
@@ -620,6 +631,12 @@ try {
                 echo json_encode(['code' => 400, 'message' => '请选择至少一个知识库']);
                 break;
             }
+            $chatId = trim(is_scalar($searchConfig['chat_id'] ?? null) ? (string)$searchConfig['chat_id'] : '');
+            if ($chatId === '') {
+                echo json_encode(['code' => 400, 'message' => '请选择对话模型']);
+                break;
+            }
+            $searchConfig['chat_id'] = $chatId;
 
             if (empty($searchId)) {
                 echo json_encode(['code' => 400, 'message' => '请指定搜索应用ID']);

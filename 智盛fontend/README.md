@@ -55,8 +55,10 @@ reuse it across normal turns, and cancel through the Python task API. Protected
 requests refresh the portal user's account status and role.
 
 Uploads report per-file results and optionally submit successful documents for
-parsing (enabled by default). Search applications require a dataset selection;
-admins can edit their dataset binding in the portal. Chat displays source
+parsing (enabled by default). Search applications require a dataset and a chat
+model; both are stored on the search app, and admins can edit them in the portal.
+An existing app with no chat model receives the tenant default chat model on its
+next search or mind map. Chat displays source
 references. PDF/text preview and optional search mindmaps use local browser assets;
 other document formats offer the original download. PDF.js 2.16.105, its matching
 worker, CMaps, fonts and licenses are bundled from the workspace dependency;

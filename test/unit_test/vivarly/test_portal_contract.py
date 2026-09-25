@@ -68,6 +68,9 @@ class PortalContract(unittest.TestCase):
         self.server.replies.append((status, 'application/json' if raw is None else 'text/event-stream',
                                     json.dumps({'code': 0, 'data': data}) if raw is None else raw))
 
+    def reply_ready_search(self):
+        self.reply({'name': 'Search', 'search_config': {'kb_ids': ['kb'], 'chat_id': 'chat-model'}})
+
     def tearDown(self):
         for method, path, _, _ in self.server.requests:
             self.assertTrue(any(pattern.fullmatch(urlsplit(path).path) and method in methods
@@ -83,10 +86,10 @@ class PortalContract(unittest.TestCase):
             ('deleteFiles', [['file']]), ('moveFiles', [['file'], 'folder']),
             ('getParentFolder', ['file']), ('getAncestors', ['file']),
             ('linkFilesToDatasets', [['file'], ['kb']]), ('getSearchApps', []),
-            ('getSearchAppDetail', ['search']), ('createSearchApp', ['name', '', ['kb']]),
+            ('getSearchAppDetail', ['search']), ('createSearchApp', ['name', '', ['kb'], 'chat-model']),
             ('updateSearchApp', ['search', {'name': 'name', 'search_config': {'kb_ids': ['kb']}}]),
-            ('deleteSearchApp', ['search']), ('getModels', []), ('getRerankModels', []),
-            ('getEmbeddingModels', []), ('getChatApps', []), ('getChatAppDetail', ['chat']),
+            ('deleteSearchApp', ['search']), ('getModels', []), ('getDefaultModels', []),
+            ('getChatApps', []), ('getChatAppDetail', ['chat']),
             ('getChatSessions', ['chat']), ('getChatSessionMessages', ['chat', 'session']),
             ('getAgentList', []), ('getAgentDetail', ['agent']), ('updateAgent', ['agent', {'title': 'name'}]),
             ('deleteAgent', ['agent']), ('converseAgent', ['agent', 'hello']),
@@ -325,16 +328,19 @@ class PortalContract(unittest.TestCase):
         events = [{'code': 0, 'data': {'answer': 'hello '}}, {'code': 0, 'data': {'answer': 'world'}},
                   {'code': 0, 'data': {'answer': '', 'reference': {'chunks': {'a': {'id': 'a'}}}, 'final': True}},
                   {'code': 0, 'data': True}]
+        self.reply_ready_search()
         self.reply(raw=''.join('data:' + json.dumps(e) + '\n\n' for e in events))
         result = self.call('searchWithApp', 'search', 'question')
         self.assertEqual(result['data']['answer'], 'hello world')
         self.assertEqual(result['data']['reference']['chunks'], [{'id': 'a'}])
 
     def test_search_error_propagated(self):
+        self.reply_ready_search()
         self.reply(raw='data:{"code":500,"message":"model failed","data":{"answer":"error"}}\n\n')
         self.assertEqual(self.call('searchWithApp', 'search', 'question')['code'], 500)
 
     def test_search_interruption_is_error(self):
+        self.reply_ready_search()
         self.reply(raw='data:{"code":0,"data":{"answer":"partial"}}\n\n')
         self.assertEqual(self.call('searchWithApp', 'search', 'question')['code'], 502)
 
@@ -370,13 +376,76 @@ class PortalContract(unittest.TestCase):
 
     def test_search_creation_binds_datasets(self):
         self.reply({'search_id': 'search'})
-        self.call('createSearchApp', 'name', 'description', ['kb'])
-        self.assertEqual(json.loads(self.server.requests[0][3])['search_config'], {'kb_ids': ['kb']})
+        self.call('createSearchApp', 'name', 'description', ['kb'], 'chat-model')
+        self.assertEqual(json.loads(self.server.requests[0][3])['search_config'],
+                         {'kb_ids': ['kb'], 'chat_id': 'chat-model'})
         self.assertEqual(self.call('createSearchApp', 'name')['code'], 400)
+        self.assertEqual(self.call('createSearchApp', 'name', '', ['kb'], '   ')['code'], 400)
         self.assertEqual(len(self.server.requests), 1)
 
+    def test_chat_model_list_normalizes_both_endpoints(self):
+        self.reply([
+            {'model_id': 'chat-model', 'name': 'demo', 'model_type': ['chat'],
+             'provider_name': 'Demo', 'instance_name': 'default'},
+            {'model_id': '', 'name': 'legacy', 'model_type': ['chat'],
+             'provider_name': 'Demo', 'instance_name': 'main'},
+            {'model_id': 'emb', 'name': 'embed', 'model_type': ['embedding'],
+             'provider_name': 'Builtin', 'instance_name': 'default'},
+        ])
+        self.reply({'models': [
+            {'model_type': 'embedding', 'model_id': 'emb'},
+            {'model_type': 'chat', 'model_id': '', 'model_name': 'demo',
+             'model_instance': 'main', 'model_provider': 'Demo'},
+        ]})
+        result = self.call('listChatModels')
+        self.assertEqual(result['data']['default_chat_id'], 'demo@main@Demo')
+        self.assertEqual(result['data']['models'], [
+            {'model_id': 'chat-model', 'name': 'demo', 'provider_name': 'Demo', 'instance_name': 'default'},
+            {'model_id': 'legacy@main@Demo', 'name': 'legacy', 'provider_name': 'Demo', 'instance_name': 'main'},
+        ])
+        self.assertEqual([request[0] for request in self.server.requests], ['GET', 'GET'])
+        self.assertEqual(urlsplit(self.server.requests[0][1]).path, '/api/v1/models')
+        self.assertEqual(self.server.requests[1][1], '/api/v1/models/default')
+
+    def test_search_backfills_missing_chat_model(self):
+        self.reply({'name': 'Search', 'search_config': {'kb_ids': ['kb']}})
+        self.reply({'models': [
+            {'model_type': 'embedding', 'model_id': 'emb'},
+            {'model_type': 'chat', 'model_id': 'chat-model', 'model_name': 'demo'},
+        ]})
+        self.reply({'name': 'Search', 'search_config': {'kb_ids': ['kb']}})
+        self.reply(True)
+        self.reply(raw='data:{"code":0,"data":{"answer":"ok"}}\n\ndata:{"code":0,"data":true}\n\n')
+        result = self.call('searchWithApp', 'search', 'question')
+        self.assertEqual(result['data']['answer'], 'ok')
+        self.assertEqual([request[:2] for request in self.server.requests], [
+            ('GET', '/api/v1/searches/search'),
+            ('GET', '/api/v1/models/default'),
+            ('GET', '/api/v1/searches/search'),
+            ('PUT', '/api/v1/searches/search'),
+            ('POST', '/api/v1/searches/search/completions'),
+        ])
+        self.assertEqual(json.loads(self.server.requests[3][3]),
+                         {'name': 'Search', 'search_config': {'chat_id': 'chat-model'}})
+
+    def test_search_backfill_keeps_a_model_saved_while_loading_defaults(self):
+        self.reply({'name': 'Search', 'search_config': {'kb_ids': ['kb']}})
+        self.reply({'models': [{'model_type': 'chat', 'model_id': 'new-model'}]})
+        self.reply({'name': 'Search', 'search_config': {'kb_ids': ['kb'], 'chat_id': 'kept'}})
+        self.reply(raw='data:{"code":0,"data":{"answer":"ok"}}\n\ndata:{"code":0,"data":true}\n\n')
+        self.assertEqual(self.call('searchWithApp', 'search', 'question')['data']['answer'], 'ok')
+        self.assertEqual([request[0] for request in self.server.requests], ['GET', 'GET', 'GET', 'POST'])
+
+    def test_search_continues_when_chat_model_backfill_fails(self):
+        self.reply({'name': 'Search', 'search_config': {'kb_ids': ['kb']}})
+        self.reply({'models': [{'model_type': 'chat', 'model_id': 'chat-model'}]})
+        self.reply({'name': 'Search', 'search_config': {'kb_ids': ['kb']}})
+        self.reply(status=403, raw='{"code":403,"message":"no authorization"}')
+        self.reply(raw='data:{"code":0,"data":{"answer":"ok"}}\n\ndata:{"code":0,"data":true}\n\n')
+        self.assertEqual(self.call('searchWithApp', 'search', 'question')['data']['answer'], 'ok')
+
     def test_mindmap_uses_authenticated_chat_endpoint(self):
-        self.reply({'search_config': {'kb_ids': ['kb']}})
+        self.reply_ready_search()
         self.reply({'name': 'map', 'children': []})
         result = self.call('searchMindmap', 'search', 'question')
         self.assertEqual(result['data']['name'], 'map')
@@ -384,6 +453,7 @@ class PortalContract(unittest.TestCase):
         self.assertEqual(json.loads(self.server.requests[1][3]), {'search_id': 'search', 'question': 'question', 'kb_ids': ['kb']})
 
     def test_search_preserves_mindmap_events(self):
+        self.reply_ready_search()
         self.reply(raw='data:{"code":0,"data":{"mindmap":{"name":"map"}}}\n\ndata:{"code":0,"data":true}\n\n')
         self.assertEqual(self.call('searchWithApp', 'search', 'question')['data']['mindmap'], {'name': 'map'})
 

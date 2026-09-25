@@ -445,9 +445,14 @@ class RAGFlowAPI {
         return $this->request("/api/v1/searches/{$searchId}", 'GET');
     }
 
-    public function createSearchApp($name, $description = '', $datasetIds = []) {
+    public function createSearchApp($name, $description = '', $datasetIds = [], $chatId = '') {
         if (!$datasetIds) return ['code' => 400, 'message' => '请选择至少一个知识库'];
-        $payload = ['name' => $name, 'search_config' => ['kb_ids' => array_values($datasetIds)]];
+        $chatId = $this->modelReference($chatId);
+        if ($chatId === '') return ['code' => 400, 'message' => '请选择对话模型'];
+        $payload = ['name' => $name, 'search_config' => [
+            'kb_ids' => array_values($datasetIds),
+            'chat_id' => $chatId,
+        ]];
         if (!empty($description)) {
             $payload['description'] = $description;
         }
@@ -466,6 +471,7 @@ class RAGFlowAPI {
      * 执行搜索
      */
     public function searchWithApp($searchId, $question) {
+        $this->ensureChatModel($searchId);
         $ch = curl_init($this->baseUrl . "/api/v1/searches/{$searchId}/completions");
         curl_setopt_array($ch, [
             CURLOPT_POST => true,
@@ -516,12 +522,38 @@ class RAGFlowAPI {
         return $this->request('/api/v1/models?' . http_build_query($params), 'GET');
     }
 
-    public function getRerankModels() {
-        return $this->request('/api/v1/models?type=rerank', 'GET');
+    public function getDefaultModels() {
+        return $this->request('/api/v1/models/default', 'GET');
     }
 
-    public function getEmbeddingModels() {
-        return $this->request('/api/v1/models?type=embedding', 'GET');
+    public function listChatModels() {
+        $listed = $this->getModels('chat');
+        if (($listed['code'] ?? 500) !== 0) return $listed;
+        $rows = $listed['data'] ?? [];
+        if (!is_array($rows)) return ['code' => 502, 'message' => '模型列表格式无效'];
+        $models = [];
+        foreach ($rows as $model) {
+            if (!is_array($model)) continue;
+            $types = $model['model_type'] ?? [];
+            if ($types && !in_array('chat', (array)$types, true)) continue;
+            $id = $this->modelReference(
+                $model['model_id'] ?? '',
+                $model['name'] ?? '',
+                $model['instance_name'] ?? '',
+                $model['provider_name'] ?? ''
+            );
+            if ($id === '') continue;
+            $models[] = [
+                'model_id' => $id,
+                'name' => trim((string)($model['name'] ?? '')) !== '' ? trim((string)$model['name']) : $id,
+                'provider_name' => trim((string)($model['provider_name'] ?? '')),
+                'instance_name' => trim((string)($model['instance_name'] ?? '')),
+            ];
+        }
+        return ['code' => 0, 'data' => [
+            'models' => $models,
+            'default_chat_id' => $this->defaultChatModelId(),
+        ]];
     }
 
     // ==================== 聊天助手 API ====================
@@ -621,12 +653,72 @@ class RAGFlowAPI {
     }
 
     public function searchMindmap($searchId, $question) {
-        $app = $this->getSearchAppDetail($searchId);
+        $app = $this->ensureChatModel($searchId);
         if (($app['code'] ?? 500) !== 0) return $app;
         $ids = $app['data']['search_config']['kb_ids'] ?? [];
         if (!$ids) return ['code' => 400, 'message' => '搜索应用尚未绑定知识库'];
         return $this->request('/api/v1/chat/mindmap', 'POST',
             ['search_id' => $searchId, 'question' => $question, 'kb_ids' => $ids]);
+    }
+
+    private function modelReference($modelId, $name = '', $instance = '', $provider = '') {
+        if (is_scalar($modelId)) {
+            $modelId = trim((string)$modelId);
+            if ($modelId !== '') return $modelId;
+        }
+        if (!is_scalar($name) || !is_scalar($provider)) return '';
+        $name = trim((string)$name);
+        $provider = trim((string)$provider);
+        if ($name === '' || $provider === '') return '';
+        $instance = is_scalar($instance) ? trim((string)$instance) : '';
+        return $instance === '' ? $name . '@' . $provider : $name . '@' . $instance . '@' . $provider;
+    }
+
+    private function defaultChatModelId() {
+        $result = $this->getDefaultModels();
+        if (($result['code'] ?? 500) !== 0 || !is_array($result['data'] ?? null)) return '';
+        $models = $result['data']['models'] ?? [];
+        if (!is_array($models)) return '';
+        foreach ($models as $model) {
+            if (!is_array($model) || ($model['model_type'] ?? '') !== 'chat') continue;
+            $id = $this->modelReference(
+                $model['model_id'] ?? '',
+                $model['model_name'] ?? '',
+                $model['model_instance'] ?? '',
+                $model['model_provider'] ?? ''
+            );
+            if ($id !== '') return $id;
+        }
+        return '';
+    }
+
+    private function ensureChatModel($searchId) {
+        $app = $this->getSearchAppDetail($searchId);
+        if (!$this->searchNeedsChatModel($app)) return $app;
+        $model = $this->defaultChatModelId();
+        if ($model === '') return $app;
+        $fresh = $this->getSearchAppDetail($searchId);
+        if (!$this->searchNeedsChatModel($fresh)) return $fresh;
+        $name = trim((string)($fresh['data']['name'] ?? ''));
+        if ($name === '') return $fresh;
+        $updated = $this->updateSearchApp($searchId, [
+            'name' => $name,
+            'search_config' => ['chat_id' => $model],
+        ]);
+        if (($updated['code'] ?? 500) !== 0) {
+            error_log('Failed to backfill search chat model for ' . $searchId . ': ' . ($updated['message'] ?? 'unknown'));
+            return $fresh;
+        }
+        $fresh['data']['search_config']['chat_id'] = $model;
+        return $fresh;
+    }
+
+    private function searchNeedsChatModel($app) {
+        if (($app['code'] ?? 500) !== 0 || !is_array($app['data'] ?? null)) return false;
+        $config = $app['data']['search_config'] ?? [];
+        if (!is_array($config)) return false;
+        $chatId = $config['chat_id'] ?? '';
+        return !is_scalar($chatId) || trim((string)$chatId) === '';
     }
 
     public function deleteAgentSessions($agentId, $sessionIds = [], $deleteAll = false) {

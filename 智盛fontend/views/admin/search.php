@@ -71,7 +71,7 @@ $currentUser = checkAdmin();
 
 <!-- ===== 新建搜索应用模态框 ===== -->
 <div class="modal fade" id="createAppModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-sm">
+    <div class="modal-dialog">
         <div class="modal-content border-0 rounded-4 shadow">
             <div class="modal-header">
                 <h6 id="searchConfigTitle" class="modal-title fw-bold"><i class="fas fa-plus-circle text-primary me-2"></i>新建搜索应用</h6>
@@ -90,6 +90,8 @@ $currentUser = checkAdmin();
             <div class="px-3 pb-3">
                 <label for="searchDatasetIds" class="form-label">关联知识库（可多选）</label>
                 <select id="searchDatasetIds" class="form-select" multiple size="5"></select>
+                <label for="searchChatModel" class="form-label mt-3">对话模型</label>
+                <select id="searchChatModel" class="form-select"></select>
                 <div id="searchConfigError" class="text-danger small mt-2" role="alert"></div>
             </div>
             <div class="modal-footer">
