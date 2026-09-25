@@ -49,10 +49,14 @@ _STRUCTURE_INDEX_TYPE_TO_KIND = {
 }
 _STRUCTURE_INDEX_TYPES = frozenset(_STRUCTURE_INDEX_TYPE_TO_KIND)
 
-_VALID_INDEX_TYPES = {"graph", "raptor", "mindmap", "wiki", "skill"} | set(_STRUCTURE_INDEX_TYPES)
+_VALID_INDEX_TYPES = {"graph", "graphrag", "raptor", "mindmap", "wiki", "skill"} | set(_STRUCTURE_INDEX_TYPES)
 
 _INDEX_TYPE_TO_TASK_TYPE = {
     "graph": "structure_graph",
+    # Extracts entities from parsed chunks and writes the graph snapshot
+    # read by GET /datasets/<id>/graph. Distinct from "graph", which only
+    # merges compilation rows that already exist.
+    "graphrag": "graphrag",
     "raptor": "raptor",
     "mindmap": "structure_mindmap",
     "wiki": "wiki",
@@ -64,6 +68,7 @@ _INDEX_TYPE_TO_TASK_TYPE = {
 
 _INDEX_TYPE_TO_TASK_ID_FIELD = {
     "graph": "graphrag_task_id",
+    "graphrag": "graphrag_task_id",
     "raptor": "raptor_task_id",
     "mindmap": "mindmap_task_id",
     "wiki": "wiki_task_id",
@@ -73,6 +78,7 @@ _INDEX_TYPE_TO_TASK_ID_FIELD = {
 
 _INDEX_TYPE_TO_DISPLAY_NAME = {
     "graph": "Graph",
+    "graphrag": "GraphRAG",
     "raptor": "RAPTOR",
     "mindmap": "Mindmap",
     "wiki": "Wiki",
@@ -958,7 +964,7 @@ def delete_index(dataset_id: str, tenant_id: str, index_type: str, wipe: bool = 
             logging.exception(e)
         TaskService.delete_by_id(task_id)
 
-    if wipe and index_type == "graph":
+    if wipe and index_type in {"graph", "graphrag"}:
         from rag.graphrag.phase_markers import clear_phase_markers
         from rag.nlp import search
 
