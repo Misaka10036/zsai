@@ -74,24 +74,50 @@ def test_compose_ships_configured_seafile_profile():
     assert "${SEAFILE_DATABASE_LIBRARY:-数据库镜像}" in init
 
 
-def test_compose_ships_vivarly_user_frontend():
+def test_the_portal_reaches_compose_only_through_the_all_in_one_override():
+    """The default bundle is RAGFlow only.
+
+    docker-compose.yml used to publish the 智盛 portal on the application
+    service. A bundle deployed to a host that still ran the old portal
+    container therefore could not bind that port, and the upgrade failed. The
+    portal now reaches Compose only through the all-in-one override.
+    """
     compose = (ROOT / "docker/docker-compose.yml").read_text(encoding="utf-8")
-    env = (ROOT / "docker/.env").read_text(encoding="utf-8")
-    dockerfile = (ROOT / "docker/vivarly/Dockerfile").read_text(encoding="utf-8")
-    config = (ROOT / "docker/vivarly/config.php").read_text(encoding="utf-8")
-    login = (ROOT / "docker/vivarly/views/login.php").read_text(encoding="utf-8")
+    override = (ROOT / "docker/docker-compose.all-in-one.yml").read_text(encoding="utf-8")
+    dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
     bundle = (ROOT / "tools/scripts/build_docker_bundle.ps1").read_text(encoding="utf-8")
 
-    assert "profiles:\n      - vivarly" in compose
-    assert "0.0.0.0:${VIVARLY_PORT:-8080}:80" in compose
-    assert "VIVARLY_PORT=" in env
-    assert "VIVARLY_RAGFLOW_BASE_URL=http://ragflow-cpu" in env
-    assert "php:8.2-apache" in dockerfile
-    assert "RAGFLOW_BASE_URL" in config
-    assert "vivarly_ensure_schema" in config or "schema.php" in config
-    assert "doLogin" in login
-    assert "/vendor/bootstrap/css/bootstrap.min.css" in login
-    assert '"vivarly"' in bundle
-    assert "ragflow-vivarly:" in bundle
-    assert (ROOT / "docker/vivarly/vendor/bootstrap/css/bootstrap.min.css").is_file()
-    assert (ROOT / "docker/vivarly/schema.php").is_file()
+    # Nothing portal-shaped in the default file: no service, no port, no env.
+    # 8080 is the portal's container port; a new :8080 listener has to extend
+    # this test rather than slip in.
+    assert "vivarly" not in compose
+    assert "VIVARLY" not in compose
+    assert "8080" not in compose
+    assert "PORTAL_HTTP_PORT" not in compose
+
+    # The all-in-one target adds exactly that back, explicitly. Every service the
+    # override names must exist in the base file, or the merge would define a new
+    # service instead of extending the application container.
+    for service in ("ragflow-cpu:", "ragflow-gpu:"):
+        assert service in compose
+        assert service in override
+    assert "${VIVARLY_PORT:-18080}:8080" in override
+    assert 'PORTAL_HTTP_PORT: "8080"' in override
+    assert "RAGFLOW_BASE_URL: http://127.0.0.1:9380" in override
+    assert "VIVARLY_ADMIN_USER" in override
+
+    # The portal is baked into the all-in-one image from build-time inputs, so it
+    # is no longer a bundle input.
+    assert "COPY docker/all-in-one/portal.conf /etc/apache2/sites-available/portal.conf" in dockerfile
+    assert "COPY docker/all-in-one/php.ini /etc/php/8.3/apache2/conf.d/99-portal.ini" in dockerfile
+    assert "docker/vivarly" not in dockerfile
+    assert not (ROOT / "docker/vivarly").exists()
+    assert (ROOT / "docker/all-in-one/php.ini").is_file()
+    assert (ROOT / "docker/all-in-one/portal.conf").is_file()
+
+    # The bundle builds no portal image and copies no portal directory, rejects
+    # the retired profile, and carries the override the all-in-one portal needs.
+    assert "ragflow-vivarly" not in bundle
+    assert "docker/vivarly" not in bundle
+    assert "no longer supported" in bundle
+    assert "docker-compose.all-in-one.yml" in bundle

@@ -61,29 +61,10 @@ services:
       - ${SVR_MCP_PORT}:9382 # entry for MCP (host_port:docker_port). The docker_port must match the value you set for `mcp-port` above.
       - ${GO_HTTP_PORT}:9384
       - ${GO_ADMIN_PORT}:9383
-      # 智盛 PHP portal, served by Apache inside the all-in-one image target.
-      # Inert on the production target, which has no listener on 8080.
-      - ${VIVARLY_PORT:-18080}:8080
     environment:
       # Shared secret used to authenticate towards sandbox-executor-manager.
       # Must match SANDBOX_EXECUTOR_MANAGER_API_TOKEN on that service.
       - SANDBOX_EXECUTOR_MANAGER_API_TOKEN=${SANDBOX_EXECUTOR_MANAGER_API_TOKEN:-}
-      # --- 智盛 portal (all-in-one image target) ---
-      # The portal shares this container, so it reaches the Python API on the
-      # loopback address rather than through the compose service name that the
-      # standalone vivarly image uses.
-      - PORTAL_HTTP_PORT=8080
-      - RAGFLOW_BASE_URL=http://127.0.0.1:9380
-      - RAGFLOW_API_KEY=${VIVARLY_RAGFLOW_API_KEY:-}
-      - DB_HOST=mysql
-      - DB_PORT=3306
-      - DB_NAME=${VIVARLY_DB_NAME:-vivarly_db}
-      - DB_USER=root
-      - DB_PASS=${MYSQL_PASSWORD:-infini_rag_flow}
-      - VIVARLY_ADMIN_USER=${VIVARLY_ADMIN_USER:-admin}
-      - VIVARLY_ADMIN_PASSWORD=${VIVARLY_ADMIN_PASSWORD:-admin123}
-      - VIVARLY_ADMIN_EMAIL=${VIVARLY_ADMIN_EMAIL:-admin@localhost}
-      - DEBUG_MODE=${VIVARLY_DEBUG_MODE:-0}
     volumes:
       - ./ragflow-logs:/ragflow/logs
       # - ./nginx/ragflow.conf:/etc/nginx/conf.d/ragflow.conf
@@ -140,9 +121,6 @@ services:
       - ${SVR_HTTP_PORT}:9380
       - ${ADMIN_SVR_HTTP_PORT}:9381
       - ${SVR_MCP_PORT}:9382 # entry for MCP (host_port:docker_port). The docker_port must match the value you set for `mcp-port` above.
-      # 智盛 PHP portal, served by Apache inside the all-in-one image target.
-      # Inert on the production target, which has no listener on 8080.
-      - ${VIVARLY_PORT:-18080}:8080
     volumes:
       - ./ragflow-logs:/ragflow/logs
       # - ./nginx/ragflow.conf:/etc/nginx/conf.d/ragflow.conf
@@ -154,22 +132,6 @@ services:
       # Shared secret used to authenticate towards sandbox-executor-manager.
       # Must match SANDBOX_EXECUTOR_MANAGER_API_TOKEN on that service.
       - SANDBOX_EXECUTOR_MANAGER_API_TOKEN=${SANDBOX_EXECUTOR_MANAGER_API_TOKEN:-}
-      # --- 智盛 portal (all-in-one image target) ---
-      # The portal shares this container, so it reaches the Python API on the
-      # loopback address rather than through the compose service name that the
-      # standalone vivarly image uses.
-      - PORTAL_HTTP_PORT=8080
-      - RAGFLOW_BASE_URL=http://127.0.0.1:9380
-      - RAGFLOW_API_KEY=${VIVARLY_RAGFLOW_API_KEY:-}
-      - DB_HOST=mysql
-      - DB_PORT=3306
-      - DB_NAME=${VIVARLY_DB_NAME:-vivarly_db}
-      - DB_USER=root
-      - DB_PASS=${MYSQL_PASSWORD:-infini_rag_flow}
-      - VIVARLY_ADMIN_USER=${VIVARLY_ADMIN_USER:-admin}
-      - VIVARLY_ADMIN_PASSWORD=${VIVARLY_ADMIN_PASSWORD:-admin123}
-      - VIVARLY_ADMIN_EMAIL=${VIVARLY_ADMIN_EMAIL:-admin@localhost}
-      - DEBUG_MODE=${VIVARLY_DEBUG_MODE:-0}
     env_file: .env
     networks:
       - ragflow
@@ -185,42 +147,6 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
-
-  vivarly:
-    profiles:
-      - vivarly
-    image: ${VIVARLY_IMAGE:-ragflow-vivarly:local}
-    build:
-      context: ./vivarly
-      dockerfile: Dockerfile
-      args:
-        PHP_IMAGE: ${VIVARLY_PHP_IMAGE:-php:8.2-apache}
-    # This standalone portal and the Apache inside the all-in-one application
-    # image both bind VIVARLY_PORT. Use one or the other, never both: build the
-    # all-in-one target without the `vivarly` profile, or target `production` to
-    # keep this container. build_docker_bundle.ps1 rejects the combination.
-    ports:
-      - "0.0.0.0:${VIVARLY_PORT:-8080}:80"
-    environment:
-      RAGFLOW_BASE_URL: ${VIVARLY_RAGFLOW_BASE_URL:-http://ragflow-cpu}
-      RAGFLOW_API_KEY: ${VIVARLY_RAGFLOW_API_KEY:-}
-      DB_HOST: mysql
-      DB_PORT: "3306"
-      DB_NAME: ${VIVARLY_DB_NAME:-vivarly_db}
-      DB_USER: root
-      DB_PASS: ${MYSQL_PASSWORD}
-      VIVARLY_ADMIN_USER: ${VIVARLY_ADMIN_USER:-admin}
-      VIVARLY_ADMIN_PASSWORD: ${VIVARLY_ADMIN_PASSWORD:-admin123}
-      VIVARLY_ADMIN_EMAIL: ${VIVARLY_ADMIN_EMAIL:-admin@localhost}
-      DEBUG_MODE: ${VIVARLY_DEBUG_MODE:-0}
-    depends_on:
-      mysql:
-        condition: service_healthy
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    networks:
-      - ragflow
-    restart: unless-stopped
 
   # executor:
   #   depends_on:

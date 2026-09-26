@@ -1,16 +1,23 @@
 ---
 name: build-ragflow-docker-bundle
-description: Build the current RAGFlow checkout into a combined frontend/backend Docker image and package it with all Compose dependency images, deployment configuration, checksums, and one-command launchers for offline or air-gapped delivery. Use when asked to compile, package, export, or deliver a complete runnable RAGFlow Docker image bundle.
+description: Build the current RAGFlow checkout into its production Docker image and package that image with Compose dependency images, deployment configuration, checksums, and one-command launchers for offline or air-gapped delivery. The bundle is RAGFlow only (compiled web/ frontend and Python backend). Use when asked to compile, package, export, or deliver a complete runnable RAGFlow Docker image bundle.
 ---
 
 # Build RAGFlow Docker Bundle
 
 ## Overview
 
-Use the repository's production multi-stage `Dockerfile`. It compiles the React
-frontend, copies it into the production image, and installs the Python backend
-and Nginx in the same deployable application image. Then export that image and
-the selected Compose dependencies as a self-contained archive.
+Use the repository's production multi-stage `Dockerfile` target `production`.
+It compiles the RAGFlow React frontend from `web/`, copies it into the
+production image, and installs the Python backend and Nginx in the same
+deployable application image. Then export that image and the selected Compose
+dependencies as a self-contained archive.
+
+The package is RAGFlow. `-Target` stays `production`. Selected profiles are
+`elasticsearch`, `cpu`, and `metadata-mysql`. `智盛fontend/` is not a build
+context, and there is no portal Compose service: the 智盛 portal ships only
+inside the `all-in-one` target's application image. `-ExtraProfiles vivarly` is
+rejected.
 
 ## Workflow
 
@@ -23,48 +30,18 @@ the selected Compose dependencies as a self-contained archive.
    powershell -ExecutionPolicy Bypass -File .\tools\scripts\build_docker_bundle.ps1 -DryRun
    ```
 
-4. Build the CPU + Elasticsearch package, including MySQL and the 智盛 portal:
+4. Build the CPU + Elasticsearch package, including MySQL as RAGFlow's metadata
+   database:
 
    ```powershell
    powershell -ExecutionPolicy Bypass -File .\tools\scripts\build_docker_bundle.ps1 `
      -DependencyImage infiniflow/ragflow_deps:local-3.3.0 `
-     -ExtraProfiles metadata-mysql,vivarly
+     -ExtraProfiles metadata-mysql
    ```
 
    The script splits comma-separated `-ExtraProfiles` values into separate
-   Compose `--profile` flags. `metadata-mysql` is required for the MySQL
-   service. `vivarly` builds the
-   portal image from `智盛fontend/` plus `docker/vivarly/Dockerfile`,
-   `apache.conf`, and `php.ini`. Do not package `docker/vivarly` PHP sources
-   or `config.local.php`.
-
-   **To serve the portal from the application image itself** instead of a
-   separate container, build the `all-in-one` target:
-
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File .\tools\scripts\build_docker_bundle.ps1 `
-     -Target all-in-one `
-     -Version <commit>-aio `
-     -DependencyImage infiniflow/ragflow_deps:local-3.3.0 `
-     -ExtraProfiles metadata-mysql `
-     -NeedMirror
-   ```
-
-   The application image then runs both web servers: nginx on `:80` for the
-   compiled React frontend and the `/api` proxy, and Apache with mod_php on
-   `:8080` serving `智盛fontend/` from `/var/www/html`. Compose publishes the
-   portal as `${VIVARLY_PORT:-18080}:8080`, so the portal URL is unchanged at
-   `http://<host>:18080/views/login.php`. Because the portal keeps its own
-   document root, no portal source file needs a path change; the vhost
-   `PassEnv`s the `DB_*` and `RAGFLOW_*` variables because `config.php` reads
-   them with `getenv()`.
-
-   `-Target all-in-one` and the `vivarly` profile are **mutually exclusive** —
-   both bind `VIVARLY_PORT`. The script rejects the combination.
-
-   Pass `-Version <commit>-aio`: the version defaults to the current commit, so
-   building a second target from the same commit reuses the image tag and
-   overwrites the existing `dist/docker-bundle/` archive.
+   Compose `--profile` flags and writes that list into the bundled
+   `COMPOSE_PROFILES`. `metadata-mysql` is required for the MySQL service.
 
 5. Pass parameters for non-default targets:
 
@@ -76,6 +53,27 @@ the selected Compose dependencies as a self-contained archive.
    powershell -ExecutionPolicy Bypass -File .\tools\scripts\build_docker_bundle.ps1 `
      -ExtraProfiles tei-cpu,sandbox
    ```
+
+   Keep `metadata-mysql` in `-ExtraProfiles` whenever the bundle must start
+   MySQL. Optional profiles are `tei-cpu`, `tei-gpu`, `sandbox`, and `jaeger`.
+
+   **To bake the 智盛 portal into the application image**, build the
+   `all-in-one` target with a distinct `-Version`:
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\tools\scripts\build_docker_bundle.ps1 `
+     -Target all-in-one -Version <commit>-aio `
+     -DependencyImage infiniflow/ragflow_deps:local-3.3.0 `
+     -ExtraProfiles metadata-mysql
+   ```
+
+   `-Version` is required here: it defaults to the current commit, so an
+   all-in-one build without it would retag `ragflow-local:<commit>` over an
+   existing production image. nginx still serves the React frontend on `:80`;
+   Apache serves the portal on `:8080`, published as `VIVARLY_PORT` (`18080` by
+   default) through `docker/docker-compose.all-in-one.yml`. Only an all-in-one
+   bundle carries that override, and its launcher passes both compose files.
+   A `production` bundle publishes no portal port at all.
 
    Pass `-NeedMirror` together with `-DependencyImage`. `-NeedMirror` points
    apt at `mirrors.tuna.tsinghua.edu.cn`; `archive.ubuntu.com` and
@@ -97,31 +95,31 @@ the selected Compose dependencies as a self-contained archive.
 
 The archive must contain:
 
-- `images/ragflow-images.tar`: application and selected dependency images.
+- `images/ragflow-images.tar`: the RAGFlow production image and selected dependency images.
 - `docker/`: Compose files, `.env`, entrypoint, and mounted configuration.
 - `load-and-run.sh` and `load-and-run.ps1`: offline load and launch helpers.
 - `manifest.json`: source commit, dirty state, target, platform, profiles, and images.
 - `SHA256SUMS`: checksums for every file in the bundle.
 
 The default package targets `linux/amd64`, CPU, and Elasticsearch. MySQL is
-included only when `metadata-mysql` is one of the profiles. MinIO and Valkey
-have no profile and are always selected. The React frontend is compiled into
-the RAGFlow image.
+included through the `metadata-mysql` profile. MinIO and Valkey have no profile
+and are always selected. The React frontend from `web/` is compiled into the
+RAGFlow image and served by nginx on `:80`, with the `/api` proxy to the
+Python API. `manifest.json` records `application_target` as `production`.
 
-The 智盛 portal is included in one of two mutually exclusive ways. With
-`-ExtraProfiles vivarly` it is a **separate image and container**. With
-`-Target all-in-one` it is **baked into the application image**: nginx serves
-the React frontend on `:80` and Apache serves the portal on `:8080`, published
-as `VIVARLY_PORT` (`18080`). Either way the portal needs the `metadata-mysql`
-profile so its MySQL database exists. Treat `docker/.env` as sensitive because
-it can contain credentials.
+The bundle carries no portal files: `docker/` holds no `vivarly/` or
+`all-in-one/` directory, and the bundled `docker-compose.yml` has no portal
+service, no portal environment, and no `:8080` mapping. Only a
+`-Target all-in-one` bundle adds `docker/docker-compose.all-in-one.yml`, which
+supplies all three.
 
 The bundled `.env` sets `EXPOSE_MYSQL_PORT=3307` and
 `SEAFILE_SERVER_HOSTNAME=172.20.1.131:8082`. On an existing server, do not
 replace its `.env`. Load the new images and run
 `docker compose --env-file .env up -d --pull never` in the existing Compose
 directory. Named volumes keep MySQL, MinIO, Elasticsearch, and Seafile data.
-Do not run `docker compose down -v`.
+Do not run `docker compose down -v`. Treat `docker/.env` as sensitive because
+it can contain credentials.
 
 ## Verification
 
@@ -132,29 +130,29 @@ Get-FileHash .\dist\docker-bundle\*.tar.gz -Algorithm SHA256
 tar -tzf .\dist\docker-bundle\<bundle>.tar.gz
 ```
 
+Check the portal is absent from a `production` bundle by inspecting the rendered
+config, not by whether `up -d` succeeded: Compose silently dedupes identical
+duplicate port mappings, so a leftover `:8080` would go unnoticed.
+
+```powershell
+docker compose --env-file docker/.env -f docker/docker-compose.yml config | Select-String ':8080'
+```
+
+Confirm `manifest.json` inside the archive has `application_target` `production`
+and `compose_profiles` `elasticsearch`, `cpu`, `metadata-mysql` (plus any
+optional profiles the user asked for). The image list is exactly
+`ragflow-local:<version>` plus the dependency images; there is no portal image.
+For an `all-in-one` bundle, `application_target` is `all-in-one` and the archive
+also contains `docker/docker-compose.all-in-one.yml`.
+
 If a Docker daemon is available and resources permit, extract the archive into a
 temporary directory, run the platform launcher, and check:
 
 ```powershell
 docker compose --env-file .env ps
 docker compose --env-file .env config --quiet
-```
-
-On the `all-in-one` target, also confirm both web servers listen and answer:
-
-```powershell
-docker exec <container> ss -lntp | Select-String ':(80|8080|9380)\b'
 curl.exe -s -o NUL -w "%{http_code}`n" http://127.0.0.1:80/
-curl.exe -s -o NUL -w "%{http_code}`n" http://127.0.0.1:18080/views/login.php
-curl.exe -s -o NUL -w "%{http_code}`n" http://127.0.0.1:18080/css/style.css
-docker exec <container> php -r "var_dump(getenv('RAGFLOW_BASE_URL'));"
 ```
-
-`RAGFLOW_BASE_URL` must read `http://127.0.0.1:9380`, not `http://ragflow-cpu`:
-the portal shares the container with the Python API. Then exercise the portal
-by hand — login, search, upload, chat streaming, and Agent create/cancel —
-because the all-in-one target runs PHP 8.3 (Ubuntu 24.04) while the standalone
-`vivarly` image runs 8.2.
 
 Read [references/bundle-options.md](references/bundle-options.md) when choosing
 non-default profiles, target platforms, or distribution settings.

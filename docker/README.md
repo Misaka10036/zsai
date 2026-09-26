@@ -16,6 +16,8 @@
   Sets up environment for RAGFlow and its dependencies.
 - **docker-compose-base.yml**
   Sets up environment for RAGFlow's dependencies: Elasticsearch/[Infinity](https://github.com/infiniflow/infinity), MySQL, MinIO, and Redis.
+- **docker-compose.all-in-one.yml**
+  Override for an application image built with `--target all-in-one`. It publishes the 智盛 portal port (`VIVARLY_PORT`, `18080` by default) and the portal environment. Apply it with `-f docker-compose.yml -f docker-compose.all-in-one.yml`. Do not apply it to a `production` image, which has no listener on `8080`.
 
 > [!CAUTION]
 > We do not actively maintain **docker-compose-CN-oc9.yml**, **docker-compose-macos.yml**, so use them at your own risk. However, you are welcome to file a pull request to improve any of them.

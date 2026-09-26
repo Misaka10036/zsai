@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [string]$Version,
     [string]$ImageRepository = "ragflow-local",
@@ -109,11 +109,18 @@ function Get-DockerHubMirrorImage {
 $projectRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "../.."))
 $dockerfile = Join-Path $projectRoot "Dockerfile"
 $composeFile = Join-Path $projectRoot "docker/docker-compose.yml"
+$allInOneComposeFile = Join-Path $projectRoot "docker/docker-compose.all-in-one.yml"
 $sourceDockerDirectory = Join-Path $projectRoot "docker"
 $resolvedEnvFile = Resolve-FromProject -PathValue $EnvFile -ProjectRoot $projectRoot
 $resolvedOutputDirectory = Resolve-FromProject -PathValue $OutputDirectory -ProjectRoot $projectRoot
 
-foreach ($requiredFile in @($dockerfile, $composeFile, $resolvedEnvFile)) {
+$requiredFiles = @($dockerfile, $composeFile, $resolvedEnvFile)
+if ($Target -eq "all-in-one") {
+    # This override publishes the portal port and the portal environment; without
+    # it the all-in-one image serves the portal on a port nothing can reach.
+    $requiredFiles += $allInOneComposeFile
+}
+foreach ($requiredFile in $requiredFiles) {
     if (-not (Test-Path -LiteralPath $requiredFile -PathType Leaf)) {
         throw "Required file does not exist: $requiredFile"
     }
@@ -139,8 +146,8 @@ $profiles = @($DocEngine, $Device) + @($ExtraProfiles) |
     Select-Object -Unique
 $profileCsv = $profiles -join ","
 
-if ($Target -eq "all-in-one" -and $profiles -contains "vivarly") {
-    throw "-Target all-in-one already serves the portal inside the application image. Drop 'vivarly' from -ExtraProfiles, or build -Target production to keep the standalone portal container."
+if ($profiles | Where-Object { $_ -ieq "vivarly" }) {
+    throw "-ExtraProfiles 'vivarly' is no longer supported: the standalone portal service is gone. The 智盛 portal is served from the all-in-one application image instead, so pass -Target all-in-one and apply docker-compose.all-in-one.yml."
 }
 
 $applicationImage = "${ImageRepository}:${safeVersion}"
@@ -254,13 +261,19 @@ $deploymentFiles = @(
     "oceanbase-entrypoint.sh",
     "migration.sh"
 )
+if ($Target -eq "all-in-one") {
+    # Only the all-in-one image serves the portal, so only that bundle carries
+    # the override that publishes it. A stray override in a production bundle
+    # would publish a port nothing listens on.
+    $deploymentFiles += "docker-compose.all-in-one.yml"
+}
 foreach ($relativeFile in $deploymentFiles) {
     $source = Join-Path $sourceDockerDirectory $relativeFile
     if (Test-Path -LiteralPath $source -PathType Leaf) {
         Copy-Item -LiteralPath $source -Destination (Join-Path $bundleDirectory "docker/$relativeFile") -Force
     }
 }
-foreach ($relativeDirectory in @("nginx", "oceanbase/init.d", "seafile", "vivarly", "all-in-one")) {
+foreach ($relativeDirectory in @("nginx", "oceanbase/init.d", "seafile")) {
     $source = Join-Path $sourceDockerDirectory $relativeDirectory
     if (Test-Path -LiteralPath $source -PathType Container) {
         $destination = Join-Path $bundleDirectory "docker/$relativeDirectory"
@@ -277,59 +290,8 @@ $envContent = Set-EnvValue -Content $envContent -Name "COMPOSE_PROFILES" -Value 
 $envContent = Set-EnvValue -Content $envContent -Name "RAGFLOW_IMAGE" -Value $applicationImage
 $envContent = Set-EnvValue -Content $envContent -Name "EXPOSE_MYSQL_PORT" -Value "3307"
 $envContent = Set-EnvValue -Content $envContent -Name "SEAFILE_SERVER_HOSTNAME" -Value "172.20.1.131:8082"
-$vivarlyImage = "ragflow-vivarly:${safeVersion}"
-if ($profiles -contains "vivarly") {
-    $envContent = Set-EnvValue -Content $envContent -Name "VIVARLY_IMAGE" -Value $vivarlyImage
-}
 $bundleEnvFile = Join-Path $bundleDirectory "docker/.env"
 [System.IO.File]::WriteAllText($bundleEnvFile, $envContent, [System.Text.UTF8Encoding]::new($false))
-
-if ($profiles -contains "vivarly") {
-    Write-Step "Build the VIVARILY user frontend image $vivarlyImage from the maintained portal directory"
-    $portalSource = Get-ChildItem -LiteralPath $projectRoot -Directory |
-        Where-Object {
-            (Test-Path -LiteralPath (Join-Path $_.FullName "views\admin\agent.php")) -and
-            (Test-Path -LiteralPath (Join-Path $_.FullName "ragflow_api.php"))
-        } |
-        Select-Object -First 1 -ExpandProperty FullName
-    $portalInfra = Join-Path $sourceDockerDirectory "vivarly"
-    if (-not $portalSource) {
-        throw "Could not find the maintained portal directory (views/admin/agent.php and ragflow_api.php) under $projectRoot"
-    }
-    $vivarlyContext = Join-Path $bundleDirectory "docker/vivarly"
-    if (Test-Path -LiteralPath $vivarlyContext) {
-        Remove-Item -LiteralPath $vivarlyContext -Recurse -Force
-    }
-    New-Item -ItemType Directory -Path $vivarlyContext -Force | Out-Null
-    Copy-Item -LiteralPath (Join-Path $portalSource "*") -Destination $vivarlyContext -Recurse -Force
-    foreach ($infraFile in @("Dockerfile", "apache.conf", "php.ini", ".dockerignore")) {
-        Copy-Item -LiteralPath (Join-Path $portalInfra $infraFile) -Destination (Join-Path $vivarlyContext $infraFile) -Force
-    }
-    $localPortalConfig = Join-Path $vivarlyContext "config.local.php"
-    if (Test-Path -LiteralPath $localPortalConfig) {
-        Remove-Item -LiteralPath $localPortalConfig -Force
-    }
-    $vivarlyDockerfile = Join-Path $vivarlyContext "Dockerfile"
-    $vivarlyBuildArgs = @(
-        "build",
-        "--platform", $Platform,
-        "--tag", $vivarlyImage,
-        "--file", $vivarlyDockerfile
-    )
-    if ($NeedMirror) {
-        $phpMirror = Get-DockerHubMirrorImage -Image "php:8.2-apache" -MirrorPrefix $dockerHubMirror
-        if ($phpMirror) {
-            & docker pull --platform $Platform $phpMirror
-            if ($LASTEXITCODE -eq 0) {
-                $vivarlyBuildArgs += @("--build-arg", "PHP_IMAGE=$phpMirror")
-            } else {
-                Write-Warning "Mirror image $phpMirror is unavailable. Using php:8.2-apache."
-            }
-        }
-    }
-    $vivarlyBuildArgs += $vivarlyContext
-    Invoke-Native -Executable "docker" -Arguments $vivarlyBuildArgs
-}
 
 $dockerComposeArguments = @("compose", "--env-file", $bundleEnvFile)
 foreach ($profile in $profiles) {
@@ -347,18 +309,12 @@ $images = @($imageLines |
 if ($images -notcontains $applicationImage) {
     $images += $applicationImage
 }
-if (($profiles -contains "vivarly") -and ($images -notcontains $vivarlyImage)) {
-    $images += $vivarlyImage
-}
 if ($images.Count -eq 0) {
     throw "Docker Compose did not resolve any images."
 }
 
 foreach ($image in $images) {
     if ($image -eq $applicationImage) {
-        continue
-    }
-    if (($profiles -contains "vivarly") -and ($image -eq $vivarlyImage)) {
         continue
     }
     if (-not $SkipPull) {
@@ -406,6 +362,17 @@ $manifest = [ordered]@{
 }
 $manifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $bundleDirectory "manifest.json") -Encoding utf8
 
+# The all-in-one image serves the portal on container port 8080, and only
+# docker-compose.all-in-one.yml publishes it. Both launchers are single-quoted
+# here-strings with no interpolation, so patch the compose call textually rather
+# than rewriting them. $composeSuffix is reused by the README's update steps.
+$composeSuffix = if ($Target -eq "all-in-one") {
+    " -f docker-compose.yml -f docker-compose.all-in-one.yml"
+} else {
+    ""
+}
+$composeFlags = "--env-file .env$composeSuffix"
+
 $startSh = @'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -423,6 +390,7 @@ docker compose --env-file .env ps
 echo "RAGFlow is starting. Open http://localhost after the health checks pass."
 echo "Existing database volumes were not deleted."
 '@
+$startSh = $startSh.Replace('docker compose --env-file .env', "docker compose $composeFlags")
 [System.IO.File]::WriteAllText((Join-Path $bundleDirectory "load-and-run.sh"), ($startSh -replace "`r`n", "`n"), [System.Text.UTF8Encoding]::new($false))
 
 $startPs = @'
@@ -437,7 +405,22 @@ if ($LASTEXITCODE -ne 0) { throw "docker compose up failed" }
 docker compose --env-file ".env" ps
 Write-Host "RAGFlow is starting. Open http://localhost after the health checks pass."
 '@
+$startPs = $startPs.Replace('docker compose --env-file ".env"', "docker compose $composeFlags")
 [System.IO.File]::WriteAllText((Join-Path $bundleDirectory "load-and-run.ps1"), $startPs, [System.Text.UTF8Encoding]::new($false))
+
+# Single-quoted on purpose: the text names ${VIVARLY_PORT}, which a double-quoted
+# here-string would try to expand under Set-StrictMode -Version Latest.
+$portalSection = if ($Target -eq "all-in-one") {
+@'
+
+This bundle serves the 智盛 user portal from the application image:
+  User portal:    http://localhost:18080/views/login.php
+  Default login:  VIVARLY_ADMIN_USER / VIVARLY_ADMIN_PASSWORD in docker/.env
+  Compose applies docker-compose.yml plus docker-compose.all-in-one.yml, which
+  publishes the portal port (VIVARLY_PORT, 18080 by default) and the portal
+  environment. Pass both -f flags when running docker compose by hand.
+'@
+} else { "" }
 
 $readme = @"
 RAGFlow complete offline Docker bundle
@@ -469,10 +452,10 @@ MinIO, Elasticsearch, and Seafile data.
 To update an existing server without replacing its database:
   1. Keep that server's docker/.env (passwords must still match the old MySQL volume).
   2. Load this bundle's images: docker image load --input images/ragflow-images.tar
-  3. In the existing deployment directory, set RAGFLOW_IMAGE and VIVARLY_IMAGE
-     in .env to the tags in manifest.json, or retag the loaded images to the
-     names already in that .env.
-  4. docker compose --env-file .env up -d --pull never
+  3. In the existing deployment directory, set RAGFLOW_IMAGE in .env to the tag
+     in manifest.json, or retag the loaded image to the name already in that
+     .env.
+  4. docker compose --env-file .env$composeSuffix up -d --pull never
   5. Do not copy this bundle's docker/.env over the server file if the server
      already has its own passwords and API key.
 
@@ -482,11 +465,7 @@ If this bundle includes the seafile profile:
   Admin password: value of SEAFILE_ADMIN_PASSWORD in docker/.env
   Libraries:      日报 (daily reports) and 周报 (weekly reports)
   RAGFlow data source URL: http://host.docker.internal:8082
-
-If this bundle includes the vivarly profile:
-  User portal:    http://localhost:8080
-  Default login:  admin / admin123
-  RAGFlow API:    VIVARLY_RAGFLOW_BASE_URL in docker/.env
+$portalSection
 "@
 [System.IO.File]::WriteAllText((Join-Path $bundleDirectory "README.txt"), $readme, [System.Text.UTF8Encoding]::new($false))
 

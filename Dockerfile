@@ -306,6 +306,10 @@ ENTRYPOINT ["./entrypoint.sh"]
 # is reached at http://<host>:18080/views/login.php; because it stays at its own
 # document root, none of its absolute asset paths need to change.
 #
+# Compose publishes container port 8080 on the host only when
+# docker/docker-compose.all-in-one.yml is applied alongside docker-compose.yml;
+# the default compose file carries no portal port.
+#
 # Ubuntu 24.04 (noble) ships PHP 8.3, so the apt mirror switch performed in the
 # base stage (NEED_MIRROR=1 -> mirrors.tuna.tsinghua.edu.cn) covers PHP too.
 # Apache is installed on :8080 to leave the nginx.org nginx on :80 untouched.
@@ -327,11 +331,10 @@ RUN --mount=type=cache,id=ragflow_apt,target=/var/cache/apt,sharing=locked \
     printf 'Listen 8080\n' > /etc/apache2/ports.conf && \
     printf '\nServerName localhost\n' >> /etc/apache2/apache2.conf
 
-# Portal vhost on :8080, sharing the document root layout of the standalone
-# docker/vivarly image.
+# Portal vhost on :8080 and the mod_php settings it needs. Both are build-time
+# inputs of this stage; nothing reads them at runtime.
 COPY docker/all-in-one/portal.conf /etc/apache2/sites-available/portal.conf
-# Reuse the standalone portal's php.ini verbatim so the two paths cannot drift.
-COPY docker/vivarly/php.ini /etc/php/8.3/apache2/conf.d/99-portal.ini
+COPY docker/all-in-one/php.ini /etc/php/8.3/apache2/conf.d/99-portal.ini
 RUN a2ensite portal
 
 # The portal sources, taken straight from the build context. `.dockerignore`

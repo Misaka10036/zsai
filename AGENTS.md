@@ -11,7 +11,7 @@ Use this file as the local operating guide for the current codebase. Prefer the 
 - Keep refactors centered on the owning abstraction, not on adjacent compatibility layers.
 
 ## Current stack
-- User-maintained 智盛 frontend: `智盛fontend/`. For future changes to this portal, edit this directory as the authoritative source. This replaces the previous desktop portal location; `docker/vivarly/` is not the default editing target for these requests.
+- User-maintained 智盛 frontend: `智盛fontend/`. For future changes to this portal, edit this directory as the authoritative source. It is baked into the `all-in-one` Dockerfile stage; there is no separate portal image or Compose service.
 - Backend: Python 3.13+, Quart-based API server, Peewee ORM, async workers.
 - Frontend: React + TypeScript + Vite in `web/` (dual-backend Go/Python variant conventions: see `web/CLAUDE.md`).
 - Go: the repository also has a substantial Go module for servers, ingestion, parser/runtime, CLI, and supporting services.

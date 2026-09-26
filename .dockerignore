@@ -58,8 +58,9 @@ htmlcov/
 docker/.env
 
 # ── Portal host-specific configuration (contains DB credentials) ────────────
-# Matches both docker/vivarly/config.local.php and 智盛fontend/config.local.php.
-# The glob form avoids writing a non-ASCII path into this file.
+# The all-in-one stage copies 智盛fontend/ into the image, so its
+# config.local.php has to stay out of the build context. The glob form avoids
+# writing a non-ASCII path into this file.
 **/config.local.php
 
 # ── Local build artifacts (not needed inside the image) ─────────────────────
